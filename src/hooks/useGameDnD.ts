@@ -10,10 +10,6 @@ import { useGameStore } from '../store/gameStore';
 import { getSnappedPosition } from '../lib/snapping';
 import { ZoneId, CardId } from '../types';
 
-// Logical (unrotated) card size in px. Tailwind h-32 = 128px; width from aspect 11/15 ≈ 94px.
-const LOGICAL_CARD_HEIGHT = 128;
-const LOGICAL_CARD_WIDTH = 94;
-
 export const useGameDnD = () => {
     const cards = useGameStore((state) => state.cards);
     const zones = useGameStore((state) => state.zones);
@@ -29,21 +25,30 @@ export const useGameDnD = () => {
 
     const [ghostCard, setGhostCard] = React.useState<{ zoneId: string; position: { x: number; y: number }; tapped?: boolean } | null>(null);
 
-    // Track pointer start and offset to the card's top-left to anchor drag math independent of rotation.
-    const initialCardRect = React.useRef<{ left: number; top: number } | null>(null);
+    // Track pointer start and offset to card center so positioning follows the cursor.
+    const dragPointerStart = React.useRef<{ x: number; y: number } | null>(null);
+    const dragPointerToCenter = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
     const handleDragStart = (event: any) => {
         setGhostCard(null);
 
         const { active } = event;
         const activeRect = active.rect.current?.initial || active.rect.current?.translated;
-        if (activeRect) {
-            initialCardRect.current = {
-                left: activeRect.left,
-                top: activeRect.top
+        const activator = (event as any).activatorEvent;
+        if (activeRect && activator && typeof activator.clientX === 'number' && typeof activator.clientY === 'number') {
+            const pointer = { x: activator.clientX, y: activator.clientY };
+            dragPointerStart.current = pointer;
+            const center = {
+                x: activeRect.left + activeRect.width / 2,
+                y: activeRect.top + activeRect.height / 2
+            };
+            dragPointerToCenter.current = {
+                x: center.x - pointer.x,
+                y: center.y - pointer.y
             };
         } else {
-            initialCardRect.current = null;
+            dragPointerStart.current = null;
+            dragPointerToCenter.current = { x: 0, y: 0 };
         }
     };
 
@@ -86,20 +91,26 @@ export const useGameDnD = () => {
 
                 const initialRect = active.rect.current?.initial;
                 if (overRect && initialRect) {
-                    const topLeft = {
-                        x: initialRect.left + event.delta.x,
-                        y: initialRect.top + event.delta.y
-                    };
+                    // Work in screen space: pointer start + delta + stored offset to center if available
+                    const centerScreen = dragPointerStart.current
+                        ? {
+                            x: dragPointerStart.current.x + event.delta.x + dragPointerToCenter.current.x,
+                            y: dragPointerStart.current.y + event.delta.y + dragPointerToCenter.current.y
+                        }
+                        : {
+                            x: initialRect.left + initialRect.width / 2 + event.delta.x,
+                            y: initialRect.top + initialRect.height / 2 + event.delta.y
+                        };
 
-                    const relativeX = (topLeft.x - overRect.left) / scale;
-                    const relativeY = (topLeft.y - overRect.top) / scale;
+                    const relativeX = (centerScreen.x - overRect.left) / scale;
+                    const relativeY = (centerScreen.y - overRect.top) / scale;
 
                     // Snap to grid
                     const snappedPos = getSnappedPosition(relativeX, relativeY);
 
-                    // Minimal debug: cursor (estimated center), ghost, start, and snapped end.
-                    const cursorX = topLeft.x + (LOGICAL_CARD_WIDTH * scale) / 2;
-                    const cursorY = topLeft.y + (LOGICAL_CARD_HEIGHT * scale) / 2;
+                    // Minimal debug: cursor (center), ghost, start
+                    const cursorX = centerScreen.x;
+                    const cursorY = centerScreen.y;
                     const startPos = activeCard?.position || { x: 0, y: 0 };
                     console.log(
                         `🎯 move cursor=(${cursorX.toFixed(1)},${cursorY.toFixed(1)}) ` +
@@ -148,14 +159,19 @@ export const useGameDnD = () => {
 
                 const initialRect = active.rect.current?.initial;
                 if (overRect && initialRect) {
-                    const topLeft = {
-                        x: initialRect.left + event.delta.x,
-                        y: initialRect.top + event.delta.y
-                    };
+                    const centerScreen = dragPointerStart.current
+                        ? {
+                            x: dragPointerStart.current.x + event.delta.x + dragPointerToCenter.current.x,
+                            y: dragPointerStart.current.y + event.delta.y + dragPointerToCenter.current.y
+                        }
+                        : {
+                            x: initialRect.left + initialRect.width / 2 + event.delta.x,
+                            y: initialRect.top + initialRect.height / 2 + event.delta.y
+                        };
 
                     position = {
-                        x: (topLeft.x - overRect.left) / scale,
-                        y: (topLeft.y - overRect.top) / scale
+                        x: (centerScreen.x - overRect.left) / scale,
+                        y: (centerScreen.y - overRect.top) / scale
                     };
                 }
 
@@ -169,8 +185,6 @@ export const useGameDnD = () => {
                 );
             }
         }
-
-        initialCardRect.current = null;
     };
 
     return {

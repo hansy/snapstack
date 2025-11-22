@@ -2,6 +2,7 @@ import React from 'react';
 import { useDroppable, useDndContext } from '@dnd-kit/core';
 import { Zone as ZoneType } from '../../../types';
 import { cn } from '../../../lib/utils';
+import { CARD_WIDTH_PX, CARD_HEIGHT_PX } from '../../../lib/constants';
 
 interface ZoneProps {
     zone: ZoneType;
@@ -52,9 +53,9 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
                 <div
                     className="absolute border-2 border-dashed border-indigo-400/50 bg-indigo-500/10 rounded-lg pointer-events-none z-0 transition-all duration-75"
                     style={{
-                        width: 96,
-                        height: 128,
-                        transform: `translate3d(${ghostPosition.x}px, ${ghostPosition.y}px, 0)${ghostTapped ? ' rotate(90deg)' : ''}`,
+                        width: CARD_WIDTH_PX,
+                        height: CARD_HEIGHT_PX,
+                        transform: `translate3d(${ghostPosition.x - CARD_WIDTH_PX / 2}px, ${ghostPosition.y - CARD_HEIGHT_PX / 2}px, 0)${ghostTapped ? ' rotate(90deg)' : ''}`,
                         transformOrigin: 'center center'
                     }}
                 />

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { GameState, Zone } from '../types';
 import { peerService } from '../services/peerService';
 import { getSnappedPosition, SNAP_GRID_SIZE } from '../lib/snapping';
+import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
 
 interface GameStore extends GameState {
     // Additional actions or computed properties can go here
@@ -18,6 +19,7 @@ export const useGameStore = create<GameStore>()(
             sessionId: uuidv4(), // Generate a new session ID by default
             myPlayerId: uuidv4(), // Generate a temporary ID for the local player
             hasHydrated: false,
+            positionFormat: 'center',
 
             setHasHydrated: (state) => {
                 set({ hasHydrated: state });
@@ -98,7 +100,7 @@ export const useGameStore = create<GameStore>()(
                     // Only apply snapping/collision if moving to a battlefield (which is free-form)
                     // We assume 'battlefield' type zones are free-form.
                     if (toZone.type === 'battlefield' && position) {
-                        // Snap to grid
+                        // Snap center to grid
                         newPosition = getSnappedPosition(position.x, position.y);
 
                         // Collision detection / Staggering
@@ -108,6 +110,8 @@ export const useGameStore = create<GameStore>()(
                         let attempts = 0;
                         const maxAttempts = 10;
                         const staggerOffset = SNAP_GRID_SIZE;
+                        const halfW = CARD_WIDTH_PX / 2;
+                        const halfH = CARD_HEIGHT_PX / 2;
 
                         while (collision && attempts < maxAttempts) {
                             collision = false;
@@ -115,11 +119,8 @@ export const useGameStore = create<GameStore>()(
                                 const otherCard = state.cards[otherId];
                                 if (!otherCard) continue;
 
-                                // Simple point distance check or bounding box?
-                                // Cards are w-24 (96px) h-32 (128px).
-                                // We only want to prevent *exact* overlap (or very close to it).
-                                // Since we snap to 20px, checking for < 10px is sufficient to catch (0,0) delta.
-                                if (Math.abs(otherCard.position.x - newPosition.x) < 10 && Math.abs(otherCard.position.y - newPosition.y) < 10) {
+                                // Bounding-box overlap check using centers
+                                if (Math.abs(otherCard.position.x - newPosition.x) < halfW && Math.abs(otherCard.position.y - newPosition.y) < halfH) {
                                     collision = true;
                                     break;
                                 }
@@ -242,6 +243,21 @@ export const useGameStore = create<GameStore>()(
             name: 'snapstack-storage',
             storage: createJSONStorage(() => localStorage),
             onRehydrateStorage: () => (state) => {
+                // Migrate legacy top-left positions to center-based storage
+                if (state && state.cards && state.positionFormat !== 'center') {
+                    const migratedCards: typeof state.cards = {};
+                    Object.values(state.cards).forEach(card => {
+                        migratedCards[card.id] = {
+                            ...card,
+                            position: {
+                                x: card.position.x + CARD_WIDTH_PX / 2,
+                                y: card.position.y + CARD_HEIGHT_PX / 2
+                            }
+                        };
+                    });
+                    state.cards = migratedCards;
+                    state.positionFormat = 'center';
+                }
                 state?.setHasHydrated(true);
             },
         }

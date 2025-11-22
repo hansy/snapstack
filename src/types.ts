@@ -23,7 +23,8 @@ export interface Card {
   // State
   tapped: boolean;
   faceDown: boolean;
-  position: { x: number; y: number }; // Relative to zone or absolute? Usually relative to zone container if free-form
+  // Center position relative to the zone (logical/unscaled units)
+  position: { x: number; y: number };
   rotation: number; // Degrees
   counters: Counter[];
 
@@ -59,6 +60,7 @@ export interface GameState {
   // Session
   sessionId: string;
   myPlayerId: PlayerId;
+  positionFormat?: 'center' | 'top-left';
 
   // Actions
   addPlayer: (player: Player, isRemote?: boolean) => void;
