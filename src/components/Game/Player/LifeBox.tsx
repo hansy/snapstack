@@ -44,6 +44,10 @@ export const LifeBox: React.FC<LifeBoxProps> = ({ player, isMe, className, oppon
             isMe && "border-indigo-500/50 ring-1 ring-indigo-500/20",
             className
         )}>
+            {/* Player Name Label */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-[10px] font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full z-10 shadow-sm">
+                {player.name}
+            </div>
             {/* Main Life Counter */}
             <div className="flex items-center gap-[10px] mb-1">
                 <button

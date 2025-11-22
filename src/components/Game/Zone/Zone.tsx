@@ -40,6 +40,7 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
     return (
         <div
             ref={setNodeRef}
+            data-zone-id={zone.id}
             className={cn(
                 "transition-colors duration-200",
                 isValidDrop && "bg-indigo-500/10 ring-2 ring-indigo-500/50",
@@ -49,10 +50,7 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
             {children}
             {ghostPosition && (
                 <div
-                    className={cn(
-                        "absolute w-24 h-32 border-2 border-dashed border-indigo-400/50 bg-indigo-500/10 rounded-lg pointer-events-none z-0 transition-all duration-75",
-                        ghostTapped && "rotate-90"
-                    )}
+                    className="absolute w-24 h-32 border-2 border-dashed border-indigo-400/50 bg-indigo-500/10 rounded-lg pointer-events-none z-0 transition-all duration-75"
                     style={{
                         transform: `translate3d(${ghostPosition.x}px, ${ghostPosition.y}px, 0)`,
                     }}

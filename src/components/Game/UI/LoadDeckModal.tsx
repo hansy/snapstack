@@ -18,6 +18,7 @@ export const LoadDeckModal: React.FC<LoadDeckModalProps> = ({ isOpen, onClose, p
     const [error, setError] = useState<string | null>(null);
 
     const addCard = useGameStore((state) => state.addCard);
+    const setDeckLoaded = useGameStore((state) => state.setDeckLoaded);
 
     const handleImport = async () => {
         if (!importText.trim()) return;
@@ -32,9 +33,13 @@ export const LoadDeckModal: React.FC<LoadDeckModalProps> = ({ isOpen, onClose, p
             }
 
             const cards = await fetchScryfallCards(parsedDeck);
-            const libraryZoneId = `${playerId}-library`;
 
             cards.forEach(cardData => {
+                let zoneId = `${playerId}-library`;
+                if (cardData.section === 'commander') {
+                    zoneId = `${playerId}-command`;
+                }
+
                 addCard({
                     id: uuidv4(),
                     name: cardData.name || 'Unknown Card',
@@ -42,15 +47,16 @@ export const LoadDeckModal: React.FC<LoadDeckModalProps> = ({ isOpen, onClose, p
                     imageUrl: cardData.imageUrl,
                     controllerId: playerId,
                     ownerId: playerId,
-                    zoneId: libraryZoneId,
+                    zoneId: zoneId,
                     position: { x: 0, y: 0 },
                     tapped: false,
                     counters: [],
-                    faceDown: true,
+                    faceDown: zoneId.includes('library'), // Only face down in library
                     rotation: 0
                 });
             });
 
+            setDeckLoaded(playerId, true);
             toast.success("Deck successfully loaded");
             setImportText('');
             onClose();

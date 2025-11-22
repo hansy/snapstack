@@ -12,7 +12,7 @@ import { usePlayerLayout } from '../../../hooks/usePlayerLayout';
 export const MultiplayerBoard: React.FC = () => {
     const cards = useGameStore((state) => state.cards);
     const zones = useGameStore((state) => state.zones);
-    const { sensors, ghostCard, handleDragMove, handleDragEnd } = useGameDnD();
+    const { sensors, ghostCard, handleDragStart, handleDragMove, handleDragEnd } = useGameDnD();
     const { slots, layoutMode, myPlayerId } = usePlayerLayout();
     const { contextMenu, handleCardContextMenu, handleZoneContextMenu, closeContextMenu } = useGameContextMenu(myPlayerId);
     const hasHydrated = useGameStore((state) => state.hasHydrated);
@@ -70,8 +70,52 @@ export const MultiplayerBoard: React.FC = () => {
         return colors;
     }, [slots]);
 
+    // Dynamic Scaling Logic
+    const [scale, setScale] = useState(1);
+
+    React.useEffect(() => {
+        const handleResize = () => {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            // Determine slot size based on layoutMode
+            let slotWidth = width;
+            let slotHeight = height;
+
+            if (layoutMode === 'split') {
+                slotHeight = height / 2;
+            } else if (layoutMode === 'quadrant') {
+                slotWidth = width / 2;
+                slotHeight = height / 2;
+            }
+
+            // Base dimensions that "fit" the UI comfortably
+            // Sidebar needs ~500px height (LifeBox + 3 Zones + Gaps)
+            // Width needs ~900px for Sidebar + Battlefield
+            const BASE_WIDTH = 1000;
+            const BASE_HEIGHT = 600;
+
+            const scaleX = slotWidth / BASE_WIDTH;
+            const scaleY = slotHeight / BASE_HEIGHT;
+
+            // Calculate scale to fit the content
+            // We cap at 1.0 to prevent the UI from becoming too large on big screens
+            // We set a floor of 0.5 to prevent it from becoming unreadable
+            let newScale = Math.min(scaleX, scaleY);
+            newScale = Math.min(newScale, 1);
+            newScale = Math.max(newScale, 0.5);
+
+            setScale(newScale);
+        };
+
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Initial calculation
+
+        return () => window.removeEventListener('resize', handleResize);
+    }, [layoutMode]);
+
     return (
-        <DndContext sensors={sensors} onDragMove={handleDragMove} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragMove={handleDragMove} onDragEnd={handleDragEnd}>
             <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex font-sans selection:bg-indigo-500/30" onContextMenu={(e) => e.preventDefault()}>
                 <Sidenav />
 
@@ -94,6 +138,7 @@ export const MultiplayerBoard: React.FC = () => {
                                     onLoadDeck={() => setIsLoadDeckModalOpen(true)}
                                     ghostCard={ghostCard}
                                     opponentColors={playerColors}
+                                    scale={scale}
                                 />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">

@@ -48,6 +48,7 @@ export interface Player {
   cursor?: { x: number; y: number }; // For multiplayer presence
   counters: Counter[];
   commanderDamage: Record<PlayerId, number>;
+  deckLoaded?: boolean;
 }
 
 export interface GameState {
@@ -70,6 +71,7 @@ export interface GameState {
   untapAll: (playerId: PlayerId, isRemote?: boolean) => void;
   drawCard: (playerId: PlayerId, isRemote?: boolean) => void;
   shuffleLibrary: (playerId: PlayerId, isRemote?: boolean) => void;
+  setDeckLoaded: (playerId: PlayerId, loaded: boolean, isRemote?: boolean) => void;
 
   // Hydration
   hasHydrated: boolean;

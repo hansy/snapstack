@@ -3,6 +3,7 @@ import { cn } from '../../../lib/utils';
 import { Zone as ZoneType, Card as CardType } from '../../../types';
 import { Card } from '../Card/Card';
 import { Zone } from '../Zone/Zone';
+import { CARD_HEIGHT, CARD_ASPECT_RATIO } from '../../../lib/constants';
 
 interface HandProps {
     zone: ZoneType;
@@ -10,15 +11,18 @@ interface HandProps {
     isTop: boolean;
     isMe: boolean;
     onCardContextMenu?: (e: React.MouseEvent, card: CardType) => void;
+    className?: string;
+    scale?: number;
 }
 
-export const Hand: React.FC<HandProps> = ({ zone, cards, isTop, isMe, onCardContextMenu }) => {
+export const Hand: React.FC<HandProps> = ({ zone, cards, isTop, isMe, onCardContextMenu, className, scale = 1 }) => {
     return (
         <div className={cn(
-            "h-24 relative z-20",
-            isTop ? "order-first border-b border-white/5 bg-gradient-to-b from-black/50 to-transparent" : "order-last border-t border-white/5 bg-gradient-to-t from-black/50 to-transparent"
+            "h-full flex-1 relative z-20",
+            isTop ? "bg-gradient-to-b from-black/50 to-transparent" : "bg-gradient-to-t from-black/50 to-transparent",
+            className
         )}>
-            <Zone zone={zone} className={cn("w-full h-full flex justify-center overflow-visible", isTop ? "items-start" : "items-end")}>
+            <Zone zone={zone} scale={scale} className={cn("w-full h-full flex justify-center overflow-visible", isTop ? "items-start" : "items-end")}>
                 {cards.map((card, index, array) => {
                     const totalCards = array.length;
                     const centerIndex = (totalCards - 1) / 2;
@@ -29,17 +33,19 @@ export const Hand: React.FC<HandProps> = ({ zone, cards, isTop, isMe, onCardCont
                         <div
                             key={card.id}
                             className={cn(
-                                "relative w-20 h-28 shrink-0 -ml-6 first:ml-0 transition-all duration-200 ease-out z-0 hover:z-50 hover:scale-110 group",
+                                "relative shrink-0 -ml-6 first:ml-0 transition-all duration-200 ease-out z-0 hover:z-50 hover:scale-110 group",
+                                CARD_HEIGHT,
+                                CARD_ASPECT_RATIO
                             )}
                             style={{
                                 transform: isTop
-                                    ? `translateY(-40%) rotate(${180 - rotate}deg) translateY(${translateY}px)`
-                                    : `translateY(40%) rotate(${rotate}deg) translateY(${translateY}px)`,
+                                    ? `translateY(-20%) rotate(${180 - rotate}deg) translateY(${translateY}px)`
+                                    : `translateY(20%) rotate(${rotate}deg) translateY(${translateY}px)`,
                             }}
                         >
                             <div className={cn(
                                 "w-full h-full transition-transform duration-200",
-                                isTop ? "group-hover:translate-y-[60%]" : "group-hover:-translate-y-[60%]"
+                                isTop ? "group-hover:translate-y-[60%]" : "group-hover:-translate-y-[10%]"
                             )}>
                                 <Card
                                     card={card}

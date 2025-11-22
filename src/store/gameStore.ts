@@ -25,7 +25,7 @@ export const useGameStore = create<GameStore>()(
 
             addPlayer: (player, isRemote) => {
                 set((state) => ({
-                    players: { ...state.players, [player.id]: player },
+                    players: { ...state.players, [player.id]: { ...player, deckLoaded: false } },
                 }));
                 if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addPlayer', args: [player] } });
             },
@@ -38,6 +38,16 @@ export const useGameStore = create<GameStore>()(
                     },
                 }));
                 if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'updatePlayer', args: [id, updates] } });
+            },
+
+            setDeckLoaded: (playerId, loaded, isRemote) => {
+                set((state) => ({
+                    players: {
+                        ...state.players,
+                        [playerId]: { ...state.players[playerId], deckLoaded: loaded }
+                    }
+                }));
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'setDeckLoaded', args: [playerId, loaded] } });
             },
 
             addZone: (zone: Zone, isRemote?: boolean) => {
