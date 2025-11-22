@@ -133,12 +133,7 @@ export const useGameStore = create<GameStore>()(
                         }
 
                         // Debug Info
-                        console.log('Move Card Logic:', {
-                            snappedPos: getSnappedPosition(position.x, position.y),
-                            collision: attempts > 0,
-                            attempts,
-                            finalPos: newPosition
-                        });
+                        // Debug logging removed for clarity.
                     }
 
                     // If moving within the same zone

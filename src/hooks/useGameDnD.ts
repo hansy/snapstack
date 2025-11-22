@@ -10,6 +10,10 @@ import { useGameStore } from '../store/gameStore';
 import { getSnappedPosition } from '../lib/snapping';
 import { ZoneId, CardId } from '../types';
 
+// Logical (unrotated) card size in px. Tailwind h-32 = 128px; width from aspect 11/15 ≈ 94px.
+const LOGICAL_CARD_HEIGHT = 128;
+const LOGICAL_CARD_WIDTH = 94;
+
 export const useGameDnD = () => {
     const cards = useGameStore((state) => state.cards);
     const zones = useGameStore((state) => state.zones);
@@ -80,21 +84,28 @@ export const useGameDnD = () => {
                 const overRect = over.rect;
                 const scale = over.data.current?.scale || 1;
 
-                const translatedRect = active.rect.current?.translated;
-                const baseRect = translatedRect || initialCardRect.current || active.rect.current?.initial;
-                if (overRect && baseRect) {
-                    const topLeft = translatedRect
-                        ? { x: translatedRect.left, y: translatedRect.top }
-                        : {
-                            x: baseRect.left + event.delta.x,
-                            y: baseRect.top + event.delta.y
-                        };
+                const initialRect = active.rect.current?.initial;
+                if (overRect && initialRect) {
+                    const topLeft = {
+                        x: initialRect.left + event.delta.x,
+                        y: initialRect.top + event.delta.y
+                    };
 
                     const relativeX = (topLeft.x - overRect.left) / scale;
                     const relativeY = (topLeft.y - overRect.top) / scale;
 
                     // Snap to grid
                     const snappedPos = getSnappedPosition(relativeX, relativeY);
+
+                    // Minimal debug: cursor (estimated center), ghost, start, and snapped end.
+                    const cursorX = topLeft.x + (LOGICAL_CARD_WIDTH * scale) / 2;
+                    const cursorY = topLeft.y + (LOGICAL_CARD_HEIGHT * scale) / 2;
+                    const startPos = activeCard?.position || { x: 0, y: 0 };
+                    console.log(
+                        `🎯 move cursor=(${cursorX.toFixed(1)},${cursorY.toFixed(1)}) ` +
+                        `ghost=(${snappedPos.x},${snappedPos.y}) ` +
+                        `start=(${startPos.x},${startPos.y})`
+                    );
 
                     setGhostCard({
                         zoneId,
@@ -135,15 +146,12 @@ export const useGameDnD = () => {
                 const overRect = over.rect;
                 const scale = over.data.current?.scale || 1;
 
-                const translatedRect = active.rect.current?.translated;
-                const baseRect = translatedRect || initialCardRect.current || active.rect.current?.initial;
-                if (overRect && baseRect) {
-                    const topLeft = translatedRect
-                        ? { x: translatedRect.left, y: translatedRect.top }
-                        : {
-                            x: baseRect.left + event.delta.x,
-                            y: baseRect.top + event.delta.y
-                        };
+                const initialRect = active.rect.current?.initial;
+                if (overRect && initialRect) {
+                    const topLeft = {
+                        x: initialRect.left + event.delta.x,
+                        y: initialRect.top + event.delta.y
+                    };
 
                     position = {
                         x: (topLeft.x - overRect.left) / scale,
@@ -152,6 +160,13 @@ export const useGameDnD = () => {
                 }
 
                 moveCard(cardId, toZoneId, position);
+
+                // Log start/end snapshots
+                const startPos = activeCard.position;
+                const endPos = position || startPos;
+                console.log(
+                    `🎯 drop start=(${startPos.x},${startPos.y}) end=(${endPos.x},${endPos.y})`
+                );
             }
         }
 

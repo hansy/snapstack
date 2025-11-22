@@ -39,15 +39,7 @@ export const Card: React.FC<CardProps> = ({ card, style: propStyle, className, o
         transformOrigin: 'center center',
     };
 
-    // Log when card is being dragged
-    if (isDragging) {
-        console.log(`🎴 CARD ${card.name} (${card.id.slice(0, 8)}...):`, {
-            tapped: card.tapped,
-            storedPosition: card.position,
-            dragTransform: transform,
-            isDragging
-        });
-    }
+    // Logging removed to reduce noise; drag diagnostics live in useGameDnD.
 
     return (
         <div
