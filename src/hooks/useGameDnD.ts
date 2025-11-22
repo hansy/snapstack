@@ -25,6 +25,24 @@ export const useGameDnD = () => {
 
     const [ghostCard, setGhostCard] = React.useState<{ zoneId: string; position: { x: number; y: number }; tapped?: boolean } | null>(null);
 
+    // Track pointer start and offset to the card's top-left to anchor drag math independent of rotation.
+    const initialCardRect = React.useRef<{ left: number; top: number } | null>(null);
+
+    const handleDragStart = (event: any) => {
+        setGhostCard(null);
+
+        const { active } = event;
+        const activeRect = active.rect.current?.initial || active.rect.current?.translated;
+        if (activeRect) {
+            initialCardRect.current = {
+                left: activeRect.left,
+                top: activeRect.top
+            };
+        } else {
+            initialCardRect.current = null;
+        }
+    };
+
     const handleDragMove = (event: DragMoveEvent) => {
         const { active, over } = event;
 
@@ -57,15 +75,23 @@ export const useGameDnD = () => {
                 // So ghost should show.
 
 
-                // Calculate position relative to the target zone
+                // Calculate position relative to the target zone using pointer + stored offset
                 // @ts-ignore - over.rect is available at runtime
                 const overRect = over.rect;
-                const activeRect = active.rect.current?.translated;
                 const scale = over.data.current?.scale || 1;
 
-                if (activeRect && overRect) {
-                    const relativeX = (activeRect.left - overRect.left) / scale;
-                    const relativeY = (activeRect.top - overRect.top) / scale;
+                const translatedRect = active.rect.current?.translated;
+                const baseRect = translatedRect || initialCardRect.current || active.rect.current?.initial;
+                if (overRect && baseRect) {
+                    const topLeft = translatedRect
+                        ? { x: translatedRect.left, y: translatedRect.top }
+                        : {
+                            x: baseRect.left + event.delta.x,
+                            y: baseRect.top + event.delta.y
+                        };
+
+                    const relativeX = (topLeft.x - overRect.left) / scale;
+                    const relativeY = (topLeft.y - overRect.top) / scale;
 
                     // Snap to grid
                     const snappedPos = getSnappedPosition(relativeX, relativeY);
@@ -107,24 +133,35 @@ export const useGameDnD = () => {
 
                 // @ts-ignore - over.rect is available at runtime
                 const overRect = over.rect;
-                const activeRect = active.rect.current?.translated;
                 const scale = over.data.current?.scale || 1;
 
-                if (activeRect && overRect) {
+                const translatedRect = active.rect.current?.translated;
+                const baseRect = translatedRect || initialCardRect.current || active.rect.current?.initial;
+                if (overRect && baseRect) {
+                    const topLeft = translatedRect
+                        ? { x: translatedRect.left, y: translatedRect.top }
+                        : {
+                            x: baseRect.left + event.delta.x,
+                            y: baseRect.top + event.delta.y
+                        };
+
                     position = {
-                        x: (activeRect.left - overRect.left) / scale,
-                        y: (activeRect.top - overRect.top) / scale
+                        x: (topLeft.x - overRect.left) / scale,
+                        y: (topLeft.y - overRect.top) / scale
                     };
                 }
 
                 moveCard(cardId, toZoneId, position);
             }
         }
+
+        initialCardRect.current = null;
     };
 
     return {
         sensors,
         ghostCard,
+        handleDragStart,
         handleDragMove,
         handleDragEnd
     };

@@ -50,9 +50,12 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
             {children}
             {ghostPosition && (
                 <div
-                    className="absolute w-24 h-32 border-2 border-dashed border-indigo-400/50 bg-indigo-500/10 rounded-lg pointer-events-none z-0 transition-all duration-75"
+                    className="absolute border-2 border-dashed border-indigo-400/50 bg-indigo-500/10 rounded-lg pointer-events-none z-0 transition-all duration-75"
                     style={{
-                        transform: `translate3d(${ghostPosition.x}px, ${ghostPosition.y}px, 0)`,
+                        width: 96,
+                        height: 128,
+                        transform: `translate3d(${ghostPosition.x}px, ${ghostPosition.y}px, 0)${ghostTapped ? ' rotate(90deg)' : ''}`,
+                        transformOrigin: 'center center'
                     }}
                 />
             )}
