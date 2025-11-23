@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DndContext, DragOverlay } from '@dnd-kit/core';
+import { DndContext, DragOverlay, getClientRect, useDndMonitor } from '@dnd-kit/core';
 import { useGameStore } from '../../../store/gameStore';
 import { useDragStore } from '../../../store/dragStore';
 import { Seat } from '../Seat/Seat';
@@ -9,14 +9,44 @@ import { ContextMenu } from '../UI/ContextMenu';
 import { LoadDeckModal } from '../UI/LoadDeckModal';
 import { useGameDnD } from '../../../hooks/useGameDnD';
 import { useGameContextMenu } from '../../../hooks/useGameContextMenu';
+
 import { usePlayerLayout } from '../../../hooks/usePlayerLayout';
+
+
+
+const DragMonitor = () => {
+    const cards = useGameStore((state) => state.cards);
+    const activeCardId = useDragStore((state) => state.activeCardId);
+
+    useDndMonitor({
+        onDragMove(event) {
+            if (activeCardId && cards[activeCardId]?.tapped) {
+                const { active, activatorEvent } = event;
+                const pointer = activatorEvent as PointerEvent;
+                console.log('--- Drag Debug ---');
+                console.log('Cursor:', { x: pointer.clientX, y: pointer.clientY });
+                console.log('Active Rect (Translated):', active.rect.current?.translated);
+                console.log('Active Rect (Initial):', active.rect.current?.initial);
+            }
+        }
+    });
+
+    return null;
+};
+
+
 
 export const MultiplayerBoard: React.FC = () => {
     const cards = useGameStore((state) => state.cards);
     const zones = useGameStore((state) => state.zones);
     const { sensors, handleDragStart, handleDragMove, handleDragEnd } = useGameDnD();
     const activeCardId = useDragStore((state) => state.activeCardId);
+
     const { slots, layoutMode, myPlayerId } = usePlayerLayout();
+
+
+
+    // Debugging moved to DragMonitor component
     const { contextMenu, handleCardContextMenu, handleZoneContextMenu, closeContextMenu } = useGameContextMenu(myPlayerId);
     const hasHydrated = useGameStore((state) => state.hasHydrated);
 
@@ -118,7 +148,16 @@ export const MultiplayerBoard: React.FC = () => {
     }, [layoutMode]);
 
     return (
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragMove={handleDragMove} onDragEnd={handleDragEnd}>
+        <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
+            onDragEnd={handleDragEnd}
+            measuring={{
+                draggable: { measure: getClientRect },
+                dragOverlay: { measure: getClientRect },
+            }}
+        >
             <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex font-sans selection:bg-indigo-500/30" onContextMenu={(e) => e.preventDefault()}>
                 <Sidenav />
 
@@ -165,12 +204,17 @@ export const MultiplayerBoard: React.FC = () => {
                 onClose={() => setIsLoadDeckModalOpen(false)}
                 playerId={myPlayerId}
             />
+            <DragMonitor />
             <DragOverlay dropAnimation={null}>
                 {activeCardId && cards[activeCardId] ? (
                     <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
                         <CardView
                             card={cards[activeCardId]}
                             isDragging
+                            style={{
+                                transform: cards[activeCardId].tapped ? 'rotate(90deg)' : undefined,
+                                transformOrigin: 'center center'
+                            }}
                         />
                     </div>
                 ) : null}

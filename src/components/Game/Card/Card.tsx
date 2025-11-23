@@ -75,7 +75,7 @@ export const CardView = React.forwardRef<HTMLDivElement, CardViewProps>(({
     );
 });
 
-export const Card: React.FC<CardProps> = ({ card, style: propStyle, className, onContextMenu, faceDown, scale = 1 }) => {
+export const Card: React.FC<CardProps> = ({ card, style: propStyle, className, onContextMenu, faceDown }) => {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: card.id,
         data: {
