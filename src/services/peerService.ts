@@ -27,7 +27,6 @@ class PeerService {
             this.peer = myId ? new Peer(myId) : new Peer();
 
             this.peer.on('open', (id) => {
-                console.log('My peer ID is: ' + id);
                 resolve(id);
             });
 
@@ -47,7 +46,6 @@ class PeerService {
         this.hostConnection = conn;
 
         conn.on('open', () => {
-            console.log('Connected to host: ' + hostId);
             // Request initial state? Or wait for host to send it?
         });
 
@@ -60,7 +58,6 @@ class PeerService {
         this.connections.push(conn);
 
         conn.on('open', () => {
-            console.log('Peer connected: ' + conn.peer);
             // If I am host, send current state
             const state = useGameStore.getState();
             this.sendToPeer(conn, { type: 'SYNC_STATE', payload: state });
@@ -79,7 +76,6 @@ class PeerService {
     }
 
     handleMessage(message: Message) {
-        console.log('Received message: ' + JSON.stringify(message));
         switch (message.type) {
             case 'SYNC_STATE':
                 useGameStore.setState(message.payload);

@@ -101,11 +101,7 @@ export const useGameStore = create<GameStore>()(
                     // We assume 'battlefield' type zones are free-form.
                     if (toZone.type === 'battlefield' && position) {
                         // Snap center to grid
-                        console.log(`[Snapping] Before: (${position.x.toFixed(1)}, ${position.y.toFixed(1)})`);
                         newPosition = getSnappedPosition(position.x, position.y);
-                        console.log(`[Snapping] After: (${newPosition.x.toFixed(1)}, ${newPosition.y.toFixed(1)})`);
-                        const dist = Math.sqrt(Math.pow(newPosition.x - position.x, 2) + Math.pow(newPosition.y - position.y, 2));
-                        console.log(`[Snapping] Distance: ${dist.toFixed(1)}px`);
 
                         // Collision detection / Staggering
                         // Check against other cards in the target zone

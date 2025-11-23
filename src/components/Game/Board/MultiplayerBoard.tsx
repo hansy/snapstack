@@ -19,15 +19,8 @@ const DragMonitor = () => {
     const activeCardId = useDragStore((state) => state.activeCardId);
 
     useDndMonitor({
-        onDragMove(event) {
-            if (activeCardId && cards[activeCardId]?.tapped) {
-                const { active, activatorEvent } = event;
-                const pointer = activatorEvent as PointerEvent;
-                console.log('--- Drag Debug ---');
-                console.log('Cursor:', { x: pointer.clientX, y: pointer.clientY });
-                console.log('Active Rect (Translated):', active.rect.current?.translated);
-                console.log('Active Rect (Initial):', active.rect.current?.initial);
-            }
+        onDragMove() {
+            // Debug logging removed.
         }
     });
 
