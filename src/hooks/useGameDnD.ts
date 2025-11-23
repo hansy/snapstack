@@ -44,24 +44,37 @@ export const useGameDnD = () => {
             setActiveCardId(event.active.data.current.cardId);
         }
 
-        const { active } = event;
+        const { active, activatorEvent } = event as any;
         // @ts-ignore - rect is available on active
         const activeRect = active.rect.current?.initial || active.rect.current?.translated;
+        const fallbackRect = !activeRect && activatorEvent?.target?.getBoundingClientRect
+            ? activatorEvent.target.getBoundingClientRect()
+            : null;
 
         const pointer = getEventCoordinates(event);
 
+        const rect = activeRect || fallbackRect || null;
         // Fallback to card center if we couldn't read the pointer (keeps the ghost anchored).
-        const center = activeRect
-            ? { x: activeRect.left + activeRect.width / 2, y: activeRect.top + activeRect.height / 2 }
+        const center = rect
+            ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
             : null;
 
         dragPointerStart.current = pointer || center;
 
-        if (center && pointer && activeRect) {
-            dragPointerToCenter.current = calculatePointerOffset(pointer, activeRect);
+        if (center && pointer && rect) {
+            dragPointerToCenter.current = calculatePointerOffset(pointer, rect);
         } else {
             dragPointerToCenter.current = { x: 0, y: 0 };
         }
+
+        console.log('[DragStart]', {
+            cardId: event.active.id,
+            pointer,
+            center,
+            pointerOffsetToCenter: dragPointerToCenter.current,
+            activeRect,
+            fallbackRectUsed: Boolean(fallbackRect),
+        });
     };
 
     const handleDragMove = (event: DragMoveEvent) => {
@@ -102,6 +115,15 @@ export const useGameDnD = () => {
                     zoneId,
                     position: unsnappedPos,
                     tapped: isTapped
+                });
+
+                console.log('[DragMove->Ghost]', {
+                    cardId: active.id,
+                    pointerStart: dragPointerStart.current,
+                    pointerOffsetToCenter: dragPointerToCenter.current,
+                    delta: event.delta,
+                    ghostPosition: unsnappedPos,
+                    scale,
                 });
             }
         } else {
