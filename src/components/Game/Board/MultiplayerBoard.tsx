@@ -11,13 +11,11 @@ import { useGameDnD } from '../../../hooks/useGameDnD';
 import { useGameContextMenu } from '../../../hooks/useGameContextMenu';
 
 import { usePlayerLayout } from '../../../hooks/usePlayerLayout';
+import { BattlefieldGridOverlay } from './BattlefieldGridOverlay';
 
 
 
 const DragMonitor = () => {
-    const cards = useGameStore((state) => state.cards);
-    const activeCardId = useDragStore((state) => state.activeCardId);
-
     useDndMonitor({
         onDragMove() {
             // Debug logging removed.
@@ -30,10 +28,10 @@ const DragMonitor = () => {
 
 
 export const MultiplayerBoard: React.FC = () => {
-    const cards = useGameStore((state) => state.cards);
     const zones = useGameStore((state) => state.zones);
-    const { sensors, handleDragStart, handleDragMove, handleDragEnd } = useGameDnD();
+    const cards = useGameStore((state) => state.cards);
     const activeCardId = useDragStore((state) => state.activeCardId);
+    const { sensors, handleDragStart, handleDragMove, handleDragEnd } = useGameDnD();
 
     const { slots, layoutMode, myPlayerId } = usePlayerLayout();
 
@@ -208,6 +206,7 @@ export const MultiplayerBoard: React.FC = () => {
                     </div>
                 ) : null}
             </DragOverlay>
+            <BattlefieldGridOverlay />
         </DndContext>
     );
 };

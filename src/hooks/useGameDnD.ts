@@ -18,7 +18,7 @@ import {
     DragPosition,
     DragOffset
 } from '../lib/dnd';
-import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
+import { getSnappedPosition } from '../lib/snapping';
 
 export const useGameDnD = () => {
     const cards = useGameStore((state) => state.cards);
@@ -58,7 +58,6 @@ export const useGameDnD = () => {
         const { active, activatorEvent } = event as any;
         // @ts-ignore - rect is available on active
         const activeRect = active.rect.current?.initial || active.rect.current?.translated;
-        const overlayRect = active.rect.current?.translated || active.rect.current?.initial;
 
         // Prefer a live measurement of the draggable node to capture transforms (rotation/scale).
         const nodeRect = active.data.current?.nodeRef?.current?.getBoundingClientRect?.();
@@ -123,17 +122,18 @@ export const useGameDnD = () => {
                     scale
                 );
 
+                const snappedPos = getSnappedPosition(unsnappedPos.x, unsnappedPos.y);
 
                 setGhostCard({
                     zoneId,
-                    position: unsnappedPos,
+                    position: snappedPos,
                     tapped: isTapped
                 });
                 if (!dragMoveLogged.current) {
-                    startGhostPos.current = unsnappedPos;
+                    startGhostPos.current = snappedPos;
                     dragMoveLogged.current = true;
                 }
-                lastGhostPos.current = unsnappedPos;
+                lastGhostPos.current = snappedPos;
 
                 // One-time per drag anchor tracking (kept for potential future use)
                 if (!startLogged.current) {
@@ -156,7 +156,6 @@ export const useGameDnD = () => {
 
             const activeCard = cards[cardId];
             const targetZone = zones[toZoneId];
-            const isTapped = active.data.current?.tapped || activeCard?.tapped;
 
             if (cardId && toZoneId && activeCard && targetZone) {
                 if (!canDropToZone(activeCard, targetZone)) {
@@ -179,20 +178,6 @@ export const useGameDnD = () => {
                 );
 
                 moveCard(cardId, toZoneId, position);
-
-                const summarizePoint = (p: DragPosition | DragOffset | null | undefined) =>
-                    p ? `${p.x.toFixed(1)},${p.y.toFixed(1)}` : 'null';
-                const summarizeSize = (w?: number | null, h?: number | null) =>
-                    w != null && h != null ? `${w.toFixed(1)}x${h.toFixed(1)}` : 'null';
-
-                const pointerStart = dragPointerStart.current;
-                const pointerEnd = pointerStart
-                    ? { x: pointerStart.x + event.delta.x, y: pointerStart.y + event.delta.y }
-                    : null;
-                const cardRect = cardRectRef.current;
-                const ghostWidth = CARD_WIDTH_PX * scale;
-                const ghostHeight = CARD_HEIGHT_PX * scale;
-                const snapped = useGameStore.getState().cards[cardId]?.position;
             }
         }
 
