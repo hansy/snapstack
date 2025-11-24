@@ -96,57 +96,69 @@ export const useGameStore = create<GameStore>()(
 
                     // Calculate new position with snapping and collision handling
                     let newPosition = position || { x: 0, y: 0 };
+                    const cardsCopy = { ...state.cards };
 
                     // Only apply snapping/collision if moving to a battlefield (which is free-form)
                     // We assume 'battlefield' type zones are free-form.
                     if (toZone.type === 'battlefield' && position) {
-                        // Snap center to grid
+                        // Snap center to grid (edge-aligned)
                         newPosition = getSnappedPosition(position.x, position.y);
 
-                        // Collision detection / Staggering
-                        // Check against other cards in the target zone
+                        // Collision detection: treat collision only when centers match exactly
+                        // (i.e., same snapped grid cell). For any such overlapping card,
+                        // shift it down by one grid step, cascading if needed.
                         const otherCardIds = toZone.cardIds.filter(id => id !== cardId);
-                        let collision = true;
-                        let attempts = 0;
-                        const maxAttempts = 10;
-                        const staggerOffset = SNAP_GRID_SIZE;
-                        const halfW = CARD_WIDTH_PX / 2;
-                        const halfH = CARD_HEIGHT_PX / 2;
+                        for (const otherId of otherCardIds) {
+                            const otherCard = cardsCopy[otherId];
+                            if (!otherCard) continue;
 
-                        while (collision && attempts < maxAttempts) {
-                            collision = false;
-                            for (const otherId of otherCardIds) {
-                                const otherCard = state.cards[otherId];
-                                if (!otherCard) continue;
+                            // Collision only when centers match exactly
+                            if (
+                                otherCard.position.x === newPosition.x &&
+                                otherCard.position.y === newPosition.y
+                            ) {
+                                let candidateY = otherCard.position.y + SNAP_GRID_SIZE;
+                                const candidateX = newPosition.x;
 
-                                // Bounding-box overlap check using centers
-                                if (Math.abs(otherCard.position.x - newPosition.x) < halfW && Math.abs(otherCard.position.y - newPosition.y) < halfH) {
-                                    collision = true;
-                                    break;
+                                // Cascade down until this spot is free in the target zone
+                                let occupied = true;
+                                while (occupied) {
+                                    occupied = false;
+                                    for (const checkId of otherCardIds) {
+                                        if (checkId === otherId) continue;
+                                        const checkCard = cardsCopy[checkId];
+                                        if (!checkCard) continue;
+                                        if (
+                                            checkCard.position.x === candidateX &&
+                                            checkCard.position.y === candidateY
+                                        ) {
+                                            candidateY += SNAP_GRID_SIZE;
+                                            occupied = true;
+                                            break;
+                                        }
+                                    }
                                 }
-                            }
 
-                            if (collision) {
-                                newPosition.x += staggerOffset;
-                                newPosition.y += staggerOffset;
-                                attempts++;
+                                cardsCopy[otherId] = {
+                                    ...otherCard,
+                                    position: {
+                                        ...otherCard.position,
+                                        x: candidateX,
+                                        y: candidateY,
+                                    },
+                                };
                             }
                         }
-
-                        // Debug Info
-                        // Debug logging removed for clarity.
                     }
 
                     // If moving within the same zone
                     if (fromZoneId === toZoneId) {
+                        cardsCopy[cardId] = {
+                            ...card,
+                            position: newPosition,
+                        };
                         return {
-                            cards: {
-                                ...state.cards,
-                                [cardId]: {
-                                    ...card,
-                                    position: newPosition,
-                                },
-                            },
+                            cards: cardsCopy,
                             // No change to zones needed if order doesn't matter or is handled elsewhere
                             // If we want to move to end of array (reorder):
                             zones: {
@@ -165,15 +177,14 @@ export const useGameStore = create<GameStore>()(
                     // Add to new zone
                     const newToZoneCardIds = [...toZone.cardIds, cardId];
 
+                    cardsCopy[cardId] = {
+                        ...card,
+                        zoneId: toZoneId,
+                        position: newPosition,
+                    };
+
                     return {
-                        cards: {
-                            ...state.cards,
-                            [cardId]: {
-                                ...card,
-                                zoneId: toZoneId,
-                                position: newPosition,
-                            },
-                        },
+                        cards: cardsCopy,
                         zones: {
                             ...state.zones,
                             [fromZoneId]: { ...fromZone, cardIds: newFromZoneCardIds },
