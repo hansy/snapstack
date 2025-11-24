@@ -75,8 +75,7 @@ export const CardView = React.forwardRef<HTMLDivElement, CardViewProps>(({
     );
 });
 
-export const Card: React.FC<CardProps> = ({ card, style: propStyle, className, onContextMenu, faceDown, scale }) => {
-    const elementRef = React.useRef<HTMLDivElement | null>(null);
+export const Card: React.FC<CardProps> = ({ card, style: propStyle, className, onContextMenu, faceDown }) => {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: card.id,
         data: {
@@ -84,15 +83,8 @@ export const Card: React.FC<CardProps> = ({ card, style: propStyle, className, o
             zoneId: card.zoneId,
             ownerId: card.ownerId,
             tapped: card.tapped,
-            nodeRef: elementRef,
-            scale,
         }
     });
-
-    const handleRef = React.useCallback((node: HTMLDivElement | null) => {
-        elementRef.current = node;
-        setNodeRef(node);
-    }, [setNodeRef]);
 
     const { transform: propTransform, ...restPropStyle } = propStyle || {};
 
@@ -110,7 +102,7 @@ export const Card: React.FC<CardProps> = ({ card, style: propStyle, className, o
 
     return (
         <CardView
-            ref={handleRef}
+            ref={setNodeRef}
             card={card}
             style={style}
             className={className}

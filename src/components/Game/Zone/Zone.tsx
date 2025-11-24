@@ -47,13 +47,6 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
         return isBattlefield || isOwner;
     }, [active, isOver, zone.type, zone.ownerId]);
 
-    const ghostWidth = ghostTapped
-        ? CARD_HEIGHT_PX * scale
-        : CARD_WIDTH_PX * scale;
-    const ghostHeight = ghostTapped
-        ? CARD_WIDTH_PX * scale
-        : CARD_HEIGHT_PX * scale;
-
     return (
         <div
             ref={setNodeRef}
@@ -69,9 +62,9 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
                 <div
                     className="absolute border-2 border-dashed border-indigo-400/50 bg-indigo-500/10 rounded-lg pointer-events-none z-0"
                     style={{
-                        width: ghostWidth,
-                        height: ghostHeight,
-                        transform: `translate3d(${ghostPosition.x - ghostWidth / 2}px, ${ghostPosition.y - ghostHeight / 2}px, 0)${ghostTapped ? ' rotate(90deg)' : ''}`,
+                        width: CARD_WIDTH_PX,
+                        height: CARD_HEIGHT_PX,
+                        transform: `translate3d(${ghostPosition.x - CARD_WIDTH_PX / 2}px, ${ghostPosition.y - CARD_HEIGHT_PX / 2}px, 0)${ghostTapped ? ' rotate(90deg)' : ''}`,
                         transformOrigin: 'center center'
                     }}
                 />

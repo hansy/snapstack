@@ -204,10 +204,6 @@ export const MultiplayerBoard: React.FC = () => {
                         <CardView
                             card={cards[activeCardId]}
                             isDragging
-                            style={{
-                                transform: cards[activeCardId].tapped ? 'rotate(90deg)' : undefined,
-                                transformOrigin: 'center center'
-                            }}
                         />
                     </div>
                 ) : null}

@@ -41,8 +41,12 @@ export const useGameDnD = () => {
     const startGhostPos = React.useRef<DragPosition | null>(null);
     const lastGhostPos = React.useRef<DragPosition | null>(null);
     const cardRectRef = React.useRef<DOMRect | null>(null);
+    const dragSeq = React.useRef(0);
+    const currentDragSeq = React.useRef<number | null>(null);
 
     const handleDragStart = (event: DragStartEvent) => {
+        currentDragSeq.current = ++dragSeq.current;
+
         setGhostCard(null);
         dragMoveLogged.current = false;
         startGhostPos.current = null;
@@ -77,24 +81,17 @@ export const useGameDnD = () => {
             dragPointerToCenter.current = { x: 0, y: 0 };
         }
 
-        const summarizeRect = (r: DOMRect | null | undefined) =>
-            r ? `${r.width.toFixed(1)}x${r.height.toFixed(1)}` : 'null';
-
-        console.log(
-            `[RectCheck] card=${event.active.id} tapped=${Boolean(active.data.current?.tapped)} ` +
-            `activeRect=${summarizeRect(activeRect)} nodeRect=${summarizeRect(rect)}`
-        );
-        console.log(
-            `[OverlayRect] card=${event.active.id} tapped=${Boolean(active.data.current?.tapped)} ` +
-            `overlayRect=${summarizeRect(overlayRect)} nodeRect=${summarizeRect(rect)}`
-        );
-
     };
 
     const dragMoveLogged = React.useRef(false);
     const startLogged = React.useRef(false);
 
     const handleDragMove = (event: DragMoveEvent) => {
+        if (currentDragSeq.current == null) {
+            // Late move after drag has ended; ignore to avoid resurrecting ghosts
+            return;
+        }
+
         const { active, over } = event;
 
         if (!over) {
@@ -127,7 +124,6 @@ export const useGameDnD = () => {
                 );
 
 
-
                 setGhostCard({
                     zoneId,
                     position: unsnappedPos,
@@ -139,20 +135,8 @@ export const useGameDnD = () => {
                 }
                 lastGhostPos.current = unsnappedPos;
 
-                // One-time per drag: log anchor math to verify initial jump/offset
+                // One-time per drag anchor tracking (kept for potential future use)
                 if (!startLogged.current) {
-                    const cardRect = cardRectRef.current;
-                    const summarizePoint = (p: DragPosition | DragOffset | null | undefined) =>
-                        p ? `${p.x.toFixed(1)},${p.y.toFixed(1)}` : 'null';
-                    const center = cardRect
-                        ? { x: cardRect.left + cardRect.width / 2, y: cardRect.top + cardRect.height / 2 }
-                        : null;
-                    console.log(
-                        `[DragStartDetail] card=${active.id} tapped=${Boolean(isTapped)} scale=${scale} ` +
-                        `pointerStart=${summarizePoint(dragPointerStart.current)} cardCenter=${summarizePoint(center)} ` +
-                        `offset=${summarizePoint(dragPointerToCenter.current)} ghostStart=${summarizePoint(unsnappedPos)} ` +
-                        `overTopLeft=${summarizePoint({ x: overRect.left, y: overRect.top })}`
-                    );
                     startLogged.current = true;
                 }
             }
@@ -206,19 +190,14 @@ export const useGameDnD = () => {
                     ? { x: pointerStart.x + event.delta.x, y: pointerStart.y + event.delta.y }
                     : null;
                 const cardRect = cardRectRef.current;
-                const ghostWidth = (isTapped ? CARD_HEIGHT_PX : CARD_WIDTH_PX) * scale;
-                const ghostHeight = (isTapped ? CARD_WIDTH_PX : CARD_HEIGHT_PX) * scale;
+                const ghostWidth = CARD_WIDTH_PX * scale;
+                const ghostHeight = CARD_HEIGHT_PX * scale;
                 const snapped = useGameStore.getState().cards[cardId]?.position;
-
-                console.log(
-                    `[DragSummary] card=${cardId} tapped=${Boolean(isTapped)} scale=${scale} ` +
-                    `cardSize=${summarizeSize(cardRect?.width, cardRect?.height)} ghostSize=${summarizeSize(ghostWidth, ghostHeight)} ` +
-                    `pointerStart=${summarizePoint(pointerStart)} pointerEnd=${summarizePoint(pointerEnd)} ` +
-                    `ghostStart=${summarizePoint(startGhostPos.current)} ghostEnd=${summarizePoint(lastGhostPos.current)} ` +
-                    `snapPos=${summarizePoint(snapped)}`
-                );
             }
         }
+
+        // Drag is over from our perspective; ignore any subsequent move events
+        currentDragSeq.current = null;
     };
 
     return {
