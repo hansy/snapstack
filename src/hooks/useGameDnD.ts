@@ -19,6 +19,7 @@ import {
     DragOffset
 } from '../lib/dnd';
 import { getSnappedPosition } from '../lib/snapping';
+import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
 
 export const useGameDnD = () => {
     const cards = useGameStore((state) => state.cards);
@@ -109,7 +110,7 @@ export const useGameDnD = () => {
 
             if (activeCard && targetZone) {
                 // @ts-ignore - over.rect is available at runtime
-                const overRect = over.rect;
+                const overRect = over.rect as any;
                 const scale = over.data.current?.scale || 1;
 
                 if (!dragPointerStart.current) return;
@@ -122,7 +123,33 @@ export const useGameDnD = () => {
                     scale
                 );
 
-                const snappedPos = getSnappedPosition(unsnappedPos.x, unsnappedPos.y);
+                const zoneWidth = (overRect?.width || 0) / scale;
+                const zoneHeight = (overRect?.height || 0) / scale;
+
+                const cardWidth = isTapped ? CARD_HEIGHT_PX : CARD_WIDTH_PX;
+                const cardHeight = isTapped ? CARD_WIDTH_PX : CARD_HEIGHT_PX;
+
+                const fitsWithinZone = cardFitsWithinZone(
+                    unsnappedPos,
+                    zoneWidth,
+                    zoneHeight,
+                    cardWidth,
+                    cardHeight
+                );
+
+                if (!fitsWithinZone) {
+                    setGhostCard(null);
+                    return;
+                }
+
+                let snappedPos = getSnappedPosition(unsnappedPos.x, unsnappedPos.y);
+                snappedPos = clampToZoneBounds(
+                    snappedPos,
+                    zoneWidth,
+                    zoneHeight,
+                    cardWidth,
+                    cardHeight
+                );
 
                 setGhostCard({
                     zoneId,
@@ -164,12 +191,12 @@ export const useGameDnD = () => {
                 }
 
                 // @ts-ignore - over.rect is available at runtime
-                const overRect = over.rect;
+                const overRect = over.rect as any;
                 const scale = over.data.current?.scale || 1;
 
                 if (!dragPointerStart.current) return;
 
-                const position = calculateRelativePosition(
+                const unsnappedPos = calculateRelativePosition(
                     dragPointerStart.current,
                     dragPointerToCenter.current,
                     { x: event.delta.x, y: event.delta.y },
@@ -177,7 +204,37 @@ export const useGameDnD = () => {
                     scale
                 );
 
-                moveCard(cardId, toZoneId, position);
+                const zoneWidth = (overRect?.width || 0) / scale;
+                const zoneHeight = (overRect?.height || 0) / scale;
+
+                const isTapped = active.data.current?.tapped || activeCard?.tapped;
+                const cardWidth = isTapped ? CARD_HEIGHT_PX : CARD_WIDTH_PX;
+                const cardHeight = isTapped ? CARD_WIDTH_PX : CARD_HEIGHT_PX;
+
+                const fitsWithinZone = cardFitsWithinZone(
+                    unsnappedPos,
+                    zoneWidth,
+                    zoneHeight,
+                    cardWidth,
+                    cardHeight
+                );
+
+                if (!fitsWithinZone) {
+                    // Invalid placement: card would straddle battlefield edges.
+                    // Treat as a cancelled drop so the card snaps back.
+                    return;
+                }
+
+                let snappedPos = getSnappedPosition(unsnappedPos.x, unsnappedPos.y);
+                snappedPos = clampToZoneBounds(
+                    snappedPos,
+                    zoneWidth,
+                    zoneHeight,
+                    cardWidth,
+                    cardHeight
+                );
+
+                moveCard(cardId, toZoneId, snappedPos);
             }
         }
 
@@ -190,5 +247,44 @@ export const useGameDnD = () => {
         handleDragStart,
         handleDragMove,
         handleDragEnd
+    };
+};
+
+const cardFitsWithinZone = (
+    center: DragPosition,
+    zoneWidth: number,
+    zoneHeight: number,
+    cardWidth: number,
+    cardHeight: number
+): boolean => {
+    const halfW = cardWidth / 2;
+    const halfH = cardHeight / 2;
+
+    return (
+        center.x - halfW >= 0 &&
+        center.x + halfW <= zoneWidth &&
+        center.y - halfH >= 0 &&
+        center.y + halfH <= zoneHeight
+    );
+};
+
+const clampToZoneBounds = (
+    center: DragPosition,
+    zoneWidth: number,
+    zoneHeight: number,
+    cardWidth: number,
+    cardHeight: number
+): DragPosition => {
+    const halfW = cardWidth / 2;
+    const halfH = cardHeight / 2;
+
+    const minX = halfW;
+    const maxX = Math.max(halfW, zoneWidth - halfW);
+    const minY = halfH;
+    const maxY = Math.max(halfH, zoneHeight - halfH);
+
+    return {
+        x: Math.min(Math.max(center.x, minX), maxX),
+        y: Math.min(Math.max(center.y, minY), maxY)
     };
 };
