@@ -14,6 +14,7 @@ import { usePlayerLayout } from '../../../hooks/usePlayerLayout';
 import { BattlefieldGridOverlay } from './BattlefieldGridOverlay';
 import { ZoneViewerModal } from '../UI/ZoneViewerModal';
 import { ZONE } from '../../../constants/zones';
+import { CardPreviewProvider } from '../Card/CardPreviewProvider';
 
 
 
@@ -150,81 +151,83 @@ export const MultiplayerBoard: React.FC = () => {
     }, [layoutMode]);
 
     return (
-        <DndContext
-            sensors={sensors}
-            onDragStart={handleDragStart}
-            onDragMove={handleDragMove}
-            onDragEnd={handleDragEnd}
-            measuring={{
-                draggable: { measure: getClientRect },
-                dragOverlay: { measure: getClientRect },
-            }}
-        >
-            <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex font-sans selection:bg-indigo-500/30" onContextMenu={(e) => e.preventDefault()}>
-                <Sidenav />
+        <CardPreviewProvider>
+            <DndContext
+                sensors={sensors}
+                onDragStart={handleDragStart}
+                onDragMove={handleDragMove}
+                onDragEnd={handleDragEnd}
+                measuring={{
+                    draggable: { measure: getClientRect },
+                    dragOverlay: { measure: getClientRect },
+                }}
+            >
+                <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex font-sans selection:bg-indigo-500/30" onContextMenu={(e) => e.preventDefault()}>
+                    <Sidenav />
 
-                <div className={`w-full h-full grid ${getGridClass()} pl-12`}>
-                    {slots.map((slot, index) => (
-                        <div
-                            key={index}
-                            className="relative border-zinc-800/50"
-                        >
-                            {slot.player ? (
-                                <Seat
-                                    player={slot.player}
-                                    position={slot.position as any}
-                                    color={slot.color as any}
-                                    zones={zones}
-                                    cards={cards}
-                                    isMe={slot.player.id === myPlayerId}
-                                    onCardContextMenu={handleCardContextMenu}
-                                    onZoneContextMenu={handleZoneContextMenu}
-                                    onLoadDeck={() => setIsLoadDeckModalOpen(true)}
-                                    opponentColors={playerColors}
-                                    scale={scale}
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
-                                    Empty Seat
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </div>
-            {contextMenu && (
-                <ContextMenu
-                    x={contextMenu.x}
-                    y={contextMenu.y}
-                    items={contextMenu.items}
-                    onClose={closeContextMenu}
-                    title={contextMenu.title}
-                />
-            )}
-
-            <LoadDeckModal
-                isOpen={isLoadDeckModalOpen}
-                onClose={() => setIsLoadDeckModalOpen(false)}
-                playerId={myPlayerId}
-            />
-            <ZoneViewerModal
-                isOpen={zoneViewerState.isOpen}
-                onClose={() => setZoneViewerState(prev => ({ ...prev, isOpen: false }))}
-                zoneId={zoneViewerState.zoneId}
-                count={zoneViewerState.count}
-            />
-            <DragMonitor />
-            <DragOverlay dropAnimation={null}>
-                {activeCardId && cards[activeCardId] ? (
-                    <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-                        <CardView
-                            card={cards[activeCardId]}
-                            isDragging
-                        />
+                    <div className={`w-full h-full grid ${getGridClass()} pl-12`}>
+                        {slots.map((slot, index) => (
+                            <div
+                                key={index}
+                                className="relative border-zinc-800/50"
+                            >
+                                {slot.player ? (
+                                    <Seat
+                                        player={slot.player}
+                                        position={slot.position as any}
+                                        color={slot.color as any}
+                                        zones={zones}
+                                        cards={cards}
+                                        isMe={slot.player.id === myPlayerId}
+                                        onCardContextMenu={handleCardContextMenu}
+                                        onZoneContextMenu={handleZoneContextMenu}
+                                        onLoadDeck={() => setIsLoadDeckModalOpen(true)}
+                                        opponentColors={playerColors}
+                                        scale={scale}
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
+                                        Empty Seat
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
-                ) : null}
-            </DragOverlay>
-            <BattlefieldGridOverlay />
-        </DndContext>
+                </div>
+                {contextMenu && (
+                    <ContextMenu
+                        x={contextMenu.x}
+                        y={contextMenu.y}
+                        items={contextMenu.items}
+                        onClose={closeContextMenu}
+                        title={contextMenu.title}
+                    />
+                )}
+
+                <LoadDeckModal
+                    isOpen={isLoadDeckModalOpen}
+                    onClose={() => setIsLoadDeckModalOpen(false)}
+                    playerId={myPlayerId}
+                />
+                <ZoneViewerModal
+                    isOpen={zoneViewerState.isOpen}
+                    onClose={() => setZoneViewerState(prev => ({ ...prev, isOpen: false }))}
+                    zoneId={zoneViewerState.zoneId}
+                    count={zoneViewerState.count}
+                />
+                <DragMonitor />
+                <DragOverlay dropAnimation={null}>
+                    {activeCardId && cards[activeCardId] ? (
+                        <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                            <CardView
+                                card={cards[activeCardId]}
+                                isDragging
+                            />
+                        </div>
+                    ) : null}
+                </DragOverlay>
+                <BattlefieldGridOverlay />
+            </DndContext>
+        </CardPreviewProvider>
     );
 };

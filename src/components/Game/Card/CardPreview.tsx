@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { Card as CardType } from "../../../types";
 import { CARD_ASPECT_RATIO } from "../../../lib/constants";
 import { cn } from "../../../lib/utils";
@@ -70,15 +69,15 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
     // window.addEventListener('resize', calculatePosition);
     // window.addEventListener('scroll', calculatePosition);
     // return () => { ... }
-  }, [anchorRect]);
+  }, [anchorRect, width]);
 
   // Don't render until positioned to avoid jump
   if (!isPositioned) return null;
 
-  return createPortal(
+  return (
     <div
       className={cn(
-        "z-9999 pointer-events-none rounded-xl shadow-2xl border-2 border-indigo-500/50 bg-zinc-900 overflow-hidden transition-opacity duration-200 ease-out relative poop",
+        "fixed z-[9999] pointer-events-none rounded-xl shadow-2xl border-2 border-indigo-500/50 bg-zinc-900 overflow-hidden transition-opacity duration-200 ease-out",
         CARD_ASPECT_RATIO
       )}
       style={{
@@ -93,7 +92,6 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         countersClassName="top-2 right-2"
         imageClassName="object-cover"
       />
-    </div>,
-    document.body
+    </div>
   );
 };

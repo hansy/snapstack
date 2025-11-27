@@ -6,8 +6,8 @@ import { useGameStore } from "../../../store/gameStore";
 import { CARD_HEIGHT, CARD_ASPECT_RATIO } from "../../../lib/constants";
 import { ZONE } from "../../../constants/zones";
 
-import { CardPreview } from "./CardPreview";
 import { CardFace } from "./CardFace";
+import { useCardPreview } from "./CardPreviewProvider";
 
 interface CardProps {
   card: CardType;
@@ -86,6 +86,7 @@ export const Card: React.FC<CardProps> = ({
   onContextMenu,
   faceDown,
 }) => {
+  const { showPreview, hidePreview } = useCardPreview();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: card.id,
     data: {
@@ -111,32 +112,34 @@ export const Card: React.FC<CardProps> = ({
   };
 
   // Hover Logic
-  const [isHovered, setIsHovered] = React.useState(false);
-  const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null);
   const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isDragging || faceDown) return;
 
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
-    setAnchorRect(rect);
 
     if (card.zoneId.includes(ZONE.HAND)) {
-      setIsHovered(true);
+      showPreview(card, rect);
     } else if (card.zoneId.includes(ZONE.BATTLEFIELD)) {
       hoverTimeoutRef.current = setTimeout(() => {
-        setIsHovered(true);
+        showPreview(card, rect);
+        hoverTimeoutRef.current = null;
       }, 250);
     }
   };
 
   const handleMouseLeave = () => {
-    // if (hoverTimeoutRef.current) {
-    //   clearTimeout(hoverTimeoutRef.current);
-    //   hoverTimeoutRef.current = null;
-    // }
-    // setIsHovered(false);
-    // setAnchorRect(null);
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    hidePreview();
   };
 
   // Cleanup on unmount
@@ -164,9 +167,6 @@ export const Card: React.FC<CardProps> = ({
         {...listeners}
         {...attributes}
       />
-      {isHovered && anchorRect && !isDragging && (
-        <CardPreview card={card} anchorRect={anchorRect} />
-      )}
     </>
   );
 };
