@@ -7,6 +7,7 @@ import { cn } from "../../../lib/utils";
 interface CardPreviewProps {
   card: CardType;
   anchorRect: DOMRect;
+  width?: number;
 }
 
 const PREVIEW_WIDTH = 180; // Reduced size
@@ -15,6 +16,7 @@ const GAP = 16;
 export const CardPreview: React.FC<CardPreviewProps> = ({
   card,
   anchorRect,
+  width = PREVIEW_WIDTH,
 }) => {
   const [style, setStyle] = useState<{
     top: number;
@@ -25,10 +27,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
 
   useEffect(() => {
     const calculatePosition = () => {
-      const calculatedHeight = PREVIEW_WIDTH * 1.4;
+      const calculatedHeight = width * 1.4;
 
       let top = anchorRect.top - calculatedHeight - GAP;
-      let left = anchorRect.left + anchorRect.width / 2 - PREVIEW_WIDTH / 2;
+      let left = anchorRect.left + anchorRect.width / 2 - width / 2;
 
       // Viewport Collision Detection
       // Default is ABOVE.
@@ -53,7 +55,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       }
 
       // Clamp left to viewport
-      const maxLeft = window.innerWidth - PREVIEW_WIDTH - GAP;
+      const maxLeft = window.innerWidth - width - GAP;
       left = Math.max(GAP, Math.min(left, maxLeft));
 
       setStyle({ top, left, opacity: 1 });
@@ -81,7 +83,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       style={{
         top: style.top,
         left: style.left,
-        width: PREVIEW_WIDTH,
+        width: width,
         opacity: style.opacity,
       }}
     >

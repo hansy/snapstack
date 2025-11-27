@@ -1,10 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../ui/dialog';
-import { Input } from '../../ui/input';
-import { useGameStore } from '../../../store/gameStore';
-import { CardView } from '../Card/Card';
-import { CardPreview } from '../Card/CardPreview';
-import { Card } from '../../../types';
+import React, { useState, useMemo } from "react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "../../ui/dialog";
+import { Input } from "../../ui/input";
+import { useGameStore } from "../../../store/gameStore";
+import { CardView } from "../Card/Card";
+import { Card } from "../../../types";
 
 interface ZoneViewerModalProps {
     isOpen: boolean;
@@ -13,39 +18,53 @@ interface ZoneViewerModalProps {
     count?: number; // If set, only show top X cards
 }
 
-export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({ isOpen, onClose, zoneId, count }) => {
-    const [filterText, setFilterText] = useState('');
+export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
+    isOpen,
+    onClose,
+    zoneId,
+    count,
+}) => {
+    const [filterText, setFilterText] = useState("");
     const zones = useGameStore((state) => state.zones);
     const cards = useGameStore((state) => state.cards);
 
     const zone = zoneId ? zones[zoneId] : null;
+
+    const viewMode = useMemo(() => {
+        if (zone?.type === "library" && !count) return "grouped";
+        return "linear";
+    }, [zone, count]);
 
     const displayCards = useMemo(() => {
         if (!zone) return [];
 
         let cardIds = [...zone.cardIds];
 
-        // If viewing library, we usually want to see the "top" cards.
-        // In this codebase, the end of the array is the "top" (drawn from end).
-        // So if count is provided, we take the last 'count' elements.
+        // If count is specified, take from the END (top of library)
         if (count && count > 0) {
             cardIds = cardIds.slice(-count);
         }
 
         // Map to card objects
-        let currentCards = cardIds.map(id => cards[id]).filter(Boolean);
+        let currentCards = cardIds.map((id) => cards[id]).filter(Boolean);
 
-        // Reverse to show top cards first in the UI (if that's the desired UX)
-        // Usually "Top" is first. Since array end is top, we reverse it.
-        currentCards.reverse();
+        // For grouped view (Library View All), we usually want to see sorted by something or just all of them.
+        // For linear view (Graveyard/Exile/Top X), user wants "left-most is deepest".
+        // zone.cardIds is [bottom, ..., top].
+        // So currentCards is already [deepest, ..., newest].
+        // We ONLY reverse if we want "newest first" (which was the previous default).
+        // User explicitly asked for "left-most is deepest" for linear view.
+        // For grouped view, order within groups is determined by insertion order.
 
         // Filter
         if (filterText.trim()) {
             const lowerFilter = filterText.toLowerCase();
-            currentCards = currentCards.filter(card => {
+            currentCards = currentCards.filter((card) => {
                 const nameMatch = card.name.toLowerCase().includes(lowerFilter);
                 const typeMatch = card.typeLine?.toLowerCase().includes(lowerFilter);
-                const oracleMatch = card.oracleText?.toLowerCase().includes(lowerFilter);
+                const oracleMatch = card.oracleText
+                    ?.toLowerCase()
+                    .includes(lowerFilter);
                 return nameMatch || typeMatch || oracleMatch;
             });
         }
@@ -53,14 +72,16 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({ isOpen, onClos
         return currentCards;
     }, [zone, cards, count, filterText]);
 
-    // Group by CMC, but separate Lands
+    // Group by CMC, but separate Lands (Only used for 'grouped' mode)
     const groupedCards = useMemo(() => {
+        if (viewMode !== "grouped") return {};
+
         const groups: Record<string, Card[]> = {};
 
-        displayCards.forEach(card => {
-            if (card.typeLine?.toLowerCase().includes('land')) {
-                if (!groups['Lands']) groups['Lands'] = [];
-                groups['Lands'].push(card);
+        displayCards.forEach((card) => {
+            if (card.typeLine?.toLowerCase().includes("land")) {
+                if (!groups["Lands"]) groups["Lands"] = [];
+                groups["Lands"].push(card);
             } else {
                 const cmc = card.scryfall?.cmc ?? 0;
                 const key = `Cost ${cmc}`;
@@ -69,32 +90,20 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({ isOpen, onClos
             }
         });
         return groups;
-    }, [displayCards]);
+    }, [displayCards, viewMode]);
 
     // Sort keys: Lands first, then Cost 0, Cost 1, etc.
-    const sortedKeys = Object.keys(groupedCards).sort((a, b) => {
-        if (a === 'Lands') return -1;
-        if (b === 'Lands') return 1;
+    const sortedKeys = useMemo(() => {
+        if (viewMode !== "grouped") return [];
+        return Object.keys(groupedCards).sort((a, b) => {
+            if (a === "Lands") return -1;
+            if (b === "Lands") return 1;
 
-        const costA = parseInt(a.replace('Cost ', ''));
-        const costB = parseInt(b.replace('Cost ', ''));
-        return costA - costB;
-    });
-
-    // Hover Logic
-    const [hoveredCard, setHoveredCard] = useState<Card | null>(null);
-    const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
-
-    const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>, card: Card) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setAnchorRect(rect);
-        setHoveredCard(card);
-    };
-
-    const handleMouseLeave = () => {
-        setHoveredCard(null);
-        setAnchorRect(null);
-    };
+            const costA = parseInt(a.replace("Cost ", ""));
+            const costB = parseInt(b.replace("Cost ", ""));
+            return costA - costB;
+        });
+    }, [groupedCards, viewMode]);
 
     if (!zone) return null;
 
@@ -110,7 +119,7 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({ isOpen, onClos
                             </span>
                         </DialogTitle>
                         <DialogDescription className="text-zinc-400">
-                            Viewing {count ? `top ${count}` : 'all'} cards in {zone.type}.
+                            Viewing {count ? `top ${count}` : "all"} cards in {zone.type}.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -130,38 +139,34 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({ isOpen, onClos
                         <div className="h-full flex items-center justify-center text-zinc-500">
                             No cards found matching your filter.
                         </div>
-                    ) : (
+                    ) : viewMode === "grouped" ? (
                         <div className="flex gap-8 h-full">
-                            {sortedKeys.map(key => {
+                            {sortedKeys.map((key) => {
                                 const cardsInGroup = groupedCards[key];
                                 const STACK_OFFSET = 50;
                                 const CARD_HEIGHT = 252; // Based on w-[180px] and aspect ratio
-                                const totalHeight = Math.max(0, (cardsInGroup.length - 1) * STACK_OFFSET) + CARD_HEIGHT + 20; // +20 for padding
+                                const OVERLAP = CARD_HEIGHT - STACK_OFFSET; // 202px
 
                                 return (
-                                    <div key={key} className="flex-shrink-0 w-[180px] flex flex-col">
+                                    <div key={key} className="shrink-0 w-[180px] flex flex-col">
                                         <h3 className="text-sm font-medium text-zinc-400 border-b border-zinc-800/50 pb-2 mb-4 text-center sticky top-0 bg-zinc-950/50 backdrop-blur-sm z-10">
                                             {key} ({cardsInGroup.length})
                                         </h3>
-                                        <div className="relative flex-1 overflow-y-auto overflow-x-visible">
-                                            {/* Spacer to force scroll height */}
-                                            <div style={{ height: `${totalHeight}px` }} className="w-full" />
-
+                                        <div className="relative flex-1 overflow-y-auto overflow-x-visible flex flex-col pb-[250px]">
                                             {cardsInGroup.map((card, index) => (
                                                 <div
                                                     key={card.id}
-                                                    className="absolute w-full transition-all duration-200 hover:z-[100]"
+                                                    className="w-full transition-all duration-200 hover:z-[100] hover:scale-110 hover:!mb-4"
                                                     style={{
-                                                        top: `${index * STACK_OFFSET}px`,
-                                                        zIndex: index
+                                                        height: `${CARD_HEIGHT}px`,
+                                                        marginBottom: `-${OVERLAP}px`,
+                                                        zIndex: index,
                                                     }}
-                                                    onMouseEnter={(e) => handleMouseEnter(e, card)}
-                                                    onMouseLeave={handleMouseLeave}
                                                 >
                                                     <CardView
                                                         card={card}
                                                         faceDown={false}
-                                                        className="w-full aspect-[2.5/3.5] hover:scale-110 shadow-lg"
+                                                        className="w-full shadow-lg h-full"
                                                         imageClassName="object-top"
                                                     />
                                                 </div>
@@ -171,17 +176,27 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({ isOpen, onClos
                                 );
                             })}
                         </div>
+                    ) : (
+                        // Linear View
+                        <div className="flex h-full items-center overflow-x-auto px-4 pb-4 pr-[220px]">
+                            {displayCards.map((card, index) => (
+                                <div
+                                    key={card.id}
+                                    className="shrink-0 w-[50px] transition-all duration-200 hover:scale-110 hover:z-[100] hover:w-[200px]"
+                                    style={{ zIndex: index }}
+                                >
+                                    <CardView
+                                        card={card}
+                                        faceDown={false}
+                                        className="w-[200px] shadow-lg h-auto aspect-[2.5/3.5]"
+                                        imageClassName="object-top"
+                                    />
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
-                {hoveredCard && anchorRect && (
-                    <div style={{ position: 'fixed', zIndex: 9999 }}>
-                        {/* We need to import CardPreview or implement a simple one here. 
-                            Since CardPreview is not exported or I need to check imports. 
-                            Let's assume I can import it. */}
-                        <CardPreview card={hoveredCard} anchorRect={anchorRect} />
-                    </div>
-                )}
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 };
