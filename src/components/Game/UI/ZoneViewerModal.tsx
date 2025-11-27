@@ -11,6 +11,8 @@ import { useGameStore } from "../../../store/gameStore";
 import { CardView } from "../Card/Card";
 import { Card } from "../../../types";
 import { ContextMenu, ContextMenuItem } from "./ContextMenu";
+import { buildZoneMoveActions } from "../context/menu";
+import { ZONE } from "../../../constants/zones";
 
 interface ZoneViewerModalProps {
     isOpen: boolean;
@@ -43,7 +45,7 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
     const zone = zoneId ? zones[zoneId] : null;
 
     const viewMode = useMemo(() => {
-        if (zone?.type === "library" && !count) return "grouped";
+        if (zone?.type === ZONE.LIBRARY && !count) return "grouped";
         return "linear";
     }, [zone, count]);
 
@@ -121,34 +123,9 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
         e.preventDefault();
         if (!zone) return;
 
-        const items: ContextMenuItem[] = [];
-
-        // Helper to find zones
-        const findZone = (type: string) => {
-            return Object.values(zones).find(z => z.ownerId === zone.ownerId && z.type === type);
-        };
-
-        const hand = findZone('hand');
-        const battlefield = findZone('battlefield');
-        const graveyard = findZone('graveyard');
-        const exile = findZone('exile');
-        const library = findZone('library');
-
-        if (zone.type === 'library') {
-            if (library) items.push({ label: 'Move to Bottom of Library', action: () => moveCardToBottom(card.id, library.id) });
-            if (graveyard) items.push({ label: 'Move to Graveyard', action: () => moveCard(card.id, graveyard.id) });
-            if (exile) items.push({ label: 'Move to Exile', action: () => moveCard(card.id, exile.id) });
-            if (hand) items.push({ label: 'Move to Hand', action: () => moveCard(card.id, hand.id) });
-            if (battlefield) items.push({ label: 'Move to Battlefield', action: () => moveCard(card.id, battlefield.id) });
-        } else if (zone.type === 'exile') {
-            if (graveyard) items.push({ label: 'Move to Graveyard', action: () => moveCard(card.id, graveyard.id) });
-            if (hand) items.push({ label: 'Move to Hand', action: () => moveCard(card.id, hand.id) });
-            if (battlefield) items.push({ label: 'Move to Battlefield', action: () => moveCard(card.id, battlefield.id) });
-        } else if (zone.type === 'graveyard') {
-            if (exile) items.push({ label: 'Move to Exile', action: () => moveCard(card.id, exile.id) });
-            if (hand) items.push({ label: 'Move to Hand', action: () => moveCard(card.id, hand.id) });
-            if (battlefield) items.push({ label: 'Move to Battlefield', action: () => moveCard(card.id, battlefield.id) });
-        }
+        const items: ContextMenuItem[] = zone
+            ? buildZoneMoveActions(card, zone, zones, moveCard, moveCardToBottom)
+            : [];
 
         if (items.length > 0 && containerRef.current) {
             const rect = containerRef.current.getBoundingClientRect();

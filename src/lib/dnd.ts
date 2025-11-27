@@ -1,4 +1,5 @@
 import { Card, Zone } from '../types';
+import { ZONE } from '../constants/zones';
 
 export interface DragPosition {
     x: number;
@@ -68,7 +69,7 @@ export const calculateRelativePosition = (
  */
 export const canDropToZone = (activeCard: Card, targetZone: Zone): boolean => {
     // Permission Check
-    const isBattlefield = targetZone.type === 'battlefield';
+    const isBattlefield = targetZone.type === ZONE.BATTLEFIELD;
     const isOwner = targetZone.ownerId === activeCard.ownerId;
 
     // Allow dropping on any battlefield or any zone owned by the player

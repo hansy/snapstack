@@ -39,7 +39,7 @@ export interface Card extends CardIdentity {
   counters: Counter[];
 }
 
-export type ZoneType = 'library' | 'hand' | 'battlefield' | 'graveyard' | 'exile' | 'command';
+export type ZoneType = 'library' | 'hand' | 'battlefield' | 'graveyard' | 'exile' | 'commander';
 
 export interface Zone {
   id: ZoneId;

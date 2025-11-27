@@ -3,6 +3,7 @@ import { MultiplayerBoard } from '../components/Game/Board/MultiplayerBoard';
 import { useGameStore } from '../store/gameStore';
 import { useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { ZONE } from '../constants/zones';
 
 export const Route = createFileRoute('/layout-test')({
   component: LayoutTest,
@@ -32,7 +33,7 @@ function LayoutTest() {
         }, true); // isRemote=true so we don't broadcast mock data
 
         // Add zones for mock player
-        const zoneTypes = ['library', 'hand', 'graveyard', 'battlefield', 'command', 'exile'] as const;
+        const zoneTypes = [ZONE.LIBRARY, ZONE.HAND, ZONE.GRAVEYARD, ZONE.BATTLEFIELD, ZONE.COMMANDER, ZONE.EXILE] as const;
         zoneTypes.forEach(type => {
           addZone({
             id: `${id}-${type}`,

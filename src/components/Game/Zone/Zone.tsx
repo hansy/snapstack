@@ -4,6 +4,7 @@ import { Zone as ZoneType } from '../../../types';
 import { cn } from '../../../lib/utils';
 import { CARD_WIDTH_PX, CARD_HEIGHT_PX } from '../../../lib/constants';
 import { useDragStore } from '../../../store/dragStore';
+import { ZONE } from '../../../constants/zones';
 
 interface ZoneProps {
     zone: ZoneType;
@@ -41,7 +42,7 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
 
         // Permission Check
         const cardOwnerId = active.data.current?.ownerId;
-        const isBattlefield = zone.type === 'battlefield';
+        const isBattlefield = zone.type === ZONE.BATTLEFIELD;
         const isOwner = zone.ownerId === cardOwnerId;
 
         return isBattlefield || isOwner;

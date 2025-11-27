@@ -4,6 +4,8 @@ import { Button } from '../../ui/button';
 import { toast } from 'sonner';
 import { parseDeckList, fetchScryfallCards, createCardFromImport } from '../../../utils/deckImport';
 import { useGameStore } from '../../../store/gameStore';
+import { ZONE } from '../../../constants/zones';
+import { getZoneByType } from '../../../lib/gameSelectors';
 
 
 interface LoadDeckModalProps {
@@ -19,6 +21,7 @@ export const LoadDeckModal: React.FC<LoadDeckModalProps> = ({ isOpen, onClose, p
 
     const addCard = useGameStore((state) => state.addCard);
     const setDeckLoaded = useGameStore((state) => state.setDeckLoaded);
+    const zones = useGameStore((state) => state.zones);
 
     const handleImport = async () => {
         if (!importText.trim()) return;
@@ -35,14 +38,18 @@ export const LoadDeckModal: React.FC<LoadDeckModalProps> = ({ isOpen, onClose, p
             const cards = await fetchScryfallCards(parsedDeck);
 
             cards.forEach(cardData => {
-                let zoneId = `${playerId}-library`;
+                // Use existing zones if present (handles legacy '-command' ids)
+                const libraryZone = getZoneByType(zones, playerId, ZONE.LIBRARY);
+                const commanderZone = getZoneByType(zones, playerId, ZONE.COMMANDER);
+
+                let zoneId = libraryZone?.id ?? `${playerId}-${ZONE.LIBRARY}`;
                 if (cardData.section === 'commander') {
-                    zoneId = `${playerId}-command`;
+                    zoneId = commanderZone?.id ?? `${playerId}-${ZONE.COMMANDER}`;
                 }
 
                 const newCard = createCardFromImport(cardData, playerId, zoneId);
                 // Override faceDown for library
-                if (zoneId.includes('library')) {
+                if (zoneId.includes(ZONE.LIBRARY)) {
                     newCard.faceDown = true;
                 }
 

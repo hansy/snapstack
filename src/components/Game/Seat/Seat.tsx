@@ -1,8 +1,6 @@
 import React from 'react';
 import { cn } from '../../../lib/utils';
 import { Player, Zone as ZoneType, Card as CardType, ZoneId } from '../../../types';
-import { Card } from '../Card/Card';
-import { Zone } from '../Zone/Zone';
 import { LifeBox } from '../Player/LifeBox';
 import { Hand } from './Hand';
 import { Battlefield } from './Battlefield';
@@ -10,7 +8,9 @@ import { Button } from '../../ui/button';
 import { Plus } from 'lucide-react';
 import { CommanderZone } from './CommanderZone';
 import { BottomBar } from './BottomBar';
-import { ZONE_SIDEWAYS_CLASSES } from '../../../lib/constants';
+import { getCardsInZone, getPlayerZones } from '../../../lib/gameSelectors';
+import { SideZone } from './SideZone';
+import { ZONE_LABEL } from '../../../constants/zones';
 
 interface SeatProps {
   player: Player;
@@ -44,17 +44,20 @@ export const Seat: React.FC<SeatProps> = ({
   const isTop = position.startsWith('top');
   const isRight = position.endsWith('right');
 
-  // Find zones for this player
-  const findZone = (type: string) => Object.values(zones).find(z => z.ownerId === player.id && z.type === type);
+  const playerZones = getPlayerZones(zones, player.id);
+  const handZone = playerZones.hand;
+  const libraryZone = playerZones.library;
+  const graveyardZone = playerZones.graveyard;
+  const exileZone = playerZones.exile;
+  const battlefieldZone = playerZones.battlefield;
+  const commandZone = playerZones.commander;
 
-  const handZone = findZone('hand');
-  const libraryZone = findZone('library');
-  const graveyardZone = findZone('graveyard');
-  const exileZone = findZone('exile');
-  const battlefieldZone = findZone('battlefield');
-
-  // Helper to get cards
-  const getCards = (zone?: ZoneType) => zone ? zone.cardIds.map(id => cards[id]).filter(Boolean) : [];
+  const libraryCards = getCardsInZone(cards, libraryZone);
+  const graveyardCards = getCardsInZone(cards, graveyardZone);
+  const exileCards = getCardsInZone(cards, exileZone);
+  const battlefieldCards = getCardsInZone(cards, battlefieldZone);
+  const commandCards = getCardsInZone(cards, commandZone);
+  const handCards = getCardsInZone(cards, handZone);
 
   const inverseScale = 1 / scale * 100;
 
@@ -97,102 +100,46 @@ export const Seat: React.FC<SeatProps> = ({
           <div className={cn("flex flex-col gap-10 w-full items-center flex-1 justify-center", isTop && "flex-col-reverse")}>
             {/* Library */}
             {libraryZone && (
-              <div
-                className="relative group"
-                onContextMenu={(e) => onZoneContextMenu?.(e, libraryZone.id)}
-              >
-                <Zone zone={libraryZone} className={cn(ZONE_SIDEWAYS_CLASSES, "bg-zinc-800/30 rounded-lg border-2 border-dashed border-zinc-700 flex items-center justify-center relative cursor-context-menu")}>
-                  {libraryZone.cardIds.length > 0 ? (
-                    <div className="w-full h-full relative overflow-hidden rounded-lg">
-                      <Card
-                        card={getCards(libraryZone)[0]}
-                        faceDown
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 scale-90 pointer-events-none origin-center"
-                      />
-                    </div>
-                  ) : (
-                    isMe && onLoadDeck && !player.deckLoaded ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onLoadDeck}
-                        className="h-full w-full flex flex-col gap-1 text-zinc-300 bg-indigo-600/20 hover:bg-indigo-600/40 hover:text-white border border-indigo-500/30"
-                      >
-                        <Plus size={20} />
-                        <span className="text-[10px] font-medium">Load Deck</span>
-                      </Button>
-                    ) : (
-                      <span className="text-zinc-600 text-xs">Empty</span>
-                    )
-                  )}
-
-                  {/* Overlay Info */}
-                  <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-[10px] text-zinc-400 uppercase tracking-wider font-semibold whitespace-nowrap border border-zinc-800 rounded-full z-10 -top-3">
-                    Library
-                  </div>
-                  <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-xs text-zinc-300 font-mono border border-zinc-800 rounded-full z-10 -bottom-3">
-                    {libraryZone.cardIds.length}
-                  </div>
-                </Zone>
-              </div>
+              <SideZone
+                zone={libraryZone}
+                card={libraryCards[0]}
+                label={ZONE_LABEL.library}
+                count={libraryZone.cardIds.length}
+                onContextMenu={onZoneContextMenu}
+                faceDown
+                emptyContent={isMe && onLoadDeck && !player.deckLoaded ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onLoadDeck}
+                    className="h-full w-full flex flex-col gap-1 text-zinc-300 bg-indigo-600/20 hover:bg-indigo-600/40 hover:text-white border border-indigo-500/30"
+                  >
+                    <Plus size={20} />
+                    <span className="text-[10px] font-medium">Load Deck</span>
+                  </Button>
+                ) : undefined}
+              />
             )}
 
-            {/* Graveyard */}
             {graveyardZone && (
-              <div
-                className="relative group"
-                onContextMenu={(e) => onZoneContextMenu?.(e, graveyardZone.id)}
-              >
-                <Zone zone={graveyardZone} className={cn(ZONE_SIDEWAYS_CLASSES, "bg-zinc-800/30 rounded-lg border-2 border-dashed border-zinc-700 flex items-center justify-center relative")}>
-                  {graveyardZone.cardIds.length > 0 ? (
-                    <div className="w-full h-full relative overflow-hidden rounded-lg">
-                      <Card
-                        card={getCards(graveyardZone)[getCards(graveyardZone).length - 1]}
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 scale-90 pointer-events-none origin-center"
-                      />
-                    </div>
-                  ) : (
-                    <span className="text-zinc-600 text-xs">Empty</span>
-                  )}
-
-                  {/* Overlay Info */}
-                  <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-[10px] text-zinc-400 uppercase tracking-wider font-semibold whitespace-nowrap border border-zinc-800 rounded-full z-10 -top-3">
-                    Graveyard
-                  </div>
-                  <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-xs text-zinc-300 font-mono border border-zinc-800 rounded-full z-10 -bottom-3">
-                    {graveyardZone.cardIds.length}
-                  </div>
-                </Zone>
-              </div>
+              <SideZone
+                zone={graveyardZone}
+                card={graveyardCards[graveyardCards.length - 1]}
+                label={ZONE_LABEL.graveyard}
+                count={graveyardZone.cardIds.length}
+                onContextMenu={onZoneContextMenu}
+              />
             )}
 
-            {/* Exile */}
             {exileZone && (
-              <div
-                className="relative group"
-                onContextMenu={(e) => onZoneContextMenu?.(e, exileZone.id)}
-              >
-                <Zone zone={exileZone} className={cn(ZONE_SIDEWAYS_CLASSES, "bg-zinc-800/30 rounded-lg border-2 border-dashed border-zinc-700 flex items-center justify-center relative")}>
-                  {exileZone.cardIds.length > 0 ? (
-                    <div className="w-full h-full relative overflow-hidden rounded-lg">
-                      <Card
-                        card={getCards(exileZone)[getCards(exileZone).length - 1]}
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 scale-90 pointer-events-none opacity-60 grayscale origin-center"
-                      />
-                    </div>
-                  ) : (
-                    <span className="text-zinc-600 text-xs">Empty</span>
-                  )}
-
-                  {/* Overlay Info */}
-                  <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-[10px] text-zinc-400 uppercase tracking-wider font-semibold whitespace-nowrap border border-zinc-800 rounded-full z-10 -top-3">
-                    Exile
-                  </div>
-                  <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-xs text-zinc-300 font-mono border border-zinc-800 rounded-full z-10 -bottom-3">
-                    {exileZone.cardIds.length}
-                  </div>
-                </Zone>
-              </div>
+              <SideZone
+                zone={exileZone}
+                card={exileCards[exileCards.length - 1]}
+                label={ZONE_LABEL.exile}
+                count={exileZone.cardIds.length}
+                onContextMenu={onZoneContextMenu}
+                cardClassName="opacity-60 grayscale"
+              />
             )}
           </div>
         </div>
@@ -202,7 +149,7 @@ export const Seat: React.FC<SeatProps> = ({
           {battlefieldZone && (
             <Battlefield
               zone={battlefieldZone}
-              cards={getCards(battlefieldZone)}
+              cards={battlefieldCards}
               player={player}
               isTop={isTop}
               scale={scale}
@@ -213,10 +160,10 @@ export const Seat: React.FC<SeatProps> = ({
           {/* Bottom Bar (Hand + Commander) */}
           <BottomBar isTop={isTop} isRight={isRight}>
             {/* Commander Zone */}
-            {findZone('command') && (
+            {commandZone && (
               <CommanderZone
-                zone={findZone('command')!}
-                cards={getCards(findZone('command')!)}
+                zone={commandZone}
+                cards={commandCards}
                 isTop={isTop}
                 isRight={isRight}
                 onZoneContextMenu={onZoneContextMenu}
@@ -228,7 +175,7 @@ export const Seat: React.FC<SeatProps> = ({
             {handZone && (
               <Hand
                 zone={handZone}
-                cards={getCards(handZone)}
+                cards={handCards}
                 isTop={isTop}
                 isMe={isMe}
                 onCardContextMenu={onCardContextMenu}
@@ -243,4 +190,3 @@ export const Seat: React.FC<SeatProps> = ({
     </div>
   );
 };
-

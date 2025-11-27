@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Card as CardType } from "../../../types";
 import { CARD_ASPECT_RATIO } from "../../../lib/constants";
 import { cn } from "../../../lib/utils";
+import { CardFace } from "./CardFace";
 
 interface CardPreviewProps {
   card: CardType;
@@ -77,7 +78,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   return createPortal(
     <div
       className={cn(
-        "fixed z-[9999] pointer-events-none rounded-xl shadow-2xl border-2 border-indigo-500/50 bg-zinc-900 overflow-hidden transition-opacity duration-200 ease-out",
+        "fixed z-[9999] pointer-events-none rounded-xl shadow-2xl border-2 border-indigo-500/50 bg-zinc-900 overflow-hidden transition-opacity duration-200 ease-out relative",
         CARD_ASPECT_RATIO
       )}
       style={{
@@ -87,30 +88,11 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         opacity: style.opacity,
       }}
     >
-      {card.imageUrl ? (
-        <img
-          src={card.imageUrl}
-          alt={card.name}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center p-4 text-center">
-          <div className="text-lg font-bold text-zinc-200">{card.name}</div>
-        </div>
-      )}
-      {/* Counters Overlay */}
-      {card.counters.length > 0 && (
-        <div className="absolute top-2 right-2 flex gap-1">
-          {card.counters.map((counter, i) => (
-            <div
-              key={i}
-              className="bg-indigo-600 text-white text-xs px-2 py-1 rounded-full shadow-sm border border-indigo-400"
-            >
-              {counter.count}
-            </div>
-          ))}
-        </div>
-      )}
+      <CardFace
+        card={card}
+        countersClassName="top-2 right-2"
+        imageClassName="object-cover"
+      />
     </div>,
     document.body
   );

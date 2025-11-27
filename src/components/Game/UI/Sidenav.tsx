@@ -3,6 +3,7 @@ import { RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useGameStore } from '../../../store/gameStore';
 import { v4 as uuidv4 } from 'uuid';
+import { ZONE } from '../../../constants/zones';
 
 interface NavIconProps {
     icon: React.ReactNode;
@@ -35,7 +36,7 @@ export const Sidenav: React.FC = () => {
     const untapAll = useGameStore((state) => state.untapAll);
 
     const handleCreateToken = () => {
-        const battlefieldId = `${myPlayerId}-battlefield`;
+        const battlefieldId = `${myPlayerId}-${ZONE.BATTLEFIELD}`;
         addCard({
             id: uuidv4(),
             name: 'Token',
@@ -121,4 +122,3 @@ export const Sidenav: React.FC = () => {
         </>
     );
 };
-

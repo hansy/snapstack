@@ -20,6 +20,8 @@ import {
 } from '../lib/dnd';
 import { getSnappedPosition } from '../lib/snapping';
 import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
+import { cardFitsWithinZone, clampToZoneBounds } from '../lib/dndMath';
+import { ZONE } from '../constants/zones';
 
 export const useGameDnD = () => {
     const cards = useGameStore((state) => state.cards);
@@ -104,7 +106,7 @@ export const useGameDnD = () => {
         const isTapped = active.data.current?.tapped || activeCard?.tapped;
 
         // If over a battlefield zone, show ghost card
-        if (over.data.current?.type === 'battlefield') {
+        if (over.data.current?.type === ZONE.BATTLEFIELD) {
             const zoneId = over.id as string;
             const targetZone = zones[zoneId];
 
@@ -191,7 +193,7 @@ export const useGameDnD = () => {
                 }
 
                 // Non-battlefield zones ignore geometry/size so cards can always be dropped to the owner's zones.
-                if (targetZone.type !== 'battlefield') {
+                if (targetZone.type !== ZONE.BATTLEFIELD) {
                     moveCard(cardId, toZoneId);
                     return;
                 }
@@ -254,44 +256,5 @@ export const useGameDnD = () => {
         handleDragStart,
         handleDragMove,
         handleDragEnd
-    };
-};
-
-const cardFitsWithinZone = (
-    center: DragPosition,
-    zoneWidth: number,
-    zoneHeight: number,
-    cardWidth: number,
-    cardHeight: number
-): boolean => {
-    const halfW = cardWidth / 2;
-    const halfH = cardHeight / 2;
-
-    return (
-        center.x - halfW >= 0 &&
-        center.x + halfW <= zoneWidth &&
-        center.y - halfH >= 0 &&
-        center.y + halfH <= zoneHeight
-    );
-};
-
-const clampToZoneBounds = (
-    center: DragPosition,
-    zoneWidth: number,
-    zoneHeight: number,
-    cardWidth: number,
-    cardHeight: number
-): DragPosition => {
-    const halfW = cardWidth / 2;
-    const halfH = cardHeight / 2;
-
-    const minX = halfW;
-    const maxX = Math.max(halfW, zoneWidth - halfW);
-    const minY = halfH;
-    const maxY = Math.max(halfH, zoneHeight - halfH);
-
-    return {
-        x: Math.min(Math.max(center.x, minX), maxX),
-        y: Math.min(Math.max(center.y, minY), maxY)
     };
 };

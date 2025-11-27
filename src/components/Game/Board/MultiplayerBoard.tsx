@@ -13,6 +13,7 @@ import { useGameContextMenu } from '../../../hooks/useGameContextMenu';
 import { usePlayerLayout } from '../../../hooks/usePlayerLayout';
 import { BattlefieldGridOverlay } from './BattlefieldGridOverlay';
 import { ZoneViewerModal } from '../UI/ZoneViewerModal';
+import { ZONE } from '../../../constants/zones';
 
 
 
@@ -72,7 +73,7 @@ export const MultiplayerBoard: React.FC = () => {
             });
 
             // Add Zones
-            const zoneTypes = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'command'] as const;
+            const zoneTypes = [ZONE.LIBRARY, ZONE.HAND, ZONE.BATTLEFIELD, ZONE.GRAVEYARD, ZONE.EXILE, ZONE.COMMANDER] as const;
             zoneTypes.forEach(type => {
                 addZone({
                     id: `${myPlayerId}-${type}`,

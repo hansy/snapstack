@@ -5,6 +5,8 @@ import { GameState, Zone } from '../types';
 import { peerService } from '../services/peerService';
 import { getSnappedPosition, SNAP_GRID_SIZE } from '../lib/snapping';
 import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
+import { getZoneByType } from '../lib/gameSelectors';
+import { ZONE } from '../constants/zones';
 
 interface GameStore extends GameState {
     // Additional actions or computed properties can go here
@@ -100,7 +102,7 @@ export const useGameStore = create<GameStore>()(
 
                     // Only apply snapping/collision if moving to a battlefield (which is free-form)
                     // We assume 'battlefield' type zones are free-form.
-                    if (toZone.type === 'battlefield' && position) {
+                    if (toZone.type === ZONE.BATTLEFIELD && position) {
                         // Snap center to grid (edge-aligned)
                         newPosition = getSnappedPosition(position.x, position.y);
 
@@ -266,8 +268,8 @@ export const useGameStore = create<GameStore>()(
 
             drawCard: (playerId, _isRemote) => {
                 const state = get();
-                const libraryZone = Object.values(state.zones).find(z => z.ownerId === playerId && z.type === 'library');
-                const handZone = Object.values(state.zones).find(z => z.ownerId === playerId && z.type === 'hand');
+                const libraryZone = getZoneByType(state.zones, playerId, ZONE.LIBRARY);
+                const handZone = getZoneByType(state.zones, playerId, ZONE.HAND);
 
                 if (!libraryZone || !handZone || libraryZone.cardIds.length === 0) return;
 
@@ -277,7 +279,7 @@ export const useGameStore = create<GameStore>()(
 
             shuffleLibrary: (playerId, isRemote) => {
                 set((state) => {
-                    const libraryZone = Object.values(state.zones).find(z => z.ownerId === playerId && z.type === 'library');
+                const libraryZone = Object.values(state.zones).find(z => z.ownerId === playerId && z.type === ZONE.LIBRARY);
                     if (!libraryZone) return state;
 
                     const shuffledIds = [...libraryZone.cardIds].sort(() => Math.random() - 0.5);
@@ -310,6 +312,19 @@ export const useGameStore = create<GameStore>()(
                     });
                     state.cards = migratedCards;
                     state.positionFormat = 'center';
+                }
+                // Migrate legacy commander zone type from 'command' -> 'commander'
+                if (state?.zones) {
+                    const migratedZones: typeof state.zones = {};
+                    Object.values(state.zones).forEach(zone => {
+                        const isLegacyCommander = (zone as any).type === 'command';
+                        if (isLegacyCommander) {
+                            migratedZones[zone.id] = { ...zone, type: ZONE.COMMANDER };
+                        } else {
+                            migratedZones[zone.id] = zone;
+                        }
+                    });
+                    state.zones = migratedZones;
                 }
                 state?.setHasHydrated(true);
             },

@@ -1,11 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { cn } from '../../../lib/utils';
-
-export interface ContextMenuItem {
-    label: string;
-    action: () => void;
-    danger?: boolean;
-}
+import { ContextMenuItem } from '../context/menu';
 
 interface ContextMenuProps {
     x: number;
@@ -68,3 +63,5 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose, 
         </div>
     );
 };
+
+export type { ContextMenuItem } from '../context/menu';
