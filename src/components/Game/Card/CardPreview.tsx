@@ -78,7 +78,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   return createPortal(
     <div
       className={cn(
-        "fixed z-[9999] pointer-events-none rounded-xl shadow-2xl border-2 border-indigo-500/50 bg-zinc-900 overflow-hidden transition-opacity duration-200 ease-out relative",
+        "z-9999 pointer-events-none rounded-xl shadow-2xl border-2 border-indigo-500/50 bg-zinc-900 overflow-hidden transition-opacity duration-200 ease-out relative poop",
         CARD_ASPECT_RATIO
       )}
       style={{

@@ -29,7 +29,7 @@ export const CardFace: React.FC<CardFaceProps> = ({
           )}
         />
       ) : (
-        <div className="text-xs text-center font-medium text-zinc-300 px-2">
+        <div className="text-md text-center font-medium text-zinc-300 px-2">
           {card.name}
         </div>
       )}

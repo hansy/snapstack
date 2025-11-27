@@ -1,20 +1,25 @@
-import React from 'react';
-import { cn } from '../../../lib/utils';
-import { Player, Zone as ZoneType, Card as CardType, ZoneId } from '../../../types';
-import { LifeBox } from '../Player/LifeBox';
-import { Hand } from './Hand';
-import { Battlefield } from './Battlefield';
-import { Button } from '../../ui/button';
-import { Plus } from 'lucide-react';
-import { CommanderZone } from './CommanderZone';
-import { BottomBar } from './BottomBar';
-import { getCardsInZone, getPlayerZones } from '../../../lib/gameSelectors';
-import { SideZone } from './SideZone';
-import { ZONE_LABEL } from '../../../constants/zones';
+import React from "react";
+import { cn } from "../../../lib/utils";
+import {
+  Player,
+  Zone as ZoneType,
+  Card as CardType,
+  ZoneId,
+} from "../../../types";
+import { LifeBox } from "../Player/LifeBox";
+import { Hand } from "./Hand";
+import { Battlefield } from "./Battlefield";
+import { Button } from "../../ui/button";
+import { Plus } from "lucide-react";
+import { CommanderZone } from "./CommanderZone";
+import { BottomBar } from "./BottomBar";
+import { getCardsInZone, getPlayerZones } from "../../../lib/gameSelectors";
+import { SideZone } from "./SideZone";
+import { ZONE_LABEL } from "../../../constants/zones";
 
 interface SeatProps {
   player: Player;
-  position: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right';
+  position: "bottom-left" | "bottom-right" | "top-left" | "top-right";
   color: string;
   zones: Record<string, ZoneType>;
   cards: Record<string, CardType>;
@@ -39,10 +44,10 @@ export const Seat: React.FC<SeatProps> = ({
   onCardContextMenu,
   onZoneContextMenu,
   onLoadDeck,
-  opponentColors
+  opponentColors,
 }) => {
-  const isTop = position.startsWith('top');
-  const isRight = position.endsWith('right');
+  const isTop = position.startsWith("top");
+  const isRight = position.endsWith("right");
 
   const playerZones = getPlayerZones(zones, player.id);
   const handZone = playerZones.hand;
@@ -59,20 +64,22 @@ export const Seat: React.FC<SeatProps> = ({
   const commandCards = getCardsInZone(cards, commandZone);
   const handCards = getCardsInZone(cards, handZone);
 
-  const inverseScale = 1 / scale * 100;
+  const inverseScale = (1 / scale) * 100;
 
   return (
-    <div className={cn(
-      "relative w-full h-full border-zinc-800",
-      // Add borders based on position to create the grid lines
-      position === 'bottom-left' && "border-r border-t",
-      position === 'bottom-right' && "border-l border-t",
-      position === 'top-left' && "border-r border-b",
-      position === 'top-right' && "border-l border-b",
-      // Background tint
-      `bg-${color}-950/10`,
-      className
-    )}>
+    <div
+      className={cn(
+        "relative w-full h-full border-zinc-800",
+        // Add borders based on position to create the grid lines
+        position === "bottom-left" && "border-r border-t",
+        position === "bottom-right" && "border-l border-t",
+        position === "top-left" && "border-r border-b",
+        position === "top-right" && "border-l border-b",
+        // Background tint
+        `bg-${color}-950/10`,
+        className
+      )}
+    >
       {/* Scaled Wrapper */}
       <div
         className={cn(
@@ -83,21 +90,36 @@ export const Seat: React.FC<SeatProps> = ({
           width: `${inverseScale}%`,
           height: `${inverseScale}%`,
           transform: `scale(${scale})`,
-          transformOrigin: 'top left',
+          transformOrigin: "top left",
         }}
       >
         {/* Sidebar */}
-        <div className={cn(
-          "w-40 bg-zinc-900/50 flex flex-col p-4 shrink-0 z-10 items-center border-zinc-800/50 h-full justify-between",
-          isRight ? "border-l" : "border-r" // Border faces the content
-        )}>
+        <div
+          className={cn(
+            "w-40 bg-zinc-900/50 flex flex-col px-4 shrink-0 z-10 items-center border-zinc-800/50 h-full justify-between",
+            isRight ? "border-l" : "border-r",
+            isTop ? "pb-6" : "pt-6"
+          )}
+        >
           {/* Player HUD (Life) */}
-          <div className={cn("w-full flex justify-center", isTop && "order-last")}>
-            <LifeBox player={player} isMe={isMe} className="origin-center" opponentColors={opponentColors} />
+          <div
+            className={cn("w-full flex justify-center", isTop && "order-last")}
+          >
+            <LifeBox
+              player={player}
+              isMe={isMe}
+              className="origin-center"
+              opponentColors={opponentColors}
+            />
           </div>
 
           {/* Zones */}
-          <div className={cn("flex flex-col gap-10 w-full items-center flex-1 justify-center", isTop && "flex-col-reverse")}>
+          <div
+            className={cn(
+              "flex flex-col gap-10 w-full items-center flex-1 justify-center",
+              isTop && "flex-col-reverse"
+            )}
+          >
             {/* Library */}
             {libraryZone && (
               <SideZone
@@ -107,17 +129,19 @@ export const Seat: React.FC<SeatProps> = ({
                 count={libraryZone.cardIds.length}
                 onContextMenu={onZoneContextMenu}
                 faceDown
-                emptyContent={isMe && onLoadDeck && !player.deckLoaded ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onLoadDeck}
-                    className="h-full w-full flex flex-col gap-1 text-zinc-300 bg-indigo-600/20 hover:bg-indigo-600/40 hover:text-white border border-indigo-500/30"
-                  >
-                    <Plus size={20} />
-                    <span className="text-[10px] font-medium">Load Deck</span>
-                  </Button>
-                ) : undefined}
+                emptyContent={
+                  isMe && onLoadDeck && !player.deckLoaded ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onLoadDeck}
+                      className="h-full w-full flex flex-col gap-1 text-zinc-300 bg-indigo-600/20 hover:bg-indigo-600/40 hover:text-white border border-indigo-500/30"
+                    >
+                      <Plus size={20} />
+                      <span className="text-[10px] font-medium">Load Deck</span>
+                    </Button>
+                  ) : undefined
+                }
               />
             )}
 
@@ -183,8 +207,6 @@ export const Seat: React.FC<SeatProps> = ({
               />
             )}
           </BottomBar>
-
-
         </div>
       </div>
     </div>
