@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Card, PlayerId, ZoneId } from '../types';
+import { Card, PlayerId, ZoneId, ScryfallCard, ScryfallIdentifier } from '../types';
 
 export interface ParsedCard {
     quantity: number;
@@ -7,23 +7,6 @@ export interface ParsedCard {
     set: string;
     collectorNumber: string;
     section: 'main' | 'commander' | 'sideboard';
-}
-
-export interface ScryfallCard {
-    id: string;
-    name: string;
-    set: string;
-    collector_number: string;
-    image_uris?: {
-        normal: string;
-    };
-    card_faces?: {
-        image_uris: {
-            normal: string;
-        }
-    }[];
-    type_line: string;
-    oracle_text: string;
 }
 
 export const parseDeckList = (text: string): ParsedCard[] => {
@@ -106,7 +89,7 @@ export const parseDeckList = (text: string): ParsedCard[] => {
 };
 
 export const fetchScryfallCards = async (parsedCards: ParsedCard[]): Promise<(Partial<Card> & { section: string })[]> => {
-    const identifiers = parsedCards.map(card => {
+    const identifiers: ScryfallIdentifier[] = parsedCards.map(card => {
         if (card.set && card.collectorNumber) {
             return { set: card.set, collector_number: card.collectorNumber };
         }
@@ -164,6 +147,7 @@ export const fetchScryfallCards = async (parsedCards: ParsedCard[]): Promise<(Pa
                             typeLine: scryfallCard.type_line,
                             oracleText: scryfallCard.oracle_text,
                             scryfallId: scryfallCard.id,
+                            scryfall: scryfallCard,
                             tapped: false,
                             faceDown: false,
                             rotation: 0,

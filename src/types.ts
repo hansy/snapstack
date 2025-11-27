@@ -1,3 +1,5 @@
+import { ScryfallCard } from './types/scryfall';
+
 export type PlayerId = string;
 export type CardId = string;
 export type ZoneId = string;
@@ -10,15 +12,23 @@ export interface Counter {
   color?: string; // Hex code for custom counters
 }
 
-export interface Card {
+// Metadata that ties a card instance back to a specific printing/source.
+// We keep the raw Scryfall payload optional so we can power richer UI (faces, legality, set symbols)
+// without forcing it into the core game state when unnecessary.
+export interface CardIdentity {
+  name: string;
+  imageUrl?: string; // Preferred display image (normally Scryfall image_uris.normal)
+  oracleText?: string;
+  typeLine?: string;
+  scryfallId?: string;
+  scryfall?: ScryfallCard;
+}
+
+export interface Card extends CardIdentity {
   id: CardId;
   ownerId: PlayerId;
   controllerId: PlayerId;
   zoneId: ZoneId;
-  name: string;
-  imageUrl?: string; // Scryfall image URL
-  oracleText?: string;
-  typeLine?: string;
 
   // State
   tapped: boolean;
@@ -27,9 +37,6 @@ export interface Card {
   position: { x: number; y: number };
   rotation: number; // Degrees
   counters: Counter[];
-
-  // Metadata
-  scryfallId?: string;
 }
 
 export type ZoneType = 'library' | 'hand' | 'battlefield' | 'graveyard' | 'exile' | 'command';
@@ -79,3 +86,5 @@ export interface GameState {
   hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
 }
+
+export type { ScryfallCard, ScryfallIdentifier } from './types/scryfall';
