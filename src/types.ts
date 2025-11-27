@@ -22,6 +22,7 @@ export interface CardIdentity {
   typeLine?: string;
   scryfallId?: string;
   scryfall?: ScryfallCard;
+  converted_mana_cost?: number;
 }
 
 export interface Card extends CardIdentity {

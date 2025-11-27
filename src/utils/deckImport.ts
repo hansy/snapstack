@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Card, PlayerId, ZoneId, ScryfallCard, ScryfallIdentifier } from '../types';
+import { parseConvertedManaCost } from '../lib/mana';
 
 export interface ParsedCard {
     quantity: number;
@@ -140,6 +141,7 @@ export const fetchScryfallCards = async (parsedCards: ParsedCard[]): Promise<(Pa
 
                     for (let i = 0; i < originalRequest.quantity; i++) {
                         const imageUrl = scryfallCard.image_uris?.normal || scryfallCard.card_faces?.[0]?.image_uris?.normal;
+                        const manaCost = scryfallCard.mana_cost || scryfallCard.card_faces?.[0]?.mana_cost || '';
 
                         fetchedCards.push({
                             name: scryfallCard.name,
@@ -148,6 +150,7 @@ export const fetchScryfallCards = async (parsedCards: ParsedCard[]): Promise<(Pa
                             oracleText: scryfallCard.oracle_text,
                             scryfallId: scryfallCard.id,
                             scryfall: scryfallCard,
+                            converted_mana_cost: parseConvertedManaCost(manaCost),
                             tapped: false,
                             faceDown: false,
                             rotation: 0,
@@ -178,6 +181,7 @@ export const createCardFromImport = (cardData: Partial<Card>, ownerId: PlayerId,
         typeLine: cardData.typeLine,
         oracleText: cardData.oracleText,
         scryfallId: cardData.scryfallId,
+        converted_mana_cost: cardData.converted_mana_cost ?? parseConvertedManaCost(cardData.scryfall?.mana_cost || ''),
         tapped: false,
         faceDown: false,
         rotation: 0,
