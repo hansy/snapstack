@@ -3,13 +3,13 @@ import { useGameStore } from '../store/gameStore';
 import { ZoneId } from '../types';
 
 export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: ZoneId, count?: number) => void) => {
-    const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; items: any[] } | null>(null);
+    const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; items: any[]; title?: string } | null>(null);
     const zones = useGameStore((state) => state.zones);
     const moveCard = useGameStore((state) => state.moveCard);
 
-    const handleContextMenu = (e: React.MouseEvent, items: any[]) => {
+    const handleContextMenu = (e: React.MouseEvent, items: any[], title?: string) => {
         e.preventDefault();
-        setContextMenu({ x: e.clientX, y: e.clientY, items });
+        setContextMenu({ x: e.clientX, y: e.clientY, items, title });
     };
 
     const closeContextMenu = () => setContextMenu(null);
@@ -43,7 +43,7 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
             );
         }
 
-        handleContextMenu(e, items);
+        handleContextMenu(e, items, card.name);
     };
 
     const handleZoneContextMenu = (e: React.MouseEvent, zoneId: ZoneId) => {

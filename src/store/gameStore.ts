@@ -195,6 +195,48 @@ export const useGameStore = create<GameStore>()(
                 if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCard', args: [cardId, toZoneId, position] } });
             },
 
+            moveCardToBottom: (cardId, toZoneId, isRemote) => {
+                set((state) => {
+                    const card = state.cards[cardId];
+                    if (!card) return state;
+
+                    const fromZoneId = card.zoneId;
+                    const fromZone = state.zones[fromZoneId];
+                    const toZone = state.zones[toZoneId];
+
+                    if (!fromZone || !toZone) return state;
+
+                    const cardsCopy = { ...state.cards };
+
+                    // Remove from old zone
+                    const newFromZoneCardIds = fromZone.cardIds.filter((id) => id !== cardId);
+
+                    // Add to new zone (at the beginning/bottom)
+                    // If moving within same zone, we still filter out and then unshift
+                    let newToZoneCardIds;
+                    if (fromZoneId === toZoneId) {
+                        newToZoneCardIds = [cardId, ...newFromZoneCardIds];
+                    } else {
+                        newToZoneCardIds = [cardId, ...toZone.cardIds];
+                    }
+
+                    cardsCopy[cardId] = {
+                        ...card,
+                        zoneId: toZoneId,
+                    };
+
+                    return {
+                        cards: cardsCopy,
+                        zones: {
+                            ...state.zones,
+                            [fromZoneId]: { ...fromZone, cardIds: newFromZoneCardIds },
+                            [toZoneId]: { ...toZone, cardIds: newToZoneCardIds },
+                        },
+                    };
+                });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCardToBottom', args: [cardId, toZoneId] } });
+            },
+
             tapCard: (cardId, isRemote) => {
                 set((state) => {
                     const card = state.cards[cardId];

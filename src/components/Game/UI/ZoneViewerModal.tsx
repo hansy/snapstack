@@ -10,6 +10,7 @@ import { Input } from "../../ui/input";
 import { useGameStore } from "../../../store/gameStore";
 import { CardView } from "../Card/Card";
 import { Card } from "../../../types";
+import { ContextMenu, ContextMenuItem } from "./ContextMenu";
 
 interface ZoneViewerModalProps {
     isOpen: boolean;
@@ -27,6 +28,17 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
     const [filterText, setFilterText] = useState("");
     const zones = useGameStore((state) => state.zones);
     const cards = useGameStore((state) => state.cards);
+    const moveCard = useGameStore((state) => state.moveCard);
+    const moveCardToBottom = useGameStore((state) => state.moveCardToBottom);
+
+    const [contextMenu, setContextMenu] = useState<{
+        x: number;
+        y: number;
+        items: ContextMenuItem[];
+        title?: string;
+    } | null>(null);
+
+    const containerRef = React.useRef<HTMLDivElement>(null);
 
     const zone = zoneId ? zones[zoneId] : null;
 
@@ -105,95 +117,153 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
         });
     }, [groupedCards, viewMode]);
 
+    const handleContextMenu = (e: React.MouseEvent, card: Card) => {
+        e.preventDefault();
+        if (!zone) return;
+
+        const items: ContextMenuItem[] = [];
+
+        // Helper to find zones
+        const findZone = (type: string) => {
+            return Object.values(zones).find(z => z.ownerId === zone.ownerId && z.type === type);
+        };
+
+        const hand = findZone('hand');
+        const battlefield = findZone('battlefield');
+        const graveyard = findZone('graveyard');
+        const exile = findZone('exile');
+        const library = findZone('library');
+
+        if (zone.type === 'library') {
+            if (library) items.push({ label: 'Move to Bottom of Library', action: () => moveCardToBottom(card.id, library.id) });
+            if (graveyard) items.push({ label: 'Move to Graveyard', action: () => moveCard(card.id, graveyard.id) });
+            if (exile) items.push({ label: 'Move to Exile', action: () => moveCard(card.id, exile.id) });
+            if (hand) items.push({ label: 'Move to Hand', action: () => moveCard(card.id, hand.id) });
+            if (battlefield) items.push({ label: 'Move to Battlefield', action: () => moveCard(card.id, battlefield.id) });
+        } else if (zone.type === 'exile') {
+            if (graveyard) items.push({ label: 'Move to Graveyard', action: () => moveCard(card.id, graveyard.id) });
+            if (hand) items.push({ label: 'Move to Hand', action: () => moveCard(card.id, hand.id) });
+            if (battlefield) items.push({ label: 'Move to Battlefield', action: () => moveCard(card.id, battlefield.id) });
+        } else if (zone.type === 'graveyard') {
+            if (exile) items.push({ label: 'Move to Exile', action: () => moveCard(card.id, exile.id) });
+            if (hand) items.push({ label: 'Move to Hand', action: () => moveCard(card.id, hand.id) });
+            if (battlefield) items.push({ label: 'Move to Battlefield', action: () => moveCard(card.id, battlefield.id) });
+        }
+
+        if (items.length > 0 && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            setContextMenu({
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+                items,
+                title: card.name
+            });
+        }
+    };
+
     if (!zone) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="sm:max-w-[90vw] h-[80vh] bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col p-0 gap-0">
-                <div className="p-6 border-b border-zinc-800">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl capitalize flex items-center gap-2">
-                            <span>{zone.type} Viewer</span>
-                            <span className="text-zinc-500 text-sm font-normal">
-                                ({displayCards.length} cards)
-                            </span>
-                        </DialogTitle>
-                        <DialogDescription className="text-zinc-400">
-                            Viewing {count ? `top ${count}` : "all"} cards in {zone.type}.
-                        </DialogDescription>
-                    </DialogHeader>
+                <div ref={containerRef} className="w-full h-full flex flex-col relative pr-6">
+                    <div className="p-6 border-b border-zinc-800">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl capitalize flex items-center gap-2">
+                                <span>{zone.type} Viewer</span>
+                                <span className="text-zinc-500 text-sm font-normal">
+                                    ({displayCards.length} cards)
+                                </span>
+                            </DialogTitle>
+                            <DialogDescription className="text-zinc-400">
+                                Viewing {count ? `top ${count}` : "all"} cards in {zone.type}.
+                            </DialogDescription>
+                        </DialogHeader>
 
-                    <div className="mt-4">
-                        <Input
-                            placeholder="Search by name, type, or text..."
-                            value={filterText}
-                            onChange={(e) => setFilterText(e.target.value)}
-                            className="bg-zinc-900 border-zinc-800 focus:ring-indigo-500"
-                            autoFocus
-                        />
+                        <div className="mt-4">
+                            <Input
+                                placeholder="Search by name, type, or text..."
+                                value={filterText}
+                                onChange={(e) => setFilterText(e.target.value)}
+                                className="bg-zinc-900 border-zinc-800 focus:ring-indigo-500"
+                                autoFocus
+                            />
+                        </div>
                     </div>
-                </div>
 
-                <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-zinc-950/50">
-                    {displayCards.length === 0 ? (
-                        <div className="h-full flex items-center justify-center text-zinc-500">
-                            No cards found matching your filter.
-                        </div>
-                    ) : viewMode === "grouped" ? (
-                        <div className="flex gap-8 h-full">
-                            {sortedKeys.map((key) => {
-                                const cardsInGroup = groupedCards[key];
-                                const STACK_OFFSET = 50;
-                                const CARD_HEIGHT = 252; // Based on w-[180px] and aspect ratio
-                                const OVERLAP = CARD_HEIGHT - STACK_OFFSET; // 202px
+                    <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-zinc-950/50">
+                        {displayCards.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-zinc-500">
+                                No cards found matching your filter.
+                            </div>
+                        ) : viewMode === "grouped" ? (
+                            <div className="flex gap-8 h-full">
+                                {sortedKeys.map((key) => {
+                                    const cardsInGroup = groupedCards[key];
+                                    const STACK_OFFSET = 50;
+                                    const CARD_HEIGHT = 252; // Based on w-[180px] and aspect ratio
+                                    const OVERLAP = CARD_HEIGHT - STACK_OFFSET; // 202px
 
-                                return (
-                                    <div key={key} className="shrink-0 w-[180px] flex flex-col">
-                                        <h3 className="text-sm font-medium text-zinc-400 border-b border-zinc-800/50 pb-2 mb-4 text-center sticky top-0 bg-zinc-950/50 backdrop-blur-sm z-10">
-                                            {key} ({cardsInGroup.length})
-                                        </h3>
-                                        <div className="relative flex-1 overflow-y-auto overflow-x-visible flex flex-col pb-[250px]">
-                                            {cardsInGroup.map((card, index) => (
-                                                <div
-                                                    key={card.id}
-                                                    className="w-full transition-all duration-200 hover:z-[100] hover:scale-110 hover:!mb-4"
-                                                    style={{
-                                                        height: `${CARD_HEIGHT}px`,
-                                                        marginBottom: `-${OVERLAP}px`,
-                                                        zIndex: index,
-                                                    }}
-                                                >
-                                                    <CardView
-                                                        card={card}
-                                                        faceDown={false}
-                                                        className="w-full shadow-lg h-full"
-                                                        imageClassName="object-top"
-                                                    />
-                                                </div>
-                                            ))}
+                                    return (
+                                        <div key={key} className="shrink-0 w-[200px] flex flex-col">
+                                            <h3 className="text-sm font-medium text-zinc-400 border-b border-zinc-800/50 pb-2 mb-4 text-center sticky top-0 bg-zinc-950/50 backdrop-blur-sm z-10">
+                                                {key} ({cardsInGroup.length})
+                                            </h3>
+                                            <div className="relative flex-1 overflow-y-auto overflow-x-hidden flex flex-col pb-[250px]">
+                                                {cardsInGroup.map((card, index) => (
+                                                    <div
+                                                        key={card.id}
+                                                        className="w-[180px] mx-auto transition-all duration-200 hover:z-[100] hover:scale-110 hover:!mb-4"
+                                                        style={{
+                                                            height: `${CARD_HEIGHT}px`,
+                                                            marginBottom: `-${OVERLAP}px`,
+                                                            zIndex: index,
+                                                        }}
+                                                    >
+                                                        <CardView
+                                                            card={card}
+                                                            faceDown={false}
+                                                            className="w-full shadow-lg h-full"
+                                                            imageClassName="object-top"
+                                                            onContextMenu={(e) => handleContextMenu(e, card)}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            // Linear View
+                            <div className="flex h-full items-center overflow-x-auto px-4 pb-4 pr-[220px]">
+                                {displayCards.map((card, index) => (
+                                    <div
+                                        key={card.id}
+                                        className="shrink-0 w-[50px] transition-all duration-200 hover:scale-110 hover:z-[100] hover:w-[200px]"
+                                        style={{ zIndex: index }}
+                                    >
+                                        <CardView
+                                            card={card}
+                                            faceDown={false}
+                                            className="w-[200px] shadow-lg h-auto aspect-[2.5/3.5]"
+                                            imageClassName="object-top"
+                                            onContextMenu={(e) => handleContextMenu(e, card)}
+                                        />
                                     </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        // Linear View
-                        <div className="flex h-full items-center overflow-x-auto px-4 pb-4 pr-[220px]">
-                            {displayCards.map((card, index) => (
-                                <div
-                                    key={card.id}
-                                    className="shrink-0 w-[50px] transition-all duration-200 hover:scale-110 hover:z-[100] hover:w-[200px]"
-                                    style={{ zIndex: index }}
-                                >
-                                    <CardView
-                                        card={card}
-                                        faceDown={false}
-                                        className="w-[200px] shadow-lg h-auto aspect-[2.5/3.5]"
-                                        imageClassName="object-top"
-                                    />
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    {contextMenu && (
+                        <ContextMenu
+                            x={contextMenu.x}
+                            y={contextMenu.y}
+                            items={contextMenu.items}
+                            onClose={() => setContextMenu(null)}
+                            className="z-[100]"
+                            title={contextMenu.title}
+                        />
                     )}
                 </div>
             </DialogContent>

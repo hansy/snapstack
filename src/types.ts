@@ -76,6 +76,7 @@ export interface GameState {
   addCard: (card: Card, isRemote?: boolean) => void;
   updateCard: (id: CardId, updates: Partial<Card>, isRemote?: boolean) => void;
   moveCard: (cardId: CardId, toZoneId: ZoneId, position?: { x: number; y: number }, isRemote?: boolean) => void;
+  moveCardToBottom: (cardId: CardId, toZoneId: ZoneId, isRemote?: boolean) => void;
   tapCard: (cardId: CardId, isRemote?: boolean) => void;
   untapAll: (playerId: PlayerId, isRemote?: boolean) => void;
   drawCard: (playerId: PlayerId, isRemote?: boolean) => void;

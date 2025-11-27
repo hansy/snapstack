@@ -197,6 +197,7 @@ export const MultiplayerBoard: React.FC = () => {
                     y={contextMenu.y}
                     items={contextMenu.items}
                     onClose={closeContextMenu}
+                    title={contextMenu.title}
                 />
             )}
 
