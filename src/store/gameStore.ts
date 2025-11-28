@@ -7,7 +7,8 @@ import { getSnappedPosition, SNAP_GRID_SIZE } from '../lib/snapping';
 import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
 import { getZoneByType } from '../lib/gameSelectors';
 import { ZONE } from '../constants/zones';
-import { canMoveCard, canTapCard } from '../rules/permissions';
+import { canMoveCard, canTapCard, canViewZone } from '../rules/permissions';
+import { logPermission } from '../rules/logger';
 
 interface GameStore extends GameState {
     // Additional actions or computed properties can go here
@@ -100,9 +101,16 @@ export const useGameStore = create<GameStore>()(
 
                 const permission = canMoveCard({ actorId: actor, card, fromZone, toZone });
                 if (!permission.allowed) {
-                    console.warn(permission.reason || 'Move denied', { cardId, toZoneId, actor });
+                    logPermission({
+                        action: 'moveCard',
+                        actorId: actor,
+                        allowed: false,
+                        reason: permission.reason,
+                        details: { cardId, fromZoneId, toZoneId }
+                    });
                     return;
                 }
+                logPermission({ action: 'moveCard', actorId: actor, allowed: true, details: { cardId, fromZoneId, toZoneId } });
 
                 set((state) => {
                     // Calculate new position with snapping and collision handling
@@ -200,7 +208,7 @@ export const useGameStore = create<GameStore>()(
                         },
                     };
                 });
-                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCard', args: [cardId, toZoneId, position, actor] } });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCard', args: [cardId, toZoneId, position], actorId: actor } });
             },
 
             moveCardToBottom: (cardId, toZoneId, actorId, isRemote) => {
@@ -216,9 +224,16 @@ export const useGameStore = create<GameStore>()(
 
                 const permission = canMoveCard({ actorId: actor, card, fromZone, toZone });
                 if (!permission.allowed) {
-                    console.warn(permission.reason || 'Move denied', { cardId, toZoneId, actor });
+                    logPermission({
+                        action: 'moveCardToBottom',
+                        actorId: actor,
+                        allowed: false,
+                        reason: permission.reason,
+                        details: { cardId, fromZoneId, toZoneId }
+                    });
                     return;
                 }
+                logPermission({ action: 'moveCardToBottom', actorId: actor, allowed: true, details: { cardId, fromZoneId, toZoneId } });
 
                 set((state) => {
                     const cardsCopy = { ...state.cards };
@@ -249,7 +264,7 @@ export const useGameStore = create<GameStore>()(
                         },
                     };
                 });
-                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCardToBottom', args: [cardId, toZoneId, actor] } });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCardToBottom', args: [cardId, toZoneId], actorId: actor } });
             },
 
             tapCard: (cardId, actorId, isRemote) => {
@@ -259,9 +274,16 @@ export const useGameStore = create<GameStore>()(
 
                 const permission = canTapCard({ actorId: actor }, card);
                 if (!permission.allowed) {
-                    console.warn(permission.reason || 'Tap denied', { cardId, actor });
+                    logPermission({
+                        action: 'tapCard',
+                        actorId: actor,
+                        allowed: false,
+                        reason: permission.reason,
+                        details: { cardId }
+                    });
                     return;
                 }
+                logPermission({ action: 'tapCard', actorId: actor, allowed: true, details: { cardId } });
 
                 set((state) => {
                     const next = state.cards[cardId];
@@ -273,7 +295,7 @@ export const useGameStore = create<GameStore>()(
                         },
                     };
                 });
-                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'tapCard', args: [cardId, actor] } });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'tapCard', args: [cardId], actorId: actor } });
             },
 
             untapAll: (playerId, isRemote) => {
@@ -289,7 +311,8 @@ export const useGameStore = create<GameStore>()(
                 if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'untapAll', args: [playerId] } });
             },
 
-            drawCard: (playerId, _isRemote) => {
+            drawCard: (playerId, actorId, _isRemote) => {
+                const actor = actorId ?? playerId;
                 const state = get();
                 const libraryZone = getZoneByType(state.zones, playerId, ZONE.LIBRARY);
                 const handZone = getZoneByType(state.zones, playerId, ZONE.HAND);
@@ -297,24 +320,55 @@ export const useGameStore = create<GameStore>()(
                 if (!libraryZone || !handZone || libraryZone.cardIds.length === 0) return;
 
                 const cardId = libraryZone.cardIds[libraryZone.cardIds.length - 1];
-                state.moveCard(cardId, handZone.id, undefined, playerId);
+                const card = state.cards[cardId];
+                if (!card) return;
+
+                const permission = canMoveCard({ actorId: actor, card, fromZone: libraryZone, toZone: handZone });
+                if (!permission.allowed) {
+                    logPermission({
+                        action: 'drawCard',
+                        actorId: actor,
+                        allowed: false,
+                        reason: permission.reason,
+                        details: { playerId, cardId }
+                    });
+                    return;
+                }
+
+                logPermission({ action: 'drawCard', actorId: actor, allowed: true, details: { playerId, cardId } });
+                state.moveCard(cardId, handZone.id, undefined, actor);
             },
 
-            shuffleLibrary: (playerId, isRemote) => {
-                set((state) => {
+            shuffleLibrary: (playerId, actorId, isRemote) => {
+                const actor = actorId ?? playerId;
+                const state = get();
                 const libraryZone = Object.values(state.zones).find(z => z.ownerId === playerId && z.type === ZONE.LIBRARY);
-                    if (!libraryZone) return state;
+                if (!libraryZone) return;
 
-                    const shuffledIds = [...libraryZone.cardIds].sort(() => Math.random() - 0.5);
+                const viewPermission = canViewZone({ actorId: actor }, libraryZone, { viewAll: true });
+                if (!viewPermission.allowed) {
+                    logPermission({
+                        action: 'shuffleLibrary',
+                        actorId: actor,
+                        allowed: false,
+                        reason: viewPermission.reason,
+                        details: { playerId }
+                    });
+                    return;
+                }
+
+                set((state) => {
+                    const shuffledIds = [...(state.zones[libraryZone.id]?.cardIds || [])].sort(() => Math.random() - 0.5);
 
                     return {
                         zones: {
                             ...state.zones,
-                            [libraryZone.id]: { ...libraryZone, cardIds: shuffledIds },
+                            [libraryZone.id]: { ...state.zones[libraryZone.id], cardIds: shuffledIds },
                         },
                     };
                 });
-                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'shuffleLibrary', args: [playerId] } });
+                logPermission({ action: 'shuffleLibrary', actorId: actor, allowed: true, details: { playerId } });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'shuffleLibrary', args: [playerId], actorId: actor } });
             }
         }),
         {

@@ -92,7 +92,7 @@ export const Hand: React.FC<HandProps> = ({
                     transform: fanTransform,
                   }}
                   className="shadow-xl ring-1 ring-black/50"
-                  faceDown={!isMe && false}
+                  faceDown={!isMe}
                   onContextMenu={(e) => onCardContextMenu?.(e, card)}
                 />
               </div>

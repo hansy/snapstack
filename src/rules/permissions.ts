@@ -52,8 +52,12 @@ export function canMoveCard(ctx: MoveContext): PermissionResult {
   }
 
   // Anything -> hidden: only owner of destination hidden zone can receive.
-  if (toHidden && !actorIsToHost) {
-    return { allowed: false, reason: 'Cannot place into a hidden zone you do not own' };
+  if (toHidden) {
+    if (!actorIsToHost) {
+      return { allowed: false, reason: 'Cannot place into a hidden zone you do not own' };
+    }
+    // Destination host is allowed to receive.
+    return { allowed: true };
   }
 
   if (bothBattlefields) {

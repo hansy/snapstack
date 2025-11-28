@@ -141,8 +141,8 @@ export const buildZoneViewActions = ({
         return items;
     }
 
-    if (zone.type === ZONE.LIBRARY) {
-        if (zone.ownerId === myPlayerId) {
+        if (zone.type === ZONE.LIBRARY) {
+            if (zone.ownerId === myPlayerId) {
             items.push({ label: 'Draw Card', action: () => drawCard(myPlayerId) });
             items.push({ label: 'Shuffle Library', action: () => shuffleLibrary(myPlayerId) });
             if (onViewZone) items.push({ label: 'View All', action: () => onViewZone(zone.id) });
