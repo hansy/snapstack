@@ -7,7 +7,7 @@ export type ZoneId = string;
 export type CounterType = 'p1p1' | 'm1m1' | 'loyalty' | 'charge' | 'energy' | 'poison' | 'commander' | string;
 
 export interface Counter {
-  type: CounterType;
+  type: string;
   count: number;
   color?: string; // Hex code for custom counters
 }
@@ -38,6 +38,12 @@ export interface Card extends CardIdentity {
   position: { x: number; y: number };
   rotation: number; // Degrees
   counters: Counter[];
+
+  // Power/Toughness
+  power?: string;
+  toughness?: string;
+  basePower?: string;
+  baseToughness?: string;
 }
 
 export type TokenCard = Card & { isToken: true };
@@ -74,6 +80,10 @@ export interface GameState {
   myPlayerId: PlayerId;
   positionFormat?: 'center' | 'top-left';
 
+  // Counters
+  globalCounters: Record<string, string>; // type -> color
+  activeModal: { type: 'ADD_COUNTER'; cardId: string } | null;
+
   // Actions
   addPlayer: (player: Player, isRemote?: boolean) => void;
   updatePlayer: (id: PlayerId, updates: Partial<Player>, actorId?: PlayerId, isRemote?: boolean) => void;
@@ -91,6 +101,12 @@ export interface GameState {
   resetDeck: (playerId: PlayerId, actorId?: PlayerId, isRemote?: boolean) => void;
   unloadDeck: (playerId: PlayerId, actorId?: PlayerId, isRemote?: boolean) => void;
   setDeckLoaded: (playerId: PlayerId, loaded: boolean, isRemote?: boolean) => void;
+
+  // Counter Actions
+  addGlobalCounter: (name: string, color?: string, isRemote?: boolean) => void;
+  addCounterToCard: (cardId: CardId, counter: Counter, isRemote?: boolean) => void;
+  removeCounterFromCard: (cardId: CardId, counterType: string, isRemote?: boolean) => void;
+  setActiveModal: (modal: { type: 'ADD_COUNTER'; cardId: string } | null) => void;
 
   // Hydration
   hasHydrated: boolean;

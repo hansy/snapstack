@@ -26,12 +26,16 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
             myPlayerId,
             moveCard: (cardId, toZoneId) => moveCard(cardId, toZoneId, undefined, myPlayerId),
             tapCard: (cardId) => useGameStore.getState().tapCard(cardId, myPlayerId),
-            addCounter: (cardId) => {
-                const { cards, updateCard } = useGameStore.getState();
-                const existing = cards[cardId];
-                const counters = existing ? [...existing.counters, { type: 'p1p1', count: 1 }] : [{ type: 'p1p1', count: 1 }];
-                updateCard(cardId, { counters });
+            addCounter: (cardId, counter) => {
+                useGameStore.getState().addCounterToCard(cardId, counter);
             },
+            removeCounter: (cardId, counterType) => {
+                useGameStore.getState().removeCounterFromCard(cardId, counterType);
+            },
+            openAddCounterModal: (cardId) => {
+                useGameStore.getState().setActiveModal({ type: 'ADD_COUNTER', cardId });
+            },
+            globalCounters: useGameStore.getState().globalCounters,
             removeCard: (targetCard) => {
                 useGameStore.getState().removeCard(targetCard.id, myPlayerId);
             },

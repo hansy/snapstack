@@ -24,6 +24,8 @@ export const useGameStore = create<GameStore>()(
             myPlayerId: uuidv4(), // Generate a temporary ID for the local player
             hasHydrated: false,
             positionFormat: 'center',
+            globalCounters: {},
+            activeModal: null,
 
             setHasHydrated: (state) => {
                 set({ hasHydrated: state });
@@ -75,17 +77,26 @@ export const useGameStore = create<GameStore>()(
             },
 
             addCard: (card, isRemote) => {
+                // Initialize P/T from Scryfall if not already set
+                const initializedCard = { ...card };
+                if (card.scryfall && !card.power && !card.toughness) {
+                    initializedCard.power = card.scryfall.power;
+                    initializedCard.toughness = card.scryfall.toughness;
+                    initializedCard.basePower = card.scryfall.power;
+                    initializedCard.baseToughness = card.scryfall.toughness;
+                }
+
                 set((state) => ({
-                    cards: { ...state.cards, [card.id]: card },
+                    cards: { ...state.cards, [initializedCard.id]: initializedCard },
                     zones: {
                         ...state.zones,
-                        [card.zoneId]: {
-                            ...state.zones[card.zoneId],
-                            cardIds: [...state.zones[card.zoneId].cardIds, card.id],
+                        [initializedCard.zoneId]: {
+                            ...state.zones[initializedCard.zoneId],
+                            cardIds: [...state.zones[initializedCard.zoneId].cardIds, initializedCard.id],
                         },
                     },
                 }));
-                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addCard', args: [card] } });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addCard', args: [initializedCard] } });
             },
 
             updateCard: (id, updates, isRemote) => {
@@ -626,7 +637,95 @@ export const useGameStore = create<GameStore>()(
 
                 logPermission({ action: 'unloadDeck', actorId: actor, allowed: true, details: { playerId } });
                 if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'unloadDeck', args: [playerId], actorId: actor } });
-            }
+            },
+
+            addGlobalCounter: (name: string, color?: string, isRemote?: boolean) => {
+                set((state) => {
+                    if (state.globalCounters[name]) return state;
+                    return { globalCounters: { ...state.globalCounters, [name]: color || '#6366f1' } };
+                });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addGlobalCounter', args: [name, color] } });
+            },
+
+            addCounterToCard: (cardId, counter, isRemote) => {
+                set((state) => {
+                    const card = state.cards[cardId];
+                    if (!card) return state;
+
+                    const existingCounterIndex = card.counters.findIndex(c => c.type === counter.type);
+                    let newCounters = [...card.counters];
+
+                    if (existingCounterIndex >= 0) {
+                        newCounters[existingCounterIndex] = {
+                            ...newCounters[existingCounterIndex],
+                            count: newCounters[existingCounterIndex].count + counter.count
+                        };
+                    } else {
+                        newCounters.push(counter);
+                    }
+
+                    // Update P/T if applicable - REMOVED per user request
+                    // Counters no longer affect P/T automatically.
+                    const newPower = card.power;
+                    const newToughness = card.toughness;
+
+                    return {
+                        cards: {
+                            ...state.cards,
+                            [cardId]: {
+                                ...card,
+                                counters: newCounters,
+                                power: newPower,
+                                toughness: newToughness
+                            }
+                        }
+                    };
+                });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addCounterToCard', args: [cardId, counter] } });
+            },
+
+            removeCounterFromCard: (cardId, counterType, isRemote) => {
+                set((state) => {
+                    const card = state.cards[cardId];
+                    if (!card) return state;
+
+                    const existingCounterIndex = card.counters.findIndex(c => c.type === counterType);
+                    if (existingCounterIndex === -1) return state;
+
+                    let newCounters = [...card.counters];
+                    const currentCount = newCounters[existingCounterIndex].count;
+
+                    if (currentCount > 1) {
+                        newCounters[existingCounterIndex] = {
+                            ...newCounters[existingCounterIndex],
+                            count: currentCount - 1
+                        };
+                    } else {
+                        newCounters.splice(existingCounterIndex, 1);
+                    }
+
+                    // Update P/T logic (reverse of add) - REMOVED per user request
+                    const newPower = card.power;
+                    const newToughness = card.toughness;
+
+                    return {
+                        cards: {
+                            ...state.cards,
+                            [cardId]: {
+                                ...card,
+                                counters: newCounters,
+                                power: newPower,
+                                toughness: newToughness
+                            }
+                        }
+                    };
+                });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'removeCounterFromCard', args: [cardId, counterType] } });
+            },
+
+            setActiveModal: (modal) => {
+                set({ activeModal: modal });
+            },
         }),
         {
             name: 'snapstack-storage',

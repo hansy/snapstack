@@ -8,6 +8,7 @@ import { Sidenav } from '../UI/Sidenav';
 import { ContextMenu } from '../UI/ContextMenu';
 import { LoadDeckModal } from '../UI/LoadDeckModal';
 import { TokenCreationModal } from '../UI/TokenCreationModal';
+import { AddCounterModal } from '../UI/AddCounterModal';
 import { useGameDnD } from '../../../hooks/useGameDnD';
 import { useGameContextMenu } from '../../../hooks/useGameContextMenu';
 
@@ -33,6 +34,8 @@ const DragMonitor = () => {
 export const MultiplayerBoard: React.FC = () => {
     const zones = useGameStore((state) => state.zones);
     const cards = useGameStore((state) => state.cards);
+    const activeModal = useGameStore((state) => state.activeModal);
+    const setActiveModal = useGameStore((state) => state.setActiveModal);
     const activeCardId = useDragStore((state) => state.activeCardId);
     const { sensors, handleDragStart, handleDragMove, handleDragEnd } = useGameDnD();
 
@@ -217,6 +220,11 @@ export const MultiplayerBoard: React.FC = () => {
                     isOpen={isTokenModalOpen}
                     onClose={() => setIsTokenModalOpen(false)}
                     playerId={myPlayerId}
+                />
+                <AddCounterModal
+                    isOpen={activeModal?.type === 'ADD_COUNTER'}
+                    onClose={() => setActiveModal(null)}
+                    cardId={activeModal?.type === 'ADD_COUNTER' ? activeModal.cardId : ''}
                 />
                 <ZoneViewerModal
                     isOpen={zoneViewerState.isOpen}
