@@ -1,65 +1,70 @@
-import { describe, it, expect, vi } from 'vitest';
-import { ScryfallCard } from '../types/scryfall';
+import { describe, it, expect, vi } from "vitest";
+import { ScryfallCard } from "../types/scryfall";
 import {
   buildTokenSearchUrl,
   createDebouncedTokenSearch,
   MIN_TOKEN_SEARCH_CHARS,
   searchScryfallTokens,
-} from './scryfallTokens';
+} from "./scryfallTokens";
 
 const mockTokenCard: ScryfallCard = {
-  object: 'card',
-  id: 'token-1',
-  lang: 'en',
-  name: 'Mock Token',
-  layout: 'token',
-  uri: 'https://api.scryfall.com/cards/token-1',
-  scryfall_uri: 'https://scryfall.com/card/token-1',
-  type_line: 'Token Creature — Mock',
+  object: "card",
+  id: "token-1",
+  lang: "en",
+  name: "Mock Token",
+  layout: "token",
+  uri: "https://api.scryfall.com/cards/token-1",
+  scryfall_uri: "https://scryfall.com/card/token-1",
+  type_line: "Token Creature — Mock",
   color_identity: [],
   keywords: [],
   legalities: {} as any,
-  games: ['paper'],
-  set: 'tset',
-  set_name: 'Test Set',
-  collector_number: '1',
-  rarity: 'common',
+  games: ["paper"],
+  set: "tset",
+  set_name: "Test Set",
+  collector_number: "1",
+  rarity: "common",
   prices: {},
   related_uris: {},
 };
 
 const mockListResponse = {
-  object: 'list' as const,
+  object: "list" as const,
   total_cards: 1,
   has_more: false,
   data: [mockTokenCard],
 };
 
-describe('buildTokenSearchUrl', () => {
-  it('includes the token prefix, game filter, and unique=cards by default', () => {
-    const url = buildTokenSearchUrl('soldier');
+describe("buildTokenSearchUrl", () => {
+  it("includes the token prefix, game filter, and unique=cards by default", () => {
+    const url = buildTokenSearchUrl("soldier");
     const parsed = new URL(url);
 
-    expect(parsed.pathname).toBe('/cards/search');
-    expect(parsed.searchParams.get('unique')).toBe('cards');
-    expect(parsed.searchParams.get('q')).toBe('type:token (game:paper) soldier');
+    expect(parsed.pathname).toBe("/cards/search");
+    expect(parsed.searchParams.get("unique")).toBe("cards");
+    expect(parsed.searchParams.get("q")).toBe(
+      "(type:token OR type:emblem) (game:paper) soldier"
+    );
   });
 });
 
-describe('searchScryfallTokens', () => {
-  it('skips calls when under the minimum length', async () => {
+describe("searchScryfallTokens", () => {
+  it("skips calls when under the minimum length", async () => {
     const fetchMock = vi.fn();
-    const result = await searchScryfallTokens('a'.repeat(MIN_TOKEN_SEARCH_CHARS - 1), {
-      fetchImpl: fetchMock as any,
-    });
+    const result = await searchScryfallTokens(
+      "a".repeat(MIN_TOKEN_SEARCH_CHARS - 1),
+      {
+        fetchImpl: fetchMock as any,
+      }
+    );
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(result).toBeNull();
   });
 });
 
-describe('createDebouncedTokenSearch', () => {
-  it('debounces and only sends the latest request', async () => {
+describe("createDebouncedTokenSearch", () => {
+  it("debounces and only sends the latest request", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -71,8 +76,8 @@ describe('createDebouncedTokenSearch', () => {
       debounceMs: 100,
     });
 
-    const first = search('sold');
-    const second = search('soldier');
+    const first = search("sold");
+    const second = search("soldier");
 
     vi.advanceTimersByTime(99);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -83,12 +88,14 @@ describe('createDebouncedTokenSearch', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const calledUrl = fetchMock.mock.calls[0][0] as string;
-    expect(new URL(calledUrl).searchParams.get('q')).toBe('type:token (game:paper) soldier');
+    expect(new URL(calledUrl).searchParams.get("q")).toBe(
+      "(type:token OR type:emblem) (game:paper) soldier"
+    );
 
     vi.useRealTimers();
   });
 
-  it('cancels a pending request cleanly', async () => {
+  it("cancels a pending request cleanly", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -100,7 +107,7 @@ describe('createDebouncedTokenSearch', () => {
       debounceMs: 50,
     });
 
-    const pending = search('angel');
+    const pending = search("angel");
     cancel();
 
     vi.advanceTimersByTime(100);

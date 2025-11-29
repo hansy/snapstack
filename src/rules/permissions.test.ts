@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { canMoveCard, canViewZone, canCreateToken } from './permissions';
+import { canMoveCard, canViewZone, canCreateToken, canUpdatePlayer } from './permissions';
 import { ZONE } from '../constants/zones';
-import { Card, Zone } from '../types';
+import { Card, Zone, Player } from '../types';
 
 const makeCard = (overrides: Partial<Card> = {}): Card => ({
   id: 'card-1',
@@ -46,6 +46,32 @@ describe('canMoveCard', () => {
 
     expect(
       canMoveCard({ actorId: 'owner', card, fromZone, toZone }).allowed
+    ).toBe(true);
+  });
+
+  it('prevents placing cards into another players commander zone', () => {
+    const card = makeCard({ ownerId: 'owner', zoneId: 'bf-owner' });
+    const fromZone = makeZone('bf-owner', ZONE.BATTLEFIELD, 'owner');
+    const toZone = makeZone('commander-opponent', ZONE.COMMANDER, 'opponent');
+
+    expect(
+      canMoveCard({ actorId: 'owner', card, fromZone, toZone }).allowed
+    ).toBe(false);
+    expect(
+      canMoveCard({ actorId: 'opponent', card, fromZone, toZone }).allowed
+    ).toBe(true);
+  });
+
+  it('allows tokens to move between battlefields under the same rules', () => {
+    const token = makeCard({ ownerId: 'owner', zoneId: 'bf-owner', isToken: true });
+    const fromZone = makeZone('bf-owner', ZONE.BATTLEFIELD, 'owner');
+    const toZone = makeZone('bf-ally', ZONE.BATTLEFIELD, 'ally');
+
+    expect(
+      canMoveCard({ actorId: 'owner', card: token, fromZone, toZone }).allowed
+    ).toBe(true);
+    expect(
+      canMoveCard({ actorId: 'ally', card: token, fromZone, toZone }).allowed
     ).toBe(true);
   });
 
@@ -116,5 +142,19 @@ describe('canCreateToken', () => {
       allowed: false,
       reason: expect.stringContaining('battlefield'),
     });
+  });
+});
+
+describe('canUpdatePlayer', () => {
+  const player: Player = { id: 'p1', life: 40, commanderDamage: {}, counters: [], name: 'P1' };
+
+  it('allows a player to change their own life total', () => {
+    expect(canUpdatePlayer({ actorId: 'p1' }, player, { life: 39 }).allowed).toBe(true);
+  });
+
+  it('blocks changing another player life total', () => {
+    const result = canUpdatePlayer({ actorId: 'p2' }, player, { life: 39 });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('life');
   });
 });

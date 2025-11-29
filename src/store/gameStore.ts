@@ -7,7 +7,7 @@ import { getSnappedPosition, SNAP_GRID_SIZE } from '../lib/snapping';
 import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
 import { getZoneByType } from '../lib/gameSelectors';
 import { ZONE } from '../constants/zones';
-import { canMoveCard, canTapCard, canViewZone } from '../rules/permissions';
+import { canMoveCard, canTapCard, canUpdatePlayer, canViewZone } from '../rules/permissions';
 import { logPermission } from '../rules/logger';
 
 interface GameStore extends GameState {
@@ -36,14 +36,25 @@ export const useGameStore = create<GameStore>()(
                 if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addPlayer', args: [player] } });
             },
 
-            updatePlayer: (id, updates, isRemote) => {
+            updatePlayer: (id, updates, actorId, isRemote) => {
+                const actor = actorId ?? get().myPlayerId;
+                const player = get().players[id];
+                if (!player) return;
+
+                const permission = canUpdatePlayer({ actorId: actor }, player, updates);
+                if (!permission.allowed) {
+                    logPermission({ action: 'updatePlayer', actorId: actor, allowed: false, reason: permission.reason, details: { playerId: id, updates } });
+                    return;
+                }
+                logPermission({ action: 'updatePlayer', actorId: actor, allowed: true, details: { playerId: id, updates } });
+
                 set((state) => ({
                     players: {
                         ...state.players,
                         [id]: { ...state.players[id], ...updates },
                     },
                 }));
-                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'updatePlayer', args: [id, updates] } });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'updatePlayer', args: [id, updates], actorId: actor } });
             },
 
             setDeckLoaded: (playerId, loaded, isRemote) => {
@@ -111,6 +122,34 @@ export const useGameStore = create<GameStore>()(
                     return;
                 }
                 logPermission({ action: 'moveCard', actorId: actor, allowed: true, details: { cardId, fromZoneId, toZoneId } });
+
+                const tokenLeavingBattlefield = card.isToken && toZone.type !== ZONE.BATTLEFIELD;
+                if (tokenLeavingBattlefield) {
+                    set((state) => {
+                        const nextCards = { ...state.cards };
+                        delete nextCards[cardId];
+
+                        const nextZones = { ...state.zones };
+                        const currentFrom = state.zones[fromZoneId];
+                        if (currentFrom) {
+                            nextZones[fromZoneId] = {
+                                ...currentFrom,
+                                cardIds: currentFrom.cardIds.filter(id => id !== cardId),
+                            };
+                        }
+                        const currentTo = state.zones[toZoneId];
+                        if (currentTo) {
+                            nextZones[toZoneId] = {
+                                ...currentTo,
+                                cardIds: currentTo.cardIds.filter(id => id !== cardId),
+                            };
+                        }
+
+                        return { cards: nextCards, zones: nextZones };
+                    });
+                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCard', args: [cardId, toZoneId, position], actorId: actor } });
+                    return;
+                }
 
                 set((state) => {
                     // Calculate new position with snapping and collision handling
@@ -237,6 +276,34 @@ export const useGameStore = create<GameStore>()(
                     return;
                 }
                 logPermission({ action: 'moveCardToBottom', actorId: actor, allowed: true, details: { cardId, fromZoneId, toZoneId } });
+
+                const tokenLeavingBattlefield = card.isToken && toZone.type !== ZONE.BATTLEFIELD;
+                if (tokenLeavingBattlefield) {
+                    set((state) => {
+                        const nextCards = { ...state.cards };
+                        delete nextCards[cardId];
+
+                        const nextZones = { ...state.zones };
+                        const currentFrom = state.zones[fromZoneId];
+                        if (currentFrom) {
+                            nextZones[fromZoneId] = {
+                                ...currentFrom,
+                                cardIds: currentFrom.cardIds.filter(id => id !== cardId),
+                            };
+                        }
+                        const currentTo = state.zones[toZoneId];
+                        if (currentTo) {
+                            nextZones[toZoneId] = {
+                                ...currentTo,
+                                cardIds: currentTo.cardIds.filter(id => id !== cardId),
+                            };
+                        }
+
+                        return { cards: nextCards, zones: nextZones };
+                    });
+                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCardToBottom', args: [cardId, toZoneId], actorId: actor } });
+                    return;
+                }
 
                 set((state) => {
                     const cardsCopy = { ...state.cards };

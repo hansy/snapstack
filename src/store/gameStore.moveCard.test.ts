@@ -74,6 +74,44 @@ describe('gameStore move/tap interactions', () => {
     expect(moved.tapped).toBe(false);
   });
 
+  it('removes a token that leaves the battlefield', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['t1']);
+    const graveyard = makeZone('gy-me', 'GRAVEYARD', 'me', []);
+
+    const token = { ...makeCard('t1', battlefield.id, 'me', true), isToken: true };
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [battlefield.id]: battlefield, [graveyard.id]: graveyard },
+      cards: { ...state.cards, [token.id]: token },
+    }));
+
+    useGameStore.getState().moveCard(token.id, graveyard.id, undefined, 'me');
+
+    const state = useGameStore.getState();
+    expect(state.cards[token.id]).toBeUndefined();
+    expect(state.zones[battlefield.id].cardIds).not.toContain(token.id);
+    expect(state.zones[graveyard.id].cardIds).not.toContain(token.id);
+  });
+
+  it('removes a token when moved to the bottom of a non-battlefield zone', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['t2']);
+    const library = makeZone('lib-me', 'LIBRARY', 'me', []);
+
+    const token = { ...makeCard('t2', battlefield.id, 'me'), isToken: true };
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [battlefield.id]: battlefield, [library.id]: library },
+      cards: { ...state.cards, [token.id]: token },
+    }));
+
+    useGameStore.getState().moveCardToBottom(token.id, library.id, 'me');
+
+    const state = useGameStore.getState();
+    expect(state.cards[token.id]).toBeUndefined();
+    expect(state.zones[battlefield.id].cardIds).not.toContain(token.id);
+    expect(state.zones[library.id].cardIds).not.toContain(token.id);
+  });
+
   it('denies tapping a card that is not on the battlefield', () => {
     const hand = makeZone('hand-me', 'HAND', 'me', ['c2']);
     const card = makeCard('c2', hand.id, 'me', false);

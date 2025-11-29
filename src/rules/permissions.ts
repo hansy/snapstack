@@ -1,5 +1,5 @@
 import { ZONE } from '../constants/zones';
-import { ZoneType } from '../types';
+import { ZoneType, isTokenCard, Player } from '../types';
 import { ActorContext, MoveContext, PermissionResult, ViewResult } from './types';
 
 const HIDDEN_ZONES = new Set<ZoneType>([ZONE.LIBRARY, ZONE.HAND]);
@@ -41,6 +41,7 @@ export function canMoveCard(ctx: MoveContext): PermissionResult {
   const actorIsOwner = actorId === card.ownerId;
   const actorIsFromHost = actorId === fromZone.ownerId;
   const actorIsToHost = actorId === toZone.ownerId;
+  const isToken = isTokenCard(card);
 
   const fromHidden = isHiddenZone(fromZone.type);
   const toHidden = isHiddenZone(toZone.type);
@@ -58,6 +59,20 @@ export function canMoveCard(ctx: MoveContext): PermissionResult {
     }
     // Destination host is allowed to receive.
     return { allowed: true };
+  }
+
+  if (toZone.type === ZONE.COMMANDER) {
+    if (!actorIsToHost) {
+      return { allowed: false, reason: "Cannot place cards into another player's command zone" };
+    }
+    return { allowed: true };
+  }
+
+  const tokenLeavingBattlefield = isToken && fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
+  if (tokenLeavingBattlefield) {
+    // Tokens vanish when they leave the battlefield; owner or host can initiate the move.
+    if (actorIsOwner || actorIsFromHost) return { allowed: true };
+    return { allowed: false, reason: 'Only owner or host may move this token off the battlefield' };
   }
 
   if (bothBattlefields) {
@@ -104,4 +119,19 @@ export function canCreateToken(
 
   const isOwner = ctx.actorId === zone.ownerId;
   return isOwner ? { allowed: true } : { allowed: false, reason: 'Only zone owner may create tokens here' };
+}
+
+/**
+ * Player updates that touch life/commander damage are self-service only.
+ */
+export function canUpdatePlayer(
+  ctx: ActorContext,
+  player: Player,
+  updates: Partial<Player>
+): PermissionResult {
+  const isLifeChange = updates.life !== undefined || updates.commanderDamage !== undefined;
+  if (!isLifeChange) return { allowed: true };
+
+  const isSelf = ctx.actorId === player.id;
+  return isSelf ? { allowed: true } : { allowed: false, reason: "Cannot change another player's life total" };
 }

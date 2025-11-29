@@ -1,13 +1,13 @@
-import { ScryfallCard, ScryfallListResult } from '../types/scryfall';
+import { ScryfallCard, ScryfallListResult } from "../types/scryfall";
 
-export const TOKEN_SEARCH_PREFIX = 'type:token (game:paper)';
+export const TOKEN_SEARCH_PREFIX = "(type:token OR type:emblem) (game:paper)";
 export const MIN_TOKEN_SEARCH_CHARS = 3;
 export const DEFAULT_TOKEN_SEARCH_DEBOUNCE_MS = 300;
 
 export type TokenSearchResult = ScryfallListResult<ScryfallCard>;
 
 export interface TokenSearchOptions {
-  unique?: 'cards' | 'art' | 'prints';
+  unique?: "cards" | "art" | "prints";
   signal?: AbortSignal;
   fetchImpl?: typeof fetch;
 }
@@ -26,7 +26,7 @@ export const buildTokenSearchQuery = (query: string) =>
 
 export const buildTokenSearchUrl = (
   query: string,
-  { unique = 'cards' }: Pick<TokenSearchOptions, 'unique'> = {}
+  { unique = "cards" }: Pick<TokenSearchOptions, "unique"> = {}
 ) => {
   const searchQuery = buildTokenSearchQuery(query.trim());
   const params = new URLSearchParams({ q: searchQuery, unique });
@@ -48,7 +48,9 @@ export async function searchScryfallTokens(
 
   const response = await fetcher(url, { signal });
   if (!response.ok) {
-    throw new Error(`Scryfall token search failed (${response.status} ${response.statusText})`);
+    throw new Error(
+      `Scryfall token search failed (${response.status} ${response.statusText})`
+    );
   }
 
   return (await response.json()) as TokenSearchResult;
@@ -57,7 +59,8 @@ export async function searchScryfallTokens(
 export function createDebouncedTokenSearch(
   options: DebouncedTokenSearchOptions = {}
 ): DebouncedTokenSearch {
-  const { debounceMs = DEFAULT_TOKEN_SEARCH_DEBOUNCE_MS, ...searchOptions } = options;
+  const { debounceMs = DEFAULT_TOKEN_SEARCH_DEBOUNCE_MS, ...searchOptions } =
+    options;
 
   let timer: ReturnType<typeof setTimeout> | null = null;
   let inFlight: AbortController | null = null;
@@ -80,7 +83,7 @@ export function createDebouncedTokenSearch(
   const rejectPending = (message: string) => {
     if (!pendingReject) return;
     const error = new Error(message);
-    (error as any).name = 'AbortError';
+    (error as any).name = "AbortError";
     pendingReject(error);
     pendingReject = null;
   };
@@ -91,13 +94,13 @@ export function createDebouncedTokenSearch(
     if (trimmedQuery.length < MIN_TOKEN_SEARCH_CHARS) {
       cancelTimers();
       cancelInFlight();
-      rejectPending('Token search aborted: query too short');
+      rejectPending("Token search aborted: query too short");
       return Promise.resolve(null);
     }
 
     cancelTimers();
     cancelInFlight();
-    rejectPending('Token search superseded');
+    rejectPending("Token search superseded");
 
     return new Promise<TokenSearchResult | null>((resolve, reject) => {
       pendingReject = reject;
@@ -113,7 +116,7 @@ export function createDebouncedTokenSearch(
           });
           resolve(result);
         } catch (error) {
-          if ((error as any).name === 'AbortError') {
+          if ((error as any).name === "AbortError") {
             return;
           }
           reject(error);
@@ -128,7 +131,7 @@ export function createDebouncedTokenSearch(
   const cancel = () => {
     cancelTimers();
     cancelInFlight();
-    rejectPending('Token search cancelled');
+    rejectPending("Token search cancelled");
   };
 
   return { search, cancel };

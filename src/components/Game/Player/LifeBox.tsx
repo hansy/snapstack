@@ -20,6 +20,8 @@ export const LifeBox: React.FC<LifeBoxProps> = ({
   isRight,
 }) => {
   const updatePlayer = useGameStore((state) => state.updatePlayer);
+  const canEditLife = isMe === true;
+  const canEditCommanderDamage = isMe === true;
 
   const handleLifeChange = (amount: number) => {
     updatePlayer(player.id, { life: player.life + amount });
@@ -59,29 +61,37 @@ export const LifeBox: React.FC<LifeBoxProps> = ({
       </div>
       {/* Main Life Counter */}
       <div className="flex items-center gap-1">
-        <button
-          onClick={() => handleLifeChange(-1)}
-          disabled={player.life <= 0}
-          className={cn(
-            "w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
-            player.life <= 0
-              ? "opacity-50 cursor-not-allowed text-zinc-500"
-              : "hover:bg-red-900/50"
-          )}
-        >
-          <Minus size={16} />
-        </button>
+        {canEditLife ? (
+          <button
+            onClick={() => handleLifeChange(-1)}
+            disabled={player.life <= 0}
+            className={cn(
+              "w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
+              player.life <= 0
+                ? "opacity-50 cursor-not-allowed text-zinc-500"
+                : "hover:bg-red-900/50"
+            )}
+          >
+            <Minus size={16} />
+          </button>
+        ) : (
+          <div className="w-8 h-8" />
+        )}
 
         <div className="text-4xl font-bold font-mono text-center leading-none">
           {player.life}
         </div>
 
-        <button
-          onClick={() => handleLifeChange(1)}
-          className="w-8 h-8 rounded-full bg-zinc-700 hover:bg-green-900/50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-        >
-          <Plus size={16} />
-        </button>
+        {canEditLife ? (
+          <button
+            onClick={() => handleLifeChange(1)}
+            className="w-8 h-8 rounded-full bg-zinc-700 hover:bg-green-900/50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+          >
+            <Plus size={16} />
+          </button>
+        ) : (
+          <div className="w-8 h-8" />
+        )}
       </div>
 
       {/* Commander Damage Drawer */}
@@ -112,18 +122,22 @@ export const LifeBox: React.FC<LifeBoxProps> = ({
               key={opponentId}
               className="flex items-center justify-center gap-4 group/cmd"
             >
-              <button
-                onClick={() => handleCommanderDamageChange(opponentId, -1)}
-                disabled={damage <= 0}
-                className={cn(
-                  "w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 transition-colors",
-                  damage <= 0
-                    ? "opacity-50 text-zinc-600"
-                    : "hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200"
-                )}
-              >
-                <Minus size={14} />
-              </button>
+              {canEditCommanderDamage ? (
+                <button
+                  onClick={() => handleCommanderDamageChange(opponentId, -1)}
+                  disabled={damage <= 0}
+                  className={cn(
+                    "w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 transition-colors",
+                    damage <= 0
+                      ? "opacity-50 text-zinc-600"
+                      : "hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200"
+                  )}
+                >
+                  <Minus size={14} />
+                </button>
+              ) : (
+                <div className="w-8 h-8" />
+              )}
 
               <span
                 className={cn(
@@ -137,12 +151,16 @@ export const LifeBox: React.FC<LifeBoxProps> = ({
                 {damage}
               </span>
 
-              <button
-                onClick={() => handleCommanderDamageChange(opponentId, 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
-              >
-                <Plus size={14} />
-              </button>
+              {canEditCommanderDamage ? (
+                <button
+                  onClick={() => handleCommanderDamageChange(opponentId, 1)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+                >
+                  <Plus size={14} />
+                </button>
+              ) : (
+                <div className="w-8 h-8" />
+              )}
             </div>
           );
         })}

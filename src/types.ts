@@ -76,7 +76,7 @@ export interface GameState {
 
   // Actions
   addPlayer: (player: Player, isRemote?: boolean) => void;
-  updatePlayer: (id: PlayerId, updates: Partial<Player>, isRemote?: boolean) => void;
+  updatePlayer: (id: PlayerId, updates: Partial<Player>, actorId?: PlayerId, isRemote?: boolean) => void;
   addZone: (zone: Zone, isRemote?: boolean) => void;
   addCard: (card: Card, isRemote?: boolean) => void;
   updateCard: (id: CardId, updates: Partial<Card>, isRemote?: boolean) => void;
