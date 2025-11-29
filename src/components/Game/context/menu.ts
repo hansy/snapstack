@@ -66,7 +66,7 @@ interface CardActionBuilderParams {
     myPlayerId: PlayerId;
     moveCard: (cardId: CardId, toZoneId: ZoneId) => void;
     tapCard: (cardId: CardId) => void;
-    addCounter: (cardId: CardId, counter: { type: string; count: number }) => void;
+    addCounter: (cardId: CardId, counter: { type: string; count: number; color?: string }) => void;
     removeCounter: (cardId: CardId, counterType: string) => void;
     removeCard?: (card: Card) => void;
     openAddCounterModal: (cardId: CardId) => void;
@@ -87,49 +87,52 @@ export const buildCardActions = ({
 }: CardActionBuilderParams): ContextMenuItem[] => {
     const items: ContextMenuItem[] = [];
     const currentZone = zones[card.zoneId];
+    const countersAllowed = currentZone?.type === ZONE.BATTLEFIELD;
 
     const canTap = canTapCard({ actorId: myPlayerId }, card, currentZone);
     if (canTap.allowed) {
         items.push({ label: 'Tap/Untap', action: () => tapCard(card.id) });
     }
 
-    // Add Counter Logic
-    const globalCounterTypes = Object.keys(globalCounters).sort();
+    if (countersAllowed) {
+        // Add Counter Logic
+        const globalCounterTypes = Object.keys(globalCounters).sort();
 
-    if (globalCounterTypes.length === 0) {
-        items.push({ label: 'Add counter', action: () => openAddCounterModal(card.id) });
-    } else {
-        const addCounterItems: ContextMenuItem[] = globalCounterTypes.map(counterType => ({
-            label: counterType,
-            action: () => addCounter(card.id, {
-                type: counterType,
-                count: 1,
-                color: globalCounters[counterType]
-            })
-        }));
+        if (globalCounterTypes.length === 0) {
+            items.push({ label: 'Add counter', action: () => openAddCounterModal(card.id) });
+        } else {
+            const addCounterItems: ContextMenuItem[] = globalCounterTypes.map(counterType => ({
+                label: counterType,
+                action: () => addCounter(card.id, {
+                    type: counterType,
+                    count: 1,
+                    color: globalCounters[counterType]
+                })
+            }));
 
-        addCounterItems.push({ label: '', action: () => { }, separator: true });
-        addCounterItems.push({ label: 'Create new...', action: () => openAddCounterModal(card.id) });
+            addCounterItems.push({ label: '', action: () => { }, separator: true });
+            addCounterItems.push({ label: 'Create new...', action: () => openAddCounterModal(card.id) });
 
-        items.push({
-            label: 'Add counter',
-            action: () => { }, // Submenu parent
-            submenu: addCounterItems
-        });
-    }
+            items.push({
+                label: 'Add counter',
+                action: () => { }, // Submenu parent
+                submenu: addCounterItems
+            });
+        }
 
-    // Remove Counter Logic
-    if (card.counters.length > 0) {
-        const removeCounterItems: ContextMenuItem[] = card.counters.map(counter => ({
-            label: `${counter.type} (${counter.count})`,
-            action: () => removeCounter(card.id, counter.type)
-        }));
+        // Remove Counter Logic
+        if (card.counters.length > 0) {
+            const removeCounterItems: ContextMenuItem[] = card.counters.map(counter => ({
+                label: `${counter.type} (${counter.count})`,
+                action: () => removeCounter(card.id, counter.type)
+            }));
 
-        items.push({
-            label: 'Remove counter',
-            action: () => { }, // Submenu parent
-            submenu: removeCounterItems
-        });
+            items.push({
+                label: 'Remove counter',
+                action: () => { }, // Submenu parent
+                submenu: removeCounterItems
+            });
+        }
     }
 
     if (card.isToken && removeCard) {

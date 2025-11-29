@@ -2,7 +2,6 @@ import React from 'react';
 import { useGameStore } from '../store/gameStore';
 import { Card, ZoneId } from '../types';
 import { buildCardActions, buildZoneViewActions, ContextMenuItem } from '../components/Game/context/menu';
-import { getPlayerZones } from '../lib/gameSelectors';
 
 // Centralizes context menu state/handlers for cards and zones so UI components can stay lean.
 export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: ZoneId, count?: number) => void) => {

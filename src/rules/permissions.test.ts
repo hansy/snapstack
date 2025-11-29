@@ -155,6 +155,8 @@ describe('canUpdatePlayer', () => {
   it('blocks changing another player life total', () => {
     const result = canUpdatePlayer({ actorId: 'p2' }, player, { life: 39 });
     expect(result.allowed).toBe(false);
-    expect(result.reason).toContain('life');
+    if (!result.allowed) {
+      expect(result.reason).toContain('life');
+    }
   });
 });

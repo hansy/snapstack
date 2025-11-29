@@ -151,4 +151,52 @@ describe('gameStore move/tap interactions', () => {
     useGameStore.getState().reorderZoneCards(graveyard.id, ['c4', 'c5', 'c3'], 'opponent');
     expect(useGameStore.getState().zones[graveyard.id].cardIds).toEqual(['c5', 'c3', 'c4']);
   });
+
+  it('ignores counter additions outside the battlefield', () => {
+    const hand = makeZone('hand-me', 'HAND', 'me', ['c6']);
+    const card = makeCard('c6', hand.id, 'me', false);
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [hand.id]: hand },
+      cards: { ...state.cards, [card.id]: card },
+    }));
+
+    useGameStore.getState().addCounterToCard(card.id, { type: '+1/+1', count: 1 });
+
+    expect(useGameStore.getState().cards[card.id].counters).toEqual([]);
+  });
+
+  it('removes counters when a card leaves the battlefield', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['c7']);
+    const graveyard = makeZone('gy-me', 'GRAVEYARD', 'me', []);
+    const card = { ...makeCard('c7', battlefield.id, 'me'), counters: [{ type: '+1/+1', count: 2 }] };
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [battlefield.id]: battlefield, [graveyard.id]: graveyard },
+      cards: { ...state.cards, [card.id]: card },
+    }));
+
+    useGameStore.getState().moveCard(card.id, graveyard.id, undefined, 'me');
+
+    const moved = useGameStore.getState().cards[card.id];
+    expect(moved.zoneId).toBe(graveyard.id);
+    expect(moved.counters).toEqual([]);
+  });
+
+  it('clears counters when resetting the deck', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['c8']);
+    const library = makeZone('lib-me', 'LIBRARY', 'me', []);
+    const card = { ...makeCard('c8', battlefield.id, 'me'), counters: [{ type: '+1/+1', count: 3 }] };
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [battlefield.id]: battlefield, [library.id]: library },
+      cards: { ...state.cards, [card.id]: card },
+    }));
+
+    useGameStore.getState().resetDeck('me', 'me');
+
+    const resetCard = useGameStore.getState().cards[card.id];
+    expect(resetCard.zoneId).toBe(library.id);
+    expect(resetCard.counters).toEqual([]);
+  });
 });
