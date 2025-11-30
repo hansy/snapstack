@@ -80,7 +80,7 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
             {children}
             {ghostPosition && (
                 <div
-                    className="absolute border-2 border-dashed border-indigo-400/50 bg-indigo-500/10 rounded-lg pointer-events-none z-0"
+                    className="absolute bg-indigo-500/40 rounded-lg pointer-events-none z-0"
                     style={{
                         width: CARD_WIDTH_PX,
                         height: CARD_HEIGHT_PX,

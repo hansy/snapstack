@@ -28,7 +28,7 @@ export const Battlefield: React.FC<BattlefieldProps> = ({
     const activeCardId = useDragStore((state) => state.activeCardId);
     const showGrid = Boolean(activeCardId);
     const GRID_SIZE = 30;
-    const gridColor = 'rgba(148, 163, 184, 0.12)'; // zinc-400/20
+    const gridColor = 'rgba(148, 163, 184, 0.3)'; // zinc-400/30
 
     return (
         <div
@@ -49,11 +49,9 @@ export const Battlefield: React.FC<BattlefieldProps> = ({
                     <div
                         className="pointer-events-none absolute inset-0 z-0"
                         style={{
-                            backgroundImage: `
-                                linear-gradient(to right, ${gridColor} 1px, transparent 1px),
-                                linear-gradient(to bottom, ${gridColor} 1px, transparent 1px)
-                            `,
+                            backgroundImage: `radial-gradient(circle, ${gridColor} 2px, transparent 2px)`,
                             backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
+                            backgroundPosition: `-${GRID_SIZE / 2}px -${GRID_SIZE / 2}px`
                         }}
                     />
                 )}
