@@ -34,6 +34,8 @@ export interface Card extends CardIdentity {
   // State
   tapped: boolean;
   faceDown: boolean;
+  // 0-based index into the Scryfall card_faces array. Defaults to the front face.
+  currentFaceIndex?: number;
   // Center position relative to the zone (logical/unscaled units)
   position: { x: number; y: number };
   rotation: number; // Degrees
@@ -67,6 +69,7 @@ export interface Player {
   cursor?: { x: number; y: number }; // For multiplayer presence
   counters: Counter[];
   commanderDamage: Record<PlayerId, number>;
+  commanderTax: number;
   deckLoaded?: boolean;
 }
 
@@ -87,9 +90,11 @@ export interface GameState {
   // Actions
   addPlayer: (player: Player, isRemote?: boolean) => void;
   updatePlayer: (id: PlayerId, updates: Partial<Player>, actorId?: PlayerId, isRemote?: boolean) => void;
+  updateCommanderTax: (playerId: PlayerId, delta: number, isRemote?: boolean) => void;
   addZone: (zone: Zone, isRemote?: boolean) => void;
   addCard: (card: Card, isRemote?: boolean) => void;
   updateCard: (id: CardId, updates: Partial<Card>, isRemote?: boolean) => void;
+  transformCard: (id: CardId, faceIndex?: number, isRemote?: boolean) => void;
   moveCard: (cardId: CardId, toZoneId: ZoneId, position?: { x: number; y: number }, actorId?: PlayerId, isRemote?: boolean) => void;
   moveCardToBottom: (cardId: CardId, toZoneId: ZoneId, actorId?: PlayerId, isRemote?: boolean) => void;
   duplicateCard: (cardId: CardId, actorId?: PlayerId, isRemote?: boolean) => void;

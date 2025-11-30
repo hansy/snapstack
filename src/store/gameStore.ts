@@ -9,6 +9,7 @@ import { getZoneByType } from '../lib/gameSelectors';
 import { ZONE } from '../constants/zones';
 import { canCreateToken, canMoveCard, canTapCard, canUpdatePlayer, canViewZone } from '../rules/permissions';
 import { logPermission } from '../rules/logger';
+import { getCardFaces, getCurrentFaceIndex, isTransformableCard, syncCardStatsToFace } from '../lib/cardDisplay';
 
 const isBattlefieldZone = (zone?: Zone) => zone?.type === ZONE.BATTLEFIELD;
 const countersForZone = (card: Card, zone?: Zone) => (isBattlefieldZone(zone) ? card.counters : []);
@@ -36,7 +37,7 @@ export const useGameStore = create<GameStore>()(
 
             addPlayer: (player, isRemote) => {
                 set((state) => ({
-                    players: { ...state.players, [player.id]: { ...player, deckLoaded: false } },
+                    players: { ...state.players, [player.id]: { ...player, deckLoaded: false, commanderTax: 0 } },
                 }));
                 if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addPlayer', args: [player] } });
             },
@@ -62,6 +63,21 @@ export const useGameStore = create<GameStore>()(
                 if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'updatePlayer', args: [id, updates], actorId: actor } });
             },
 
+            updateCommanderTax: (playerId, delta, isRemote) => {
+                set((state) => {
+                    const player = state.players[playerId];
+                    if (!player) return state;
+                    const newTax = Math.max(0, (player.commanderTax || 0) + delta);
+                    return {
+                        players: {
+                            ...state.players,
+                            [playerId]: { ...player, commanderTax: newTax }
+                        }
+                    };
+                });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'updateCommanderTax', args: [playerId, delta] } });
+            },
+
             setDeckLoaded: (playerId, loaded, isRemote) => {
                 set((state) => ({
                     players: {
@@ -81,33 +97,39 @@ export const useGameStore = create<GameStore>()(
 
             addCard: (card, isRemote) => {
                 // Initialize P/T from Scryfall if not already set
-                const initializedCard = { ...card };
+                const initializedCard = { ...card, currentFaceIndex: card.currentFaceIndex ?? 0 };
                 if (card.scryfall && !card.power && !card.toughness) {
-                    initializedCard.power = card.scryfall.power;
-                    initializedCard.toughness = card.scryfall.toughness;
-                    initializedCard.basePower = card.scryfall.power;
-                    initializedCard.baseToughness = card.scryfall.toughness;
+                    const frontFace = card.scryfall.card_faces?.[0];
+                    initializedCard.power = card.scryfall.power ?? frontFace?.power;
+                    initializedCard.toughness = card.scryfall.toughness ?? frontFace?.toughness;
+                    initializedCard.basePower = card.scryfall.power ?? frontFace?.power;
+                    initializedCard.baseToughness = card.scryfall.toughness ?? frontFace?.toughness;
                 }
+                const faces = getCardFaces(initializedCard);
+                if (faces.length) {
+                    initializedCard.currentFaceIndex = Math.min(Math.max(initializedCard.currentFaceIndex ?? 0, 0), faces.length - 1);
+                }
+                const cardWithFaceStats = syncCardStatsToFace(initializedCard, initializedCard.currentFaceIndex);
 
                 set((state) => {
-                    const targetZone = state.zones[initializedCard.zoneId];
+                    const targetZone = state.zones[cardWithFaceStats.zoneId];
                     const cardWithCounters = {
-                        ...initializedCard,
-                        counters: countersForZone(initializedCard, targetZone)
+                        ...cardWithFaceStats,
+                        counters: countersForZone(cardWithFaceStats, targetZone)
                     };
 
                     return {
-                        cards: { ...state.cards, [initializedCard.id]: cardWithCounters },
+                        cards: { ...state.cards, [cardWithFaceStats.id]: cardWithCounters },
                         zones: {
                             ...state.zones,
-                            [initializedCard.zoneId]: {
-                                ...state.zones[initializedCard.zoneId],
-                                cardIds: [...state.zones[initializedCard.zoneId].cardIds, initializedCard.id],
+                            [cardWithFaceStats.zoneId]: {
+                                ...state.zones[cardWithFaceStats.zoneId],
+                                cardIds: [...state.zones[cardWithFaceStats.zoneId].cardIds, cardWithFaceStats.id],
                             },
                         },
                     };
                 });
-                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addCard', args: [initializedCard] } });
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addCard', args: [cardWithFaceStats] } });
             },
 
             duplicateCard: (cardId, actorId, isRemote) => {
@@ -151,15 +173,61 @@ export const useGameStore = create<GameStore>()(
                     const nextZoneId = updates.zoneId ?? current.zoneId;
                     const zone = state.zones[nextZoneId];
                     const mergedCard = { ...current, ...updates, zoneId: nextZoneId };
+                const faces = getCardFaces(mergedCard);
+                const normalizedFaceIndex = faces.length
+                        ? Math.min(Math.max(mergedCard.currentFaceIndex ?? 0, 0), faces.length - 1)
+                        : mergedCard.currentFaceIndex;
+
+                const faceChanged = (normalizedFaceIndex ?? mergedCard.currentFaceIndex) !== current.currentFaceIndex;
+                const cardWithFace = faceChanged
+                    ? syncCardStatsToFace(
+                        { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
+                        normalizedFaceIndex ?? mergedCard.currentFaceIndex
+                    )
+                    : syncCardStatsToFace(
+                        { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
+                        normalizedFaceIndex ?? mergedCard.currentFaceIndex,
+                        { preserveExisting: true }
+                    );
 
                     return {
                         cards: {
                             ...state.cards,
-                            [id]: { ...mergedCard, counters: countersForZone(mergedCard, zone) },
+                            [id]: { ...cardWithFace, counters: countersForZone(cardWithFace, zone) },
                         },
                     };
                 });
                 if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'updateCard', args: [id, updates] } });
+            },
+
+            transformCard: (cardId, faceIndex, isRemote) => {
+                const snapshot = get();
+                const card = snapshot.cards[cardId];
+                if (!card) return;
+
+                const zone = snapshot.zones[card.zoneId];
+                if (zone?.type !== ZONE.BATTLEFIELD) return;
+                if (!isTransformableCard(card)) return;
+
+                const faces = getCardFaces(card);
+                const targetIndex = faces.length
+                    ? typeof faceIndex === "number"
+                        ? Math.min(Math.max(faceIndex, 0), faces.length - 1)
+                        : (getCurrentFaceIndex(card) + 1) % faces.length
+                    : 0;
+
+                set((state) => {
+                    const currentCard = state.cards[cardId];
+                    if (!currentCard) return state;
+                    return {
+                        cards: {
+                            ...state.cards,
+                            [cardId]: syncCardStatsToFace(currentCard, targetIndex)
+                        }
+                    };
+                });
+
+                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'transformCard', args: [cardId, targetIndex] } });
             },
 
             moveCard: (cardId, toZoneId, position, actorId, isRemote) => {
@@ -186,6 +254,9 @@ export const useGameStore = create<GameStore>()(
                     return;
                 }
                 logPermission({ action: 'moveCard', actorId: actor, allowed: true, details: { cardId, fromZoneId, toZoneId } });
+
+                const leavingBattlefield = fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
+                const resetToFront = leavingBattlefield ? syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0) : card;
 
                 const tokenLeavingBattlefield = card.isToken && toZone.type !== ZONE.BATTLEFIELD;
                 if (tokenLeavingBattlefield) {
@@ -276,8 +347,9 @@ export const useGameStore = create<GameStore>()(
 
                     // If moving within the same zone
                     if (fromZoneId === toZoneId) {
+                        const nextCard = leavingBattlefield ? resetToFront : card;
                         cardsCopy[cardId] = {
-                            ...card,
+                            ...nextCard,
                             position: newPosition,
                             tapped: nextTapped,
                             counters: nextCounters,
@@ -300,8 +372,9 @@ export const useGameStore = create<GameStore>()(
                     // Add to new zone
                     const newToZoneCardIds = [...state.zones[toZoneId].cardIds, cardId];
 
+                    const nextCard = leavingBattlefield ? resetToFront : card;
                     cardsCopy[cardId] = {
-                        ...card,
+                        ...nextCard,
                         zoneId: toZoneId,
                         position: newPosition,
                         tapped: nextTapped,
@@ -343,6 +416,8 @@ export const useGameStore = create<GameStore>()(
                     return;
                 }
                 logPermission({ action: 'moveCardToBottom', actorId: actor, allowed: true, details: { cardId, fromZoneId, toZoneId } });
+
+                const leavingBattlefield = fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
 
                 const tokenLeavingBattlefield = card.isToken && toZone.type !== ZONE.BATTLEFIELD;
                 if (tokenLeavingBattlefield) {
@@ -390,8 +465,9 @@ export const useGameStore = create<GameStore>()(
                     const nextTapped = toZone.type === ZONE.BATTLEFIELD ? card.tapped : false;
                     const nextCounters = countersForZone(card, toZone);
 
+                    const nextCard = leavingBattlefield ? resetToFront : card;
                     cardsCopy[cardId] = {
-                        ...card,
+                        ...nextCard,
                         zoneId: toZoneId,
                         tapped: nextTapped,
                         counters: nextCounters,
@@ -632,13 +708,14 @@ export const useGameStore = create<GameStore>()(
                             return;
                         }
 
+                        const resetCard = syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0);
                         nextCards[card.id] = {
-                            ...card,
+                            ...resetCard,
                             zoneId: libraryZone.id,
                             tapped: false,
                             faceDown: false,
                             position: { x: 0, y: 0 },
-                            counters: countersForZone({ ...card, zoneId: libraryZone.id }, libraryZone),
+                            counters: countersForZone({ ...resetCard, zoneId: libraryZone.id }, libraryZone),
                         };
                         toLibrary.push(card.id);
                     });

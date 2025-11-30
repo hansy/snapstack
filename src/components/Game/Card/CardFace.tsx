@@ -2,11 +2,20 @@ import React from "react";
 import { Card as CardType } from "../../../types";
 import { cn } from "../../../lib/utils";
 import { useGameStore } from "../../../store/gameStore";
+import {
+  getCurrentFace,
+  getDisplayImageUrl,
+  getDisplayName,
+  getDisplayPower,
+  getDisplayToughness,
+  shouldShowPowerToughness,
+} from "../../../lib/cardDisplay";
 
 interface CardFaceProps {
   card: CardType;
   faceDown?: boolean;
   imageClassName?: string;
+  imageTransform?: string;
   countersClassName?: string;
   interactive?: boolean;
   hidePT?: boolean;
@@ -17,6 +26,7 @@ export const CardFace: React.FC<CardFaceProps> = ({
   card,
   faceDown,
   imageClassName,
+  imageTransform,
   countersClassName,
   interactive,
   hidePT,
@@ -25,9 +35,15 @@ export const CardFace: React.FC<CardFaceProps> = ({
   const addCounterToCard = useGameStore((state) => state.addCounterToCard);
   const removeCounterFromCard = useGameStore((state) => state.removeCounterFromCard);
   const updateCard = useGameStore((state) => state.updateCard);
+  const displayImageUrl = getDisplayImageUrl(card);
+  const displayName = getDisplayName(card);
+  const showPT = shouldShowPowerToughness(card) && card.zoneId.includes('battlefield') && !hidePT;
+  const displayPower = getDisplayPower(card);
+  const displayToughness = getDisplayToughness(card);
 
   const handleUpdatePT = (type: 'power' | 'toughness', delta: number) => {
-    const currentVal = parseInt(card[type] || '0');
+    const faceStat = getCurrentFace(card)?.[type];
+    const currentVal = parseInt((card as any)[type] ?? faceStat ?? '0');
     if (isNaN(currentVal)) return;
     updateCard(card.id, { [type]: (currentVal + delta).toString() });
   };
@@ -36,23 +52,24 @@ export const CardFace: React.FC<CardFaceProps> = ({
     <>
       {faceDown ? (
         <div className="w-full h-full bg-indigo-900/50 rounded border-2 border-indigo-500/30 flex items-center justify-center bg-[url('/mtg_card_back.jpeg')] bg-cover bg-center" />
-      ) : card.imageUrl ? (
+      ) : displayImageUrl ? (
         <img
-          src={card.imageUrl}
-          alt={card.name}
+          src={displayImageUrl}
+          alt={displayName}
           className={cn(
             "w-full h-full object-cover rounded pointer-events-none",
             imageClassName
           )}
+          style={imageTransform ? { transform: imageTransform, transformOrigin: 'center center' } : undefined}
         />
       ) : (
         <div className="text-md text-center font-medium text-zinc-300 px-2">
-          {card.name}
+          {displayName}
         </div>
       )}
 
       {/* Power/Toughness - Only show on battlefield */}
-      {(card.power !== undefined && card.toughness !== undefined && card.zoneId.includes('battlefield') && !hidePT) && (
+      {showPT && (
         <div className={cn(
           "absolute bottom-1 right-1 bg-zinc-900/90 px-2 py-1 rounded-sm border border-zinc-700 shadow-sm z-10",
           interactive && "scale-125 origin-bottom-right"
@@ -61,9 +78,9 @@ export const CardFace: React.FC<CardFaceProps> = ({
             {/* Power */}
             <div className="relative group/pt">
               <span className={cn(
-                (parseInt(card.power) > parseInt(card.basePower || '0')) ? "text-green-500" :
-                  (parseInt(card.power) < parseInt(card.basePower || '0')) ? "text-red-500" : "text-white"
-              )}>{card.power}</span>
+                (parseInt(displayPower || '0') > parseInt(card.basePower || '0')) ? "text-green-500" :
+                  (parseInt(displayPower || '0') < parseInt(card.basePower || '0')) ? "text-red-500" : "text-white"
+              )}>{displayPower}</span>
               {interactive && (
                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover/pt:opacity-100 transition-opacity bg-zinc-900 border border-zinc-700 rounded px-1">
                   <button
@@ -83,9 +100,9 @@ export const CardFace: React.FC<CardFaceProps> = ({
             {/* Toughness */}
             <div className="relative group/pt">
               <span className={cn(
-                (parseInt(card.toughness) > parseInt(card.baseToughness || '0')) ? "text-green-500" :
-                  (parseInt(card.toughness) < parseInt(card.baseToughness || '0')) ? "text-red-500" : "text-white"
-              )}>{card.toughness}</span>
+                (parseInt(displayToughness || '0') > parseInt(card.baseToughness || '0')) ? "text-green-500" :
+                  (parseInt(displayToughness || '0') < parseInt(card.baseToughness || '0')) ? "text-red-500" : "text-white"
+              )}>{displayToughness}</span>
               {interactive && (
                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover/pt:opacity-100 transition-opacity bg-zinc-900 border border-zinc-700 rounded px-1">
                   <button

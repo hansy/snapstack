@@ -5,6 +5,7 @@ import { cn } from "../../../lib/utils";
 import { CardFace } from "./CardFace";
 
 import { useGameStore } from "../../../store/gameStore";
+import { getCurrentFace, getDisplayPower, getDisplayToughness, getFlipRotation, shouldShowPowerToughness } from "../../../lib/cardDisplay";
 
 interface CardPreviewProps {
   card: CardType;
@@ -37,6 +38,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
 
   // Use liveCard if available, otherwise fallback to the prop (snapshot)
   const currentCard = liveCard || card;
+  const showPT = shouldShowPowerToughness(currentCard);
+  const displayPower = getDisplayPower(currentCard);
+  const displayToughness = getDisplayToughness(currentCard);
+  const flipRotation = getFlipRotation(currentCard);
 
   useEffect(() => {
     const calculatePosition = () => {
@@ -85,7 +90,8 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   }, [anchorRect, width]);
 
   const handleUpdatePT = (type: 'power' | 'toughness', delta: number) => {
-    const currentVal = parseInt(currentCard[type] || '0');
+    const faceStat = getCurrentFace(currentCard)?.[type];
+    const currentVal = parseInt((currentCard as any)[type] ?? faceStat ?? '0');
     if (isNaN(currentVal)) return;
     updateCard(currentCard.id, { [type]: (currentVal + delta).toString() });
   };
@@ -133,52 +139,69 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         </button>
       )}
 
+      {/* Token Label */}
+      {currentCard.isToken && (
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-900/90 text-zinc-400 text-xs font-bold px-3 py-1 rounded-full border border-zinc-700 shadow-lg z-40 uppercase tracking-wider">
+          Token
+        </div>
+      )}
+
       <CardFace
         card={currentCard}
         countersClassName="top-2 -right-2"
         imageClassName="object-cover"
+        imageTransform={flipRotation ? `rotate(${flipRotation}deg)` : undefined}
         interactive={locked}
         hidePT={true} // Always hide internal P/T, we render external always
         showCounterLabels={true}
       />
 
       {/* External Power/Toughness (Always rendered, but buttons only accessible when locked) */}
-      {(currentCard.power !== undefined && currentCard.toughness !== undefined) && (
+      {showPT && (
         <div className="absolute bottom-0 left-full ml-4 bg-zinc-900 px-3 py-2 rounded-lg border border-zinc-700 shadow-xl z-50 flex items-center gap-3 min-w-max">
           {/* Power */}
-          <div className="relative group/pt flex items-center gap-1 transition-all duration-200">
-            <button
-              className="w-0 overflow-hidden group-hover/pt:w-8 transition-all duration-200 text-lg font-bold text-white hover:text-red-400 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
-              onClick={(e) => { e.stopPropagation(); handleUpdatePT('power', -1); }}
-            >-</button>
+          {/* Power */}
+          <div className="relative group/pt flex items-center justify-center w-12 h-10">
             <span className={cn(
-              "text-2xl font-bold min-w-[1.5rem] text-center",
-              (parseInt(currentCard.power) > parseInt(currentCard.basePower || '0')) ? "text-green-500" :
-                (parseInt(currentCard.power) < parseInt(currentCard.basePower || '0')) ? "text-red-500" : "text-white"
-            )}>{currentCard.power}</span>
-            <button
-              className="w-0 overflow-hidden group-hover/pt:w-8 transition-all duration-200 text-lg font-bold text-white hover:text-green-400 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
-              onClick={(e) => { e.stopPropagation(); handleUpdatePT('power', 1); }}
-            >+</button>
+              "text-2xl font-bold text-center z-0",
+              (parseInt(displayPower || '0') > parseInt(currentCard.basePower || '0')) ? "text-green-500" :
+                (parseInt(displayPower || '0') < parseInt(currentCard.basePower || '0')) ? "text-red-500" : "text-white"
+            )}>{displayPower}</span>
+
+            {/* Overlay Controls */}
+            <div className="absolute inset-0 flex items-center justify-between opacity-0 group-hover/pt:opacity-100 transition-opacity z-10">
+              <button
+                className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-l text-sm"
+                onClick={(e) => { e.stopPropagation(); handleUpdatePT('power', -1); }}
+              >-</button>
+              <button
+                className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-r text-sm"
+                onClick={(e) => { e.stopPropagation(); handleUpdatePT('power', 1); }}
+              >+</button>
+            </div>
           </div>
 
           <span className="text-zinc-600 font-bold text-xl">/</span>
 
           {/* Toughness */}
-          <div className="relative group/pt flex items-center gap-1 transition-all duration-200">
-            <button
-              className="w-0 overflow-hidden group-hover/pt:w-8 transition-all duration-200 text-lg font-bold text-white hover:text-red-400 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
-              onClick={(e) => { e.stopPropagation(); handleUpdatePT('toughness', -1); }}
-            >-</button>
+          <div className="relative group/pt flex items-center justify-center w-12 h-10">
             <span className={cn(
-              "text-2xl font-bold min-w-[1.5rem] text-center",
-              (parseInt(currentCard.toughness) > parseInt(currentCard.baseToughness || '0')) ? "text-green-500" :
-                (parseInt(currentCard.toughness) < parseInt(currentCard.baseToughness || '0')) ? "text-red-500" : "text-white"
-            )}>{currentCard.toughness}</span>
-            <button
-              className="w-0 overflow-hidden group-hover/pt:w-8 transition-all duration-200 text-lg font-bold text-white hover:text-green-400 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
-              onClick={(e) => { e.stopPropagation(); handleUpdatePT('toughness', 1); }}
-            >+</button>
+              "text-2xl font-bold text-center z-0",
+              (parseInt(displayToughness || '0') > parseInt(currentCard.baseToughness || '0')) ? "text-green-500" :
+                (parseInt(displayToughness || '0') < parseInt(currentCard.baseToughness || '0')) ? "text-red-500" : "text-white"
+            )}>{displayToughness}</span>
+
+            {/* Overlay Controls */}
+            <div className="absolute inset-0 flex items-center justify-between opacity-0 group-hover/pt:opacity-100 transition-opacity z-10">
+              <button
+                className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-l text-sm"
+                onClick={(e) => { e.stopPropagation(); handleUpdatePT('toughness', -1); }}
+              >-</button>
+              <button
+                className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-r text-sm"
+                onClick={(e) => { e.stopPropagation(); handleUpdatePT('toughness', 1); }}
+              >+</button>
+            </div>
           </div>
         </div>
       )}

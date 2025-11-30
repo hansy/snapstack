@@ -69,6 +69,9 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({ isOpen, 
         const battlefieldId = `${playerId}-${ZONE.BATTLEFIELD}`;
         const state = useGameStore.getState();
         const battlefield = state.zones[battlefieldId];
+        const frontFace = selectedToken.card_faces?.[0];
+        const imageUrl = selectedToken.image_uris?.normal || frontFace?.image_uris?.normal;
+        const name = frontFace?.name || selectedToken.name;
 
         for (let i = 0; i < quantity; i++) {
             const base = getSnappedPosition(100 + (i * SNAP_GRID_SIZE), 100 + (i * SNAP_GRID_SIZE));
@@ -76,7 +79,7 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({ isOpen, 
 
             addCard({
                 id: uuidv4(),
-                name: selectedToken.name,
+                name,
                 typeLine: selectedToken.type_line,
                 controllerId: playerId,
                 ownerId: playerId,
@@ -88,8 +91,9 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({ isOpen, 
                 rotation: 0,
                 scryfallId: selectedToken.id,
                 oracleText: selectedToken.oracle_text,
-                imageUrl: selectedToken.image_uris?.normal || selectedToken.card_faces?.[0]?.image_uris?.normal,
+                imageUrl,
                 scryfall: selectedToken,
+                currentFaceIndex: 0,
                 isToken: true
             });
         }

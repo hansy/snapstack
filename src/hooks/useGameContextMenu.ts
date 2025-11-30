@@ -8,6 +8,7 @@ import { canCreateToken } from '../rules/permissions';
 import { ZONE } from '../constants/zones';
 import { fetchScryfallCardByUri } from '../services/scryfallCard';
 import { findAvailablePosition, SNAP_GRID_SIZE } from '../lib/snapping';
+import { getDisplayName } from '../lib/cardDisplay';
 
 // Centralizes context menu state/handlers for cards and zones so UI components can stay lean.
 export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: ZoneId, count?: number) => void) => {
@@ -37,7 +38,8 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
 
         try {
             const scryfallCard = await fetchScryfallCardByUri(related.uri);
-            const imageUrl = scryfallCard.image_uris?.normal || scryfallCard.card_faces?.[0]?.image_uris?.normal;
+            const frontFace = scryfallCard.card_faces?.[0];
+            const imageUrl = scryfallCard.image_uris?.normal || frontFace?.image_uris?.normal;
             const isToken = related.component === 'token' || scryfallCard.layout === 'token' || /token/i.test(scryfallCard.type_line ?? '');
             const basePosition = {
                 x: card.position.x + SNAP_GRID_SIZE,
@@ -49,7 +51,7 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
                 ownerId: zone.ownerId,
                 controllerId: zone.ownerId,
                 zoneId: zone.id,
-                name: scryfallCard.name || related.name,
+                name: frontFace?.name || scryfallCard.name || related.name,
                 imageUrl,
                 typeLine: scryfallCard.type_line,
                 oracleText: scryfallCard.oracle_text,
@@ -57,6 +59,7 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
                 scryfall: scryfallCard,
                 tapped: false,
                 faceDown: false,
+                currentFaceIndex: 0,
                 rotation: 0,
                 counters: [],
                 position,
@@ -77,6 +80,7 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
             myPlayerId,
             moveCard: (cardId, toZoneId) => moveCard(cardId, toZoneId, undefined, myPlayerId),
             tapCard: (cardId) => useGameStore.getState().tapCard(cardId, myPlayerId),
+            transformCard: (cardId, faceIndex) => useGameStore.getState().transformCard(cardId, faceIndex),
             duplicateCard: (cardId) => duplicateCard(cardId, myPlayerId),
             createRelatedCard,
             addCounter: (cardId, counter) => {
@@ -94,7 +98,7 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
             },
         });
 
-        handleContextMenu(e, cardActions, card.name);
+        handleContextMenu(e, cardActions, getDisplayName(card));
     };
 
     // Builds and opens zone-specific actions (draw/shuffle/view).

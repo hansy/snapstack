@@ -15,6 +15,7 @@ import { buildZoneMoveActions } from "../context/menu";
 import { ZONE } from "../../../constants/zones";
 import { canViewZone } from "../../../rules/permissions";
 import { cn } from "../../../lib/utils";
+import { getDisplayName } from "../../../lib/cardDisplay";
 
 interface ZoneViewerModalProps {
     isOpen: boolean;
@@ -175,7 +176,7 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
                 x: e.clientX - rect.left,
                 y: e.clientY - rect.top,
                 items,
-                title: card.name,
+                title: getDisplayName(card),
                 cardId: card.id,
             });
         }

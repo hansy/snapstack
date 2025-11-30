@@ -8,6 +8,7 @@ import { ZONE } from "../../../constants/zones";
 
 import { CardFace } from "./CardFace";
 import { useCardPreview } from "./CardPreviewProvider";
+import { getFlipRotation } from "../../../lib/cardDisplay";
 
 interface CardProps {
   card: CardType;
@@ -23,6 +24,7 @@ export interface CardViewProps {
   style?: React.CSSProperties;
   className?: string;
   imageClassName?: string;
+  imageTransform?: string;
   onContextMenu?: (e: React.MouseEvent) => void;
   faceDown?: boolean;
   isDragging?: boolean;
@@ -46,6 +48,7 @@ export const CardView = React.forwardRef<HTMLDivElement, CardViewProps>(
       onClick,
       onMouseEnter,
       onMouseLeave,
+      imageTransform,
       ...props
     },
     ref
@@ -76,6 +79,7 @@ export const CardView = React.forwardRef<HTMLDivElement, CardViewProps>(
           card={card}
           faceDown={faceDown}
           imageClassName={imageClassName}
+          imageTransform={imageTransform}
         />
       </div>
     );
@@ -180,6 +184,13 @@ export const Card: React.FC<CardProps> = ({
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        imageClassName={undefined}
+        imageTransform={
+          (() => {
+            const flipRotation = getFlipRotation(card);
+            return flipRotation ? `rotate(${flipRotation}deg)` : undefined;
+          })()
+        }
         {...listeners}
         {...attributes}
       />

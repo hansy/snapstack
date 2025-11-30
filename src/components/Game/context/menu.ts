@@ -2,6 +2,7 @@ import { Card, CardId, PlayerId, ScryfallRelatedCard, Zone, ZoneId } from '../..
 import { getPlayerZones } from '../../../lib/gameSelectors';
 import { ZONE, ZONE_LABEL } from '../../../constants/zones';
 import { canCreateToken, canMoveCard, canTapCard, canViewZone } from '../../../rules/permissions';
+import { getNextTransformFace, getTransformVerb, isTransformableCard } from '../../../lib/cardDisplay';
 
 export interface ContextMenuItem {
     label: string;
@@ -66,6 +67,7 @@ interface CardActionBuilderParams {
     myPlayerId: PlayerId;
     moveCard: (cardId: CardId, toZoneId: ZoneId) => void;
     tapCard: (cardId: CardId) => void;
+    transformCard: (cardId: CardId, faceIndex?: number) => void;
     duplicateCard: (cardId: CardId) => void;
     createRelatedCard: (card: Card, related: ScryfallRelatedCard) => void;
     addCounter: (cardId: CardId, counter: { type: string; count: number; color?: string }) => void;
@@ -81,6 +83,7 @@ export const buildCardActions = ({
     myPlayerId,
     moveCard,
     tapCard,
+    transformCard,
     duplicateCard,
     createRelatedCard,
     addCounter,
@@ -96,6 +99,14 @@ export const buildCardActions = ({
     const canTap = canTapCard({ actorId: myPlayerId }, card, currentZone);
     if (canTap.allowed) {
         items.push({ label: 'Tap/Untap', action: () => tapCard(card.id) });
+    }
+
+    if (currentZone?.type === ZONE.BATTLEFIELD && isTransformableCard(card)) {
+        const nextFace = getNextTransformFace(card);
+        if (nextFace) {
+            const verb = getTransformVerb(card);
+            items.push({ label: `${verb}: ${nextFace.face.name}`, action: () => transformCard(card.id, nextFace.nextIndex) });
+        }
     }
 
     if (currentZone?.type === ZONE.BATTLEFIELD) {

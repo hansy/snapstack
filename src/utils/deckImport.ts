@@ -140,10 +140,12 @@ export const fetchScryfallCards = async (parsedCards: ParsedCard[]): Promise<(Pa
                     // I will proceed with finding the request and using its section.
 
                     for (let i = 0; i < originalRequest.quantity; i++) {
-                        const imageUrl = scryfallCard.image_uris?.normal || scryfallCard.card_faces?.[0]?.image_uris?.normal;
+                        const frontFace = scryfallCard.card_faces?.[0];
+                        const imageUrl = scryfallCard.image_uris?.normal || frontFace?.image_uris?.normal;
+                        const name = frontFace?.name || scryfallCard.name;
 
                         fetchedCards.push({
-                            name: scryfallCard.name,
+                            name,
                             imageUrl: imageUrl,
                             typeLine: scryfallCard.type_line,
                             oracleText: scryfallCard.oracle_text,
@@ -151,6 +153,7 @@ export const fetchScryfallCards = async (parsedCards: ParsedCard[]): Promise<(Pa
                             scryfall: scryfallCard,
                             tapped: false,
                             faceDown: false,
+                            currentFaceIndex: 0,
                             rotation: 0,
                             counters: [],
                             position: { x: 0, y: 0 },
@@ -184,6 +187,7 @@ export const createCardFromImport = (cardData: Partial<Card>, ownerId: PlayerId,
         rotation: 0,
         counters: [],
         position: { x: 0, y: 0 },
-        ...cardData
+        ...cardData,
+        currentFaceIndex: cardData.currentFaceIndex ?? 0,
     };
 };
