@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from './gameStore';
 import { ZONE } from '../constants/zones';
+import { SNAP_GRID_SIZE } from '../lib/snapping';
 
 const makeZone = (id: string, type: keyof typeof ZONE, ownerId: string, cardIds: string[] = []) => ({
   id,
@@ -198,5 +199,65 @@ describe('gameStore move/tap interactions', () => {
     const resetCard = useGameStore.getState().cards[card.id];
     expect(resetCard.zoneId).toBe(library.id);
     expect(resetCard.counters).toEqual([]);
+  });
+
+  it('duplicates a battlefield card as a token and preserves its state', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['c9']);
+    const card = {
+      ...makeCard('c9', battlefield.id, 'me', true),
+      counters: [{ type: '+1/+1', count: 2, color: '#fff' }],
+      power: '5',
+      toughness: '6',
+      basePower: '4',
+      baseToughness: '5',
+      position: { x: 10, y: 20 },
+    };
+
+    useGameStore.setState((state) => ({
+      myPlayerId: 'me',
+      zones: { ...state.zones, [battlefield.id]: battlefield },
+      cards: { ...state.cards, [card.id]: card },
+    }));
+
+    useGameStore.getState().duplicateCard(card.id, 'me');
+
+    const state = useGameStore.getState();
+    const newIds = state.zones[battlefield.id].cardIds.filter((id) => id !== card.id);
+    expect(newIds).toHaveLength(1);
+
+    const clone = state.cards[newIds[0]];
+    expect(clone).toBeDefined();
+    if (!clone) throw new Error('Clone not created');
+
+    expect(clone.isToken).toBe(true);
+    expect(clone.counters).toEqual(card.counters);
+    expect(clone.power).toBe(card.power);
+    expect(clone.toughness).toBe(card.toughness);
+    expect(clone.basePower).toBe(card.basePower);
+    expect(clone.baseToughness).toBe(card.baseToughness);
+    expect(clone.tapped).toBe(true);
+    expect(clone.position).toEqual({
+      x: card.position.x + SNAP_GRID_SIZE,
+      y: card.position.y + SNAP_GRID_SIZE,
+    });
+    expect(clone.ownerId).toBe(card.ownerId);
+    expect(clone.controllerId).toBe(card.controllerId);
+  });
+
+  it('blocks duplication when the actor cannot create a token on the battlefield', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['c10']);
+    const card = makeCard('c10', battlefield.id, 'me', false);
+
+    useGameStore.setState((state) => ({
+      myPlayerId: 'me',
+      zones: { ...state.zones, [battlefield.id]: battlefield },
+      cards: { ...state.cards, [card.id]: card },
+    }));
+
+    useGameStore.getState().duplicateCard(card.id, 'opponent');
+
+    const state = useGameStore.getState();
+    expect(state.zones[battlefield.id].cardIds).toEqual([card.id]);
+    expect(Object.keys(state.cards)).toEqual([card.id]);
   });
 });

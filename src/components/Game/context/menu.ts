@@ -1,7 +1,7 @@
 import { Card, CardId, PlayerId, Zone, ZoneId } from '../../../types';
 import { getPlayerZones } from '../../../lib/gameSelectors';
 import { ZONE, ZONE_LABEL } from '../../../constants/zones';
-import { canMoveCard, canTapCard, canViewZone } from '../../../rules/permissions';
+import { canCreateToken, canMoveCard, canTapCard, canViewZone } from '../../../rules/permissions';
 
 export interface ContextMenuItem {
     label: string;
@@ -66,6 +66,7 @@ interface CardActionBuilderParams {
     myPlayerId: PlayerId;
     moveCard: (cardId: CardId, toZoneId: ZoneId) => void;
     tapCard: (cardId: CardId) => void;
+    duplicateCard: (cardId: CardId) => void;
     addCounter: (cardId: CardId, counter: { type: string; count: number; color?: string }) => void;
     removeCounter: (cardId: CardId, counterType: string) => void;
     removeCard?: (card: Card) => void;
@@ -79,6 +80,7 @@ export const buildCardActions = ({
     myPlayerId,
     moveCard,
     tapCard,
+    duplicateCard,
     addCounter,
     removeCounter,
     removeCard,
@@ -92,6 +94,13 @@ export const buildCardActions = ({
     const canTap = canTapCard({ actorId: myPlayerId }, card, currentZone);
     if (canTap.allowed) {
         items.push({ label: 'Tap/Untap', action: () => tapCard(card.id) });
+    }
+
+    if (currentZone?.type === ZONE.BATTLEFIELD) {
+        const tokenPermission = canCreateToken({ actorId: myPlayerId }, currentZone);
+        if (tokenPermission.allowed) {
+            items.push({ label: 'Duplicate', action: () => duplicateCard(card.id) });
+        }
     }
 
     if (countersAllowed) {

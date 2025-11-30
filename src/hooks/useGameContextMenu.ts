@@ -8,6 +8,7 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
     const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; items: ContextMenuItem[]; title?: string } | null>(null);
     const zones = useGameStore((state) => state.zones);
     const moveCard = useGameStore((state) => state.moveCard);
+    const duplicateCard = useGameStore((state) => state.duplicateCard);
 
     // Opens a context menu at the event point with provided actions.
     const handleContextMenu = (e: React.MouseEvent, items: ContextMenuItem[], title?: string) => {
@@ -25,6 +26,7 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
             myPlayerId,
             moveCard: (cardId, toZoneId) => moveCard(cardId, toZoneId, undefined, myPlayerId),
             tapCard: (cardId) => useGameStore.getState().tapCard(cardId, myPlayerId),
+            duplicateCard: (cardId) => duplicateCard(cardId, myPlayerId),
             addCounter: (cardId, counter) => {
                 useGameStore.getState().addCounterToCard(cardId, counter);
             },

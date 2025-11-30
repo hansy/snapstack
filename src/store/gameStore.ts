@@ -7,7 +7,7 @@ import { getSnappedPosition, SNAP_GRID_SIZE } from '../lib/snapping';
 import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
 import { getZoneByType } from '../lib/gameSelectors';
 import { ZONE } from '../constants/zones';
-import { canMoveCard, canTapCard, canUpdatePlayer, canViewZone } from '../rules/permissions';
+import { canCreateToken, canMoveCard, canTapCard, canUpdatePlayer, canViewZone } from '../rules/permissions';
 import { logPermission } from '../rules/logger';
 
 const isBattlefieldZone = (zone?: Zone) => zone?.type === ZONE.BATTLEFIELD;
@@ -108,6 +108,37 @@ export const useGameStore = create<GameStore>()(
                     };
                 });
                 if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addCard', args: [initializedCard] } });
+            },
+
+            duplicateCard: (cardId, actorId, isRemote) => {
+                const actor = actorId ?? get().myPlayerId;
+                const state = get();
+                const sourceCard = state.cards[cardId];
+                if (!sourceCard) return;
+
+                const currentZone = state.zones[sourceCard.zoneId];
+                if (!currentZone) return;
+
+                const tokenPermission = canCreateToken({ actorId: actor }, currentZone);
+                if (!tokenPermission.allowed) {
+                    logPermission({ action: 'duplicateCard', actorId: actor, allowed: false, reason: tokenPermission.reason, details: { cardId, zoneId: currentZone.id } });
+                    return;
+                }
+
+                const newCardId = uuidv4();
+                const clonedCard: Card = {
+                    ...sourceCard,
+                    id: newCardId,
+                    isToken: true,
+                    position: {
+                        x: sourceCard.position.x + SNAP_GRID_SIZE,
+                        y: sourceCard.position.y + SNAP_GRID_SIZE,
+                    },
+                    counters: sourceCard.counters.map(counter => ({ ...counter })),
+                };
+
+                logPermission({ action: 'duplicateCard', actorId: actor, allowed: true, details: { cardId, newCardId, zoneId: currentZone.id } });
+                get().addCard(clonedCard, isRemote);
             },
 
             updateCard: (id, updates, isRemote) => {
