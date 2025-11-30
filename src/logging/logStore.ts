@@ -34,7 +34,7 @@ const buildEntry = (
   };
 };
 
-export const useLogStore = create<LogStoreState>((set, get) => ({
+export const useLogStore = create<LogStoreState>((set) => ({
   entries: [],
 
   emitLog: (eventId, payload, ctx) => {

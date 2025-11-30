@@ -16,6 +16,7 @@ import { ZONE } from '../../../constants/zones';
 import { CardPreviewProvider } from '../Card/CardPreviewProvider';
 import { useGameContextMenu } from '../../../hooks/useGameContextMenu';
 import { NumberPromptDialog } from '../UI/NumberPromptDialog';
+import { LogDrawer } from '../UI/LogDrawer';
 
 
 
@@ -58,6 +59,7 @@ export const MultiplayerBoard: React.FC = () => {
 
     const [isLoadDeckModalOpen, setIsLoadDeckModalOpen] = useState(false);
     const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
+    const [isLogOpen, setIsLogOpen] = useState(false);
 
     // Auto-initialize if player is missing (e.g. after reset)
     React.useEffect(() => {
@@ -168,7 +170,10 @@ export const MultiplayerBoard: React.FC = () => {
                 }}
             >
                 <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex font-sans selection:bg-indigo-500/30" onContextMenu={(e) => e.preventDefault()}>
-                    <Sidenav onCreateToken={() => setIsTokenModalOpen(true)} />
+                    <Sidenav
+                        onCreateToken={() => setIsTokenModalOpen(true)}
+                        onToggleLog={() => setIsLogOpen(!isLogOpen)}
+                    />
 
                     <div className={`w-full h-full grid ${getGridClass()} pl-12`}>
                         {slots.map((slot, index) => (
@@ -241,6 +246,11 @@ export const MultiplayerBoard: React.FC = () => {
                     zoneId={zoneViewerState.zoneId}
                     count={zoneViewerState.count}
                 />
+                <LogDrawer
+                    isOpen={isLogOpen}
+                    onClose={() => setIsLogOpen(false)}
+                    playerColors={playerColors}
+                />
                 <DragMonitor />
                 <DragOverlay dropAnimation={null}>
                     {activeCardId && cards[activeCardId] ? (() => {
@@ -249,13 +259,13 @@ export const MultiplayerBoard: React.FC = () => {
                         const overlayTypeLine = overlayCard.typeLine || overlayCard.scryfall?.type_line || '';
                         const overlayPreferArtCrop = overlayZone?.type === ZONE.BATTLEFIELD && !/land/i.test(overlayTypeLine);
                         return (
-                        <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-                            <CardView
-                                card={overlayCard}
-                                isDragging
-                                preferArtCrop={overlayPreferArtCrop}
-                            />
-                        </div>
+                            <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                                <CardView
+                                    card={overlayCard}
+                                    isDragging
+                                    preferArtCrop={overlayPreferArtCrop}
+                                />
+                            </div>
                         );
                     })() : null}
                 </DragOverlay>

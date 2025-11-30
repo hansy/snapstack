@@ -1,5 +1,5 @@
 import { getCardDisplayName, getPlayerName, getZoneLabel } from './helpers';
-import { LogContext, LogEventDefinition, LogEventId } from './types';
+import { LogEventDefinition, LogEventId } from './types';
 
 const DEFAULT_AGGREGATE_WINDOW_MS = 2000;
 
@@ -14,6 +14,7 @@ type UntapAllPayload = { playerId: string; actorId?: string };
 type TransformPayload = { cardId: string; zoneId: string; actorId?: string; toFaceName?: string };
 type DuplicatePayload = { sourceCardId: string; newCardId: string; zoneId: string; actorId?: string };
 type RemoveCardPayload = { cardId: string; zoneId: string; actorId?: string };
+type PTPayload = { cardId: string; zoneId: string; actorId?: string; fromPower?: string; fromToughness?: string; toPower?: string; toToughness?: string };
 type CounterPayload = { cardId: string; zoneId: string; actorId?: string; counterType: string; delta: number; newTotal: number };
 type GlobalCounterPayload = { counterType: string; color?: string; actorId?: string };
 
@@ -61,16 +62,60 @@ const formatMove: LogEventDefinition<MovePayload>['format'] = (payload, ctx) => 
   const toZone = ctx.zones[payload.toZoneId];
   const cardLabel = getCardDisplayName(ctx, payload.cardId, fromZone, toZone);
 
-  const verb = fromZone?.type === 'hand' && toZone?.type === 'battlefield' ? 'played' : 'moved';
+  const fromLabel = getZoneLabel(ctx, payload.fromZoneId);
+  const toLabel = getZoneLabel(ctx, payload.toZoneId);
+
+  // Within the same zone: treat as a reorder/move inside the zone
+  if (payload.fromZoneId === payload.toZoneId) {
+    return [
+      { kind: 'player', text: actorName },
+      { kind: 'text', text: ' moved ' },
+      { kind: 'card', text: cardLabel },
+      { kind: 'text', text: ` within ${toLabel}` },
+    ];
+  }
+
+  if (toZone?.type === 'battlefield') {
+    return [
+      { kind: 'player', text: actorName },
+      { kind: 'text', text: ' played ' },
+      { kind: 'card', text: cardLabel },
+      { kind: 'text', text: ` from ${fromLabel}` },
+    ];
+  }
+
+  if (toZone?.type === 'exile') {
+    return [
+      { kind: 'player', text: actorName },
+      { kind: 'text', text: ' exiled ' },
+      { kind: 'card', text: cardLabel },
+      { kind: 'text', text: ` from ${fromLabel}` },
+    ];
+  }
+
+  if (toZone?.type === 'graveyard') {
+    return [
+      { kind: 'player', text: actorName },
+      { kind: 'text', text: ' sent ' },
+      { kind: 'card', text: cardLabel },
+      { kind: 'text', text: ` from ${fromLabel}` },
+    ];
+  }
+
+  if (toZone?.type === 'commander') {
+    return [
+      { kind: 'player', text: actorName },
+      { kind: 'text', text: ' returned commander ' },
+      { kind: 'card', text: cardLabel },
+      { kind: 'text', text: ` from ${fromLabel}` },
+    ];
+  }
 
   return [
     { kind: 'player', text: actorName },
-    { kind: 'text', text: ` ${verb} ` },
+    { kind: 'text', text: ' moved ' },
     { kind: 'card', text: cardLabel },
-    { kind: 'text', text: ' — ' },
-    { kind: 'zone', text: getZoneLabel(ctx, payload.fromZoneId) },
-    { kind: 'text', text: ' -> ' },
-    { kind: 'zone', text: getZoneLabel(ctx, payload.toZoneId) },
+    { kind: 'text', text: ` from ${fromLabel} to ${toLabel}` },
   ];
 };
 
@@ -100,10 +145,10 @@ const formatTransform: LogEventDefinition<TransformPayload>['format'] = (payload
   const cardLabel = getCardDisplayName(ctx, payload.cardId, zone, zone);
   const includeFace = cardLabel !== 'a card' && payload.toFaceName;
   return [
-    { kind: 'player', text: actorName },
-    { kind: 'text', text: ' transformed ' },
-    { kind: 'card', text: cardLabel },
-    ...(includeFace ? [{ kind: 'text', text: ` to ${payload.toFaceName}` }] : []),
+    { kind: 'player' as const, text: actorName },
+    { kind: 'text' as const, text: ' transformed ' },
+    { kind: 'card' as const, text: cardLabel },
+    ...(includeFace ? [{ kind: 'text' as const, text: ` to ${payload.toFaceName}` }] : []),
   ];
 };
 
@@ -126,6 +171,20 @@ const formatRemove: LogEventDefinition<RemoveCardPayload>['format'] = (payload, 
     { kind: 'player', text: actorName },
     { kind: 'text', text: ' removed ' },
     { kind: 'card', text: cardLabel },
+  ];
+};
+
+const formatPT: LogEventDefinition<PTPayload>['format'] = (payload, ctx) => {
+  const actorName = getPlayerName(ctx, payload.actorId);
+  const zone = ctx.zones[payload.zoneId];
+  const cardLabel = getCardDisplayName(ctx, payload.cardId, zone, zone);
+  const from = `${payload.fromPower ?? '?'} / ${payload.fromToughness ?? '?'}`;
+  const to = `${payload.toPower ?? '?'} / ${payload.toToughness ?? '?'}`;
+  return [
+    { kind: 'player', text: actorName },
+    { kind: 'text', text: ' set ' },
+    { kind: 'card', text: cardLabel },
+    { kind: 'text', text: ` P/T to ${to} (was ${from})` },
   ];
 };
 
@@ -240,6 +299,9 @@ export const logEventRegistry: Record<LogEventId, LogEventDefinition<any>> = {
   },
   'card.remove': {
     format: formatRemove,
+  },
+  'card.pt': {
+    format: formatPT,
   },
   'counter.add': {
     format: formatCounterAdd,

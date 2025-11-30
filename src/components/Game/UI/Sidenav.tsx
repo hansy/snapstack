@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, ScrollText } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useGameStore } from '../../../store/gameStore';
 
@@ -28,9 +28,10 @@ const NavIcon: React.FC<NavIconProps> = ({ icon, label, onClick, className }) =>
 
 interface SidenavProps {
     onCreateToken?: () => void;
+    onToggleLog?: () => void;
 }
 
-export const Sidenav: React.FC<SidenavProps> = ({ onCreateToken }) => {
+export const Sidenav: React.FC<SidenavProps> = ({ onCreateToken, onToggleLog }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const myPlayerId = useGameStore((state) => state.myPlayerId);
@@ -46,7 +47,7 @@ export const Sidenav: React.FC<SidenavProps> = ({ onCreateToken }) => {
     return (
         <>
             {/* Persistent Rail */}
-            <div className="fixed left-0 top-0 h-full w-12 flex flex-col items-center py-4 bg-zinc-950 border-r border-zinc-800 z-50">
+            <div className="fixed left-0 top-0 h-full w-12 flex flex-col items-center py-4 bg-zinc-950 border-r border-zinc-800 z-[60]">
                 {/* Top: Untap */}
                 <NavIcon
                     icon={<RefreshCw size={20} />}
@@ -60,6 +61,13 @@ export const Sidenav: React.FC<SidenavProps> = ({ onCreateToken }) => {
                     label="Create Token"
                     onClick={onCreateToken}
                     className="hover:text-emerald-400"
+                />
+
+                <NavIcon
+                    icon={<ScrollText size={20} />}
+                    label="Game Log"
+                    onClick={onToggleLog}
+                    className="hover:text-amber-400"
                 />
 
                 <div className="flex-1" />

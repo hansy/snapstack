@@ -13,6 +13,7 @@ export type LogEventId =
   | 'card.transform'
   | 'card.duplicate'
   | 'card.remove'
+  | 'card.pt'
   | 'counter.add'
   | 'counter.remove'
   | 'counter.global.add';
