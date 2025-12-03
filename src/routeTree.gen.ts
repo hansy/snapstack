@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LayoutTestRouteImport } from './routes/layout-test'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GameSessionIdRouteImport } from './routes/game.$sessionId'
 
 const LayoutTestRoute = LayoutTestRouteImport.update({
   id: '/layout-test',
@@ -22,31 +23,40 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GameSessionIdRoute = GameSessionIdRouteImport.update({
+  id: '/game/$sessionId',
+  path: '/game/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/layout-test': typeof LayoutTestRoute
+  '/game/$sessionId': typeof GameSessionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/layout-test': typeof LayoutTestRoute
+  '/game/$sessionId': typeof GameSessionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/layout-test': typeof LayoutTestRoute
+  '/game/$sessionId': typeof GameSessionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/layout-test'
+  fullPaths: '/' | '/layout-test' | '/game/$sessionId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/layout-test'
-  id: '__root__' | '/' | '/layout-test'
+  to: '/' | '/layout-test' | '/game/$sessionId'
+  id: '__root__' | '/' | '/layout-test' | '/game/$sessionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LayoutTestRoute: typeof LayoutTestRoute
+  GameSessionIdRoute: typeof GameSessionIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/game/$sessionId': {
+      id: '/game/$sessionId'
+      path: '/game/$sessionId'
+      fullPath: '/game/$sessionId'
+      preLoaderRoute: typeof GameSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LayoutTestRoute: LayoutTestRoute,
+  GameSessionIdRoute: GameSessionIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

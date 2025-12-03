@@ -17,6 +17,8 @@ import { CardPreviewProvider } from '../Card/CardPreviewProvider';
 import { useGameContextMenu } from '../../../hooks/useGameContextMenu';
 import { NumberPromptDialog } from '../UI/NumberPromptDialog';
 import { LogDrawer } from '../UI/LogDrawer';
+import { useYjsSync } from '../../../hooks/useYjsSync';
+import { useNavigate } from '@tanstack/react-router';
 
 
 
@@ -32,7 +34,12 @@ const DragMonitor = () => {
 
 
 
-export const MultiplayerBoard: React.FC = () => {
+interface MultiplayerBoardProps {
+    sessionId: string;
+}
+
+export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId }) => {
+    const navigate = useNavigate();
     const zones = useGameStore((state) => state.zones);
     const cards = useGameStore((state) => state.cards);
     const activeModal = useGameStore((state) => state.activeModal);
@@ -43,7 +50,10 @@ export const MultiplayerBoard: React.FC = () => {
     const { slots, layoutMode, myPlayerId } = usePlayerLayout();
 
 
+    const { status: syncStatus, peers } = useYjsSync(sessionId);
+    const seededRef = React.useRef(false);
 
+    const [copiedLink, setCopiedLink] = useState(false);
     const [zoneViewerState, setZoneViewerState] = useState<{ isOpen: boolean; zoneId: string | null; count?: number }>({
         isOpen: false,
         zoneId: null
@@ -51,6 +61,21 @@ export const MultiplayerBoard: React.FC = () => {
 
     const handleViewZone = (zoneId: string, count?: number) => {
         setZoneViewerState({ isOpen: true, zoneId, count });
+    };
+
+    const handleLeave = () => {
+        useGameStore.getState().resetSession();
+        navigate({ to: '/' });
+    };
+
+    const handleCopyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(window.location.href);
+            setCopiedLink(true);
+            setTimeout(() => setCopiedLink(false), 1500);
+        } catch (err) {
+            console.error('Failed to copy link', err);
+        }
     };
 
     // Debugging moved to DragMonitor component
@@ -64,33 +89,39 @@ export const MultiplayerBoard: React.FC = () => {
     // Auto-initialize if player is missing (e.g. after reset)
     React.useEffect(() => {
         if (!hasHydrated) return;
+        if (seededRef.current) return;
 
-        const players = useGameStore.getState().players;
-        // We check if the *current* myPlayerId (which should be the persisted one now) exists
-        if (!players[myPlayerId]) {
-            const { addPlayer, addZone } = useGameStore.getState();
+        const state = useGameStore.getState();
+        const players = state.players;
 
-            // Add Player
-            addPlayer({
-                id: myPlayerId,
-                name: 'Me',
-                life: 40,
-                counters: [],
-                commanderDamage: {},
-                commanderTax: 0,
-            });
-
-            // Add Zones
-            const zoneTypes = [ZONE.LIBRARY, ZONE.HAND, ZONE.BATTLEFIELD, ZONE.GRAVEYARD, ZONE.EXILE, ZONE.COMMANDER] as const;
-            zoneTypes.forEach(type => {
-                addZone({
-                    id: `${myPlayerId}-${type}`,
-                    type,
-                    ownerId: myPlayerId,
-                    cardIds: []
-                });
-            });
+        // Only seed when there are zero players. If any players exist (e.g., from remote sync), do nothing.
+        if (Object.keys(players).length > 0) {
+            seededRef.current = true;
+            return;
         }
+
+        const { addPlayer, addZone } = state;
+        const label = `Player ${myPlayerId.slice(0, 4).toUpperCase()}`;
+        addPlayer({
+            id: myPlayerId,
+            name: label,
+            life: 40,
+            counters: [],
+            commanderDamage: {},
+            commanderTax: 0,
+        });
+
+        const zoneTypes = [ZONE.LIBRARY, ZONE.HAND, ZONE.BATTLEFIELD, ZONE.GRAVEYARD, ZONE.EXILE, ZONE.COMMANDER] as const;
+        zoneTypes.forEach(type => {
+            addZone({
+                id: `${myPlayerId}-${type}`,
+                type,
+                ownerId: myPlayerId,
+                cardIds: []
+            });
+        });
+
+        seededRef.current = true;
     }, [myPlayerId, hasHydrated]);
 
     const getGridClass = () => {
@@ -163,13 +194,29 @@ export const MultiplayerBoard: React.FC = () => {
                 sensors={sensors}
                 onDragStart={handleDragStart}
                 onDragMove={handleDragMove}
-                onDragEnd={handleDragEnd}
-                measuring={{
-                    draggable: { measure: getClientRect },
-                    dragOverlay: { measure: getClientRect },
-                }}
-            >
-                <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex font-sans selection:bg-indigo-500/30" onContextMenu={(e) => e.preventDefault()}>
+            onDragEnd={handleDragEnd}
+            measuring={{
+                draggable: { measure: getClientRect },
+                dragOverlay: { measure: getClientRect },
+            }}
+        >
+                <div className="relative h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex font-sans selection:bg-indigo-500/30" onContextMenu={(e) => e.preventDefault()}>
+                    <div className="absolute top-4 left-4 z-20 flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900/80 border border-zinc-800">
+                        <span className={`h-2 w-2 rounded-full ${syncStatus === 'connected' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+                        <div className="text-sm text-zinc-200">Session {sessionId.slice(0, 8)} • Peers {peers}</div>
+                        <button
+                            onClick={handleCopyLink}
+                            className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100"
+                        >
+                            {copiedLink ? 'Copied!' : 'Copy link'}
+                        </button>
+                        <button
+                            onClick={handleLeave}
+                            className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100"
+                        >
+                            Leave
+                        </button>
+                    </div>
                     <Sidenav
                         onCreateToken={() => setIsTokenModalOpen(true)}
                         onToggleLog={() => setIsLogOpen(!isLogOpen)}

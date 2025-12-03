@@ -114,6 +114,9 @@ export interface GameState {
   removeCounterFromCard: (cardId: CardId, counterType: string, isRemote?: boolean) => void;
   setActiveModal: (modal: { type: 'ADD_COUNTER'; cardId: string } | null) => void;
 
+  // Session management
+  resetSession: (sessionId?: string) => void;
+
   // Hydration
   hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;

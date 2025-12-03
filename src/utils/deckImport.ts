@@ -119,7 +119,7 @@ export const fetchScryfallCards = async (parsedCards: ParsedCard[]): Promise<(Pa
                 continue;
             }
 
-            const data = await response.json();
+            const data = await response.json() as { data: ScryfallCard[] };
             console.log('Scryfall Response:', data);
 
             // Map found cards back to quantities and sections

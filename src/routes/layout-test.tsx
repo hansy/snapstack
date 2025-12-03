@@ -49,5 +49,5 @@ function LayoutTest() {
 
   if (!hasHydrated) return null;
 
-  return <MultiplayerBoard />;
+  return <MultiplayerBoard sessionId="layout-test" />;
 }

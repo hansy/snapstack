@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { Card, GameState, Zone } from '../types';
-import { peerService } from '../services/peerService';
 import { findAvailablePosition, getSnappedPosition, SNAP_GRID_SIZE } from '../lib/snapping';
 import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
 import { getZoneByType } from '../lib/gameSelectors';
@@ -12,6 +11,8 @@ import { logPermission } from '../rules/logger';
 import { getCardFaces, getCurrentFaceIndex, isTransformableCard, syncCardStatsToFace } from '../lib/cardDisplay';
 import { decrementCounter, enforceZoneCounterRules, isBattlefieldZone, mergeCounters, resolveCounterColor } from '../lib/counters';
 import { emitLog } from '../logging/logStore';
+import { getYDocHandles } from '../yjs/yManager';
+import { addCounterToCard as yAddCounterToCard, duplicateCard as yDuplicateCard, moveCard as yMoveCard, removeCard as yRemoveCard, removeCounterFromCard as yRemoveCounterFromCard, reorderZoneCards as yReorderZoneCards, transformCard as yTransformCard, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone, SharedMaps } from '../yjs/yMutations';
 
 interface GameStore extends GameState {
     // Additional actions or computed properties can go here
@@ -20,6 +21,35 @@ interface GameStore extends GameState {
 export const useGameStore = create<GameStore>()(
     persist(
         (set, get) => {
+            const applyShared = (fn: (maps: SharedMaps) => void) => {
+                const handles = getYDocHandles();
+                if (!handles) return false;
+                handles.doc.transact(() => fn({
+                    players: handles.players,
+                    zones: handles.zones,
+                    cards: handles.cards,
+                    globalCounters: handles.globalCounters,
+                }));
+                return true;
+            };
+
+            const syncSnapshotToShared = (state: GameState) => {
+                const handles = getYDocHandles();
+                if (!handles) return;
+                const sync = (data: Record<string, any>, map: any) => {
+                    map.forEach((_value: any, key: string) => {
+                        if (!Object.prototype.hasOwnProperty.call(data, key)) map.delete(key);
+                    });
+                    Object.entries(data).forEach(([key, value]) => map.set(key, value as any));
+                };
+                handles.doc.transact(() => {
+                    sync(state.players, handles.players);
+                    sync(state.zones, handles.zones);
+                    sync(state.cards, handles.cards);
+                    sync(state.globalCounters, handles.globalCounters);
+                });
+            };
+
             const buildLogContext = () => {
                 const snapshot = get();
                 return {
@@ -40,18 +70,34 @@ export const useGameStore = create<GameStore>()(
                 globalCounters: {},
                 activeModal: null,
 
+                resetSession: (newSessionId) => {
+                    const freshSessionId = newSessionId ?? uuidv4();
+                    const freshPlayerId = uuidv4();
+
+                    set({
+                        players: {},
+                        cards: {},
+                        zones: {},
+                        sessionId: freshSessionId,
+                        myPlayerId: freshPlayerId,
+                        globalCounters: {},
+                        activeModal: null,
+                    });
+                },
+
                 setHasHydrated: (state) => {
                     set({ hasHydrated: state });
                 },
 
-                addPlayer: (player, isRemote) => {
+                addPlayer: (player, _isRemote) => {
+                    const normalized = { ...player, deckLoaded: false, commanderTax: 0 };
+                    if (applyShared((maps) => yUpsertPlayer(maps, normalized))) return;
                     set((state) => ({
-                        players: { ...state.players, [player.id]: { ...player, deckLoaded: false, commanderTax: 0 } },
+                        players: { ...state.players, [normalized.id]: normalized },
                     }));
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addPlayer', args: [player] } });
                 },
 
-                updatePlayer: (id, updates, actorId, isRemote) => {
+                updatePlayer: (id, updates, actorId, _isRemote) => {
                     const actor = actorId ?? get().myPlayerId;
                     const player = get().players[id];
                     if (!player) return;
@@ -67,20 +113,31 @@ export const useGameStore = create<GameStore>()(
                         emitLog('player.life', { actorId: actor, playerId: id, from: player.life, to: updates.life, delta: updates.life - player.life }, buildLogContext());
                     }
 
+                    if (applyShared((maps) => {
+                        const current = maps.players.get(id) as any;
+                        if (!current) return;
+                        maps.players.set(id, { ...current, ...updates });
+                    })) return;
+
                     set((state) => ({
                         players: {
                             ...state.players,
                             [id]: { ...state.players[id], ...updates },
                         },
                     }));
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'updatePlayer', args: [id, updates], actorId: actor } });
                 },
 
-                updateCommanderTax: (playerId, delta, isRemote) => {
+                updateCommanderTax: (playerId, delta, _isRemote) => {
                     const player = get().players[playerId];
                     if (!player) return;
                     const from = player.commanderTax || 0;
                     const to = Math.max(0, from + delta);
+
+                    if (applyShared((maps) => {
+                        const current = maps.players.get(playerId) as any;
+                        if (!current) return;
+                        maps.players.set(playerId, { ...current, commanderTax: to });
+                    })) return;
 
                     set((state) => {
                         const current = state.players[playerId];
@@ -94,27 +151,31 @@ export const useGameStore = create<GameStore>()(
                     });
 
                     emitLog('player.commanderTax', { actorId: playerId, playerId, from, to, delta: to - from }, buildLogContext());
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'updateCommanderTax', args: [playerId, delta] } });
                 },
 
-                setDeckLoaded: (playerId, loaded, isRemote) => {
+                setDeckLoaded: (playerId, loaded, _isRemote) => {
+                    if (applyShared((maps) => {
+                        const current = maps.players.get(playerId) as any;
+                        if (!current) return;
+                        maps.players.set(playerId, { ...current, deckLoaded: loaded });
+                    })) return;
+
                     set((state) => ({
                         players: {
                             ...state.players,
                             [playerId]: { ...state.players[playerId], deckLoaded: loaded }
                         }
                     }));
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'setDeckLoaded', args: [playerId, loaded] } });
                 },
 
-                addZone: (zone: Zone, isRemote?: boolean) => {
+                addZone: (zone: Zone, _isRemote?: boolean) => {
+                    if (applyShared((maps) => yUpsertZone(maps, zone))) return;
                     set((state) => ({
                         zones: { ...state.zones, [zone.id]: zone },
                     }));
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addZone', args: [zone] } });
                 },
 
-                addCard: (card, isRemote) => {
+                addCard: (card, _isRemote) => {
                     // Initialize P/T from Scryfall if not already set
                     const initializedCard = { ...card, currentFaceIndex: card.currentFaceIndex ?? 0 };
                     if (card.scryfall && !card.power && !card.toughness) {
@@ -129,6 +190,14 @@ export const useGameStore = create<GameStore>()(
                         initializedCard.currentFaceIndex = Math.min(Math.max(initializedCard.currentFaceIndex ?? 0, 0), faces.length - 1);
                     }
                     const cardWithFaceStats = syncCardStatsToFace(initializedCard, initializedCard.currentFaceIndex);
+
+                    if (applyShared((maps) => {
+                        yUpsertCard(maps, cardWithFaceStats);
+                        const zone = maps.zones.get(cardWithFaceStats.zoneId) as Zone | undefined;
+                        if (zone) {
+                            maps.zones.set(cardWithFaceStats.zoneId, { ...zone, cardIds: [...zone.cardIds, cardWithFaceStats.id] });
+                        }
+                    })) return;
 
                     set((state) => {
                         const targetZone = state.zones[cardWithFaceStats.zoneId];
@@ -148,10 +217,9 @@ export const useGameStore = create<GameStore>()(
                             },
                         };
                     });
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addCard', args: [cardWithFaceStats] } });
                 },
 
-                duplicateCard: (cardId, actorId, isRemote) => {
+                duplicateCard: (cardId, actorId, _isRemote) => {
                     const actor = actorId ?? get().myPlayerId;
                     const state = get();
                     const sourceCard = state.cards[cardId];
@@ -182,10 +250,11 @@ export const useGameStore = create<GameStore>()(
 
                     logPermission({ action: 'duplicateCard', actorId: actor, allowed: true, details: { cardId, newCardId, zoneId: currentZone.id } });
                     emitLog('card.duplicate', { actorId: actor, sourceCardId: cardId, newCardId, zoneId: currentZone.id }, buildLogContext());
-                    get().addCard(clonedCard, isRemote);
+                    if (applyShared((maps) => yDuplicateCard(maps, cardId, newCardId))) return;
+                    get().addCard(clonedCard, _isRemote);
                 },
 
-            updateCard: (id, updates, actorId, isRemote) => {
+            updateCard: (id, updates, actorId, _isRemote) => {
                 const actor = actorId ?? get().myPlayerId;
                 const cardBefore = get().cards[id];
 
@@ -211,6 +280,32 @@ export const useGameStore = create<GameStore>()(
                         );
                     }
                 }
+
+                if (applyShared((maps) => {
+                    const current = maps.cards.get(id) as Card | undefined;
+                    if (!current) return;
+                    const nextZoneId = updates.zoneId ?? current.zoneId;
+                    const zone = maps.zones.get(nextZoneId) as Zone | undefined;
+                    const mergedCard = { ...current, ...updates, zoneId: nextZoneId };
+                    const faces = getCardFaces(mergedCard);
+                    const normalizedFaceIndex = faces.length
+                        ? Math.min(Math.max(mergedCard.currentFaceIndex ?? 0, 0), faces.length - 1)
+                        : mergedCard.currentFaceIndex;
+
+                    const faceChanged = (normalizedFaceIndex ?? mergedCard.currentFaceIndex) !== current.currentFaceIndex;
+                    const cardWithFace = faceChanged
+                        ? syncCardStatsToFace(
+                            { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
+                            normalizedFaceIndex ?? mergedCard.currentFaceIndex
+                        )
+                        : syncCardStatsToFace(
+                            { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
+                            normalizedFaceIndex ?? mergedCard.currentFaceIndex,
+                            { preserveExisting: true }
+                        );
+
+                    maps.cards.set(id, { ...cardWithFace, counters: enforceZoneCounterRules(cardWithFace.counters, zone) });
+                })) return;
 
                 set((state) => {
                     const current = state.cards[id];
@@ -243,10 +338,9 @@ export const useGameStore = create<GameStore>()(
                         },
                     };
                 });
-                if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'updateCard', args: [id, updates], actorId: actor } });
             },
 
-                transformCard: (cardId, faceIndex, isRemote) => {
+                transformCard: (cardId, faceIndex, _isRemote) => {
                     const snapshot = get();
                     const card = snapshot.cards[cardId];
                     if (!card) return;
@@ -266,6 +360,8 @@ export const useGameStore = create<GameStore>()(
 
                     emitLog('card.transform', { actorId: card.controllerId, cardId, zoneId: card.zoneId, toFaceName: targetFaceName }, buildLogContext());
 
+                    if (applyShared((maps) => yTransformCard(maps, cardId, targetIndex))) return;
+
                     set((state) => {
                         const currentCard = state.cards[cardId];
                         if (!currentCard) return state;
@@ -276,11 +372,9 @@ export const useGameStore = create<GameStore>()(
                             }
                         };
                     });
-
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'transformCard', args: [cardId, targetIndex] } });
                 },
 
-            moveCard: (cardId, toZoneId, position, actorId, isRemote, opts) => {
+            moveCard: (cardId, toZoneId, position, actorId, _isRemote, opts) => {
                     const actor = actorId ?? get().myPlayerId;
                     const snapshot = get();
                     const card = snapshot.cards[cardId];
@@ -309,6 +403,23 @@ export const useGameStore = create<GameStore>()(
                     emitLog('card.move', { actorId: actor, cardId, fromZoneId, toZoneId }, buildLogContext());
                 }
 
+                    if (applyShared((maps) => {
+                        const sharedCard = maps.cards.get(cardId) as Card | undefined;
+                        const sharedFrom = maps.zones.get(fromZoneId) as Zone | undefined;
+                        const sharedTo = maps.zones.get(toZoneId) as Zone | undefined;
+                        if (!sharedCard || !sharedFrom || !sharedTo) return;
+
+                        const tokenLeavingBattlefield = sharedCard.isToken && sharedTo.type !== ZONE.BATTLEFIELD;
+                        if (tokenLeavingBattlefield) {
+                            maps.cards.delete(cardId);
+                            maps.zones.set(fromZoneId, { ...sharedFrom, cardIds: sharedFrom.cardIds.filter((id) => id !== cardId) });
+                            maps.zones.set(toZoneId, { ...sharedTo, cardIds: sharedTo.cardIds.filter((id) => id !== cardId) });
+                            return;
+                        }
+
+                        yMoveCard(maps, cardId, toZoneId, position);
+                    })) return;
+
                     const leavingBattlefield = fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
                     const resetToFront = leavingBattlefield ? syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0) : card;
 
@@ -336,7 +447,6 @@ export const useGameStore = create<GameStore>()(
 
                             return { cards: nextCards, zones: nextZones };
                         });
-                        if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCard', args: [cardId, toZoneId, position], actorId: actor } });
                         return;
                     }
 
@@ -444,10 +554,9 @@ export const useGameStore = create<GameStore>()(
                             },
                         };
                     });
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCard', args: [cardId, toZoneId, position], actorId: actor } });
                 },
 
-                moveCardToBottom: (cardId, toZoneId, actorId, isRemote) => {
+                moveCardToBottom: (cardId, toZoneId, actorId, _isRemote) => {
                     const actor = actorId ?? get().myPlayerId;
                     const snapshot = get();
                     const card = snapshot.cards[cardId];
@@ -472,6 +581,33 @@ export const useGameStore = create<GameStore>()(
                     logPermission({ action: 'moveCardToBottom', actorId: actor, allowed: true, details: { cardId, fromZoneId, toZoneId } });
 
                     emitLog('card.move', { actorId: actor, cardId, fromZoneId, toZoneId }, buildLogContext());
+
+                    if (applyShared((maps) => {
+                        const sharedCard = maps.cards.get(cardId) as Card | undefined;
+                        const sharedFrom = maps.zones.get(fromZoneId) as Zone | undefined;
+                        const sharedTo = maps.zones.get(toZoneId) as Zone | undefined;
+                        if (!sharedCard || !sharedFrom || !sharedTo) return;
+
+                        const tokenLeavingBattlefield = sharedCard.isToken && sharedTo.type !== ZONE.BATTLEFIELD;
+                        if (tokenLeavingBattlefield) {
+                            maps.cards.delete(cardId);
+                            maps.zones.set(fromZoneId, { ...sharedFrom, cardIds: sharedFrom.cardIds.filter((id) => id !== cardId) });
+                            maps.zones.set(toZoneId, { ...sharedTo, cardIds: sharedTo.cardIds.filter((id) => id !== cardId) });
+                            return;
+                        }
+
+                        // place at bottom (front) of toZone
+                        const newFromIds = sharedFrom.cardIds.filter((id) => id !== cardId);
+                        const newToIds = fromZoneId === toZoneId ? [cardId, ...newFromIds] : [cardId, ...sharedTo.cardIds];
+                        maps.cards.set(cardId, {
+                            ...sharedCard,
+                            zoneId: toZoneId,
+                            tapped: sharedTo.type === ZONE.BATTLEFIELD ? sharedCard.tapped : false,
+                            counters: enforceZoneCounterRules(sharedCard.counters, sharedTo),
+                        });
+                        maps.zones.set(fromZoneId, { ...sharedFrom, cardIds: newFromIds });
+                        maps.zones.set(toZoneId, { ...sharedTo, cardIds: newToIds });
+                    })) return;
 
                     const leavingBattlefield = fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
 
@@ -499,7 +635,6 @@ export const useGameStore = create<GameStore>()(
 
                             return { cards: nextCards, zones: nextZones };
                         });
-                        if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCardToBottom', args: [cardId, toZoneId], actorId: actor } });
                         return;
                     }
 
@@ -539,10 +674,9 @@ export const useGameStore = create<GameStore>()(
                             },
                         };
                     });
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'moveCardToBottom', args: [cardId, toZoneId], actorId: actor } });
                 },
 
-                removeCard: (cardId, actorId, isRemote) => {
+                removeCard: (cardId, actorId, _isRemote) => {
                     const actor = actorId ?? get().myPlayerId;
                     const snapshot = get();
                     const card = snapshot.cards[cardId];
@@ -565,6 +699,8 @@ export const useGameStore = create<GameStore>()(
 
                     emitLog('card.remove', { actorId: actor, cardId, zoneId: zone.id }, buildLogContext());
 
+                    if (applyShared((maps) => yRemoveCard(maps, cardId))) return;
+
                     set((state) => {
                         const nextCards = { ...state.cards };
                         delete nextCards[cardId];
@@ -578,10 +714,9 @@ export const useGameStore = create<GameStore>()(
                     });
 
                     logPermission({ action: 'removeCard', actorId: actor, allowed: true, details: { cardId } });
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'removeCard', args: [cardId], actorId: actor } });
                 },
 
-                reorderZoneCards: (zoneId, orderedCardIds, actorId, isRemote) => {
+                reorderZoneCards: (zoneId, orderedCardIds, actorId, _isRemote) => {
                     const actor = actorId ?? get().myPlayerId;
                     const zone = get().zones[zoneId];
                     if (!zone) return;
@@ -604,6 +739,8 @@ export const useGameStore = create<GameStore>()(
                     const containsSameCards = orderedCardIds.every(id => currentSet.has(id)) && currentIds.every(id => orderedCardIds.includes(id));
                     if (!containsSameCards) return;
 
+                    if (applyShared((maps) => yReorderZoneCards(maps, zoneId, orderedCardIds))) return;
+
                     set((state) => ({
                         zones: {
                             ...state.zones,
@@ -615,10 +752,9 @@ export const useGameStore = create<GameStore>()(
                     }));
 
                     logPermission({ action: 'reorderZoneCards', actorId: actor, allowed: true, details: { zoneId } });
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'reorderZoneCards', args: [zoneId, orderedCardIds], actorId: actor } });
                 },
 
-                tapCard: (cardId, actorId, isRemote) => {
+                tapCard: (cardId, actorId, _isRemote) => {
                     const actor = actorId ?? get().myPlayerId;
                     const card = get().cards[cardId];
                     if (!card) return;
@@ -640,6 +776,12 @@ export const useGameStore = create<GameStore>()(
                     const newTapped = !card.tapped;
                     emitLog('card.tap', { actorId: actor, cardId, zoneId: card.zoneId, tapped: newTapped }, buildLogContext());
 
+                    if (applyShared((maps) => {
+                        const current = maps.cards.get(cardId) as Card | undefined;
+                        if (!current) return;
+                        maps.cards.set(cardId, { ...current, tapped: !current.tapped });
+                    })) return;
+
                     set((state) => {
                         const next = state.cards[cardId];
                         if (!next) return state;
@@ -650,10 +792,17 @@ export const useGameStore = create<GameStore>()(
                             },
                         };
                     });
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'tapCard', args: [cardId], actorId: actor } });
                 },
 
-                untapAll: (playerId, isRemote) => {
+                untapAll: (playerId, _isRemote) => {
+                    if (applyShared((maps) => {
+                        maps.cards.forEach((card: Card, key: string) => {
+                            if (card.controllerId === playerId && card.tapped) {
+                                maps.cards.set(key, { ...card, tapped: false });
+                            }
+                        });
+                    })) return;
+
                     set((state) => {
                         const newCards = { ...state.cards };
                         Object.values(newCards).forEach(card => {
@@ -664,7 +813,6 @@ export const useGameStore = create<GameStore>()(
                         return { cards: newCards };
                     });
                     emitLog('card.untapAll', { actorId: playerId, playerId }, buildLogContext());
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'untapAll', args: [playerId] } });
                 },
 
                 drawCard: (playerId, actorId, _isRemote) => {
@@ -697,7 +845,7 @@ export const useGameStore = create<GameStore>()(
                 emitLog('card.draw', { actorId: actor, playerId, count: 1 }, buildLogContext());
             },
 
-                shuffleLibrary: (playerId, actorId, isRemote) => {
+                shuffleLibrary: (playerId, actorId, _isRemote) => {
                     const actor = actorId ?? playerId;
                     const state = get();
                     const libraryZone = Object.values(state.zones).find(z => z.ownerId === playerId && z.type === ZONE.LIBRARY);
@@ -715,6 +863,13 @@ export const useGameStore = create<GameStore>()(
                         return;
                     }
 
+                    if (applyShared((maps) => {
+                        const zone = maps.zones.get(libraryZone.id) as Zone | undefined;
+                        if (!zone) return;
+                        const shuffledIds = [...(zone.cardIds || [])].sort(() => Math.random() - 0.5);
+                        maps.zones.set(libraryZone.id, { ...zone, cardIds: shuffledIds });
+                    })) return;
+
                     set((state) => {
                         const shuffledIds = [...(state.zones[libraryZone.id]?.cardIds || [])].sort(() => Math.random() - 0.5);
 
@@ -728,10 +883,9 @@ export const useGameStore = create<GameStore>()(
                     logPermission({ action: 'shuffleLibrary', actorId: actor, allowed: true, details: { playerId } });
 
                     emitLog('library.shuffle', { actorId: actor, playerId }, buildLogContext());
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'shuffleLibrary', args: [playerId], actorId: actor } });
                 },
 
-                resetDeck: (playerId, actorId, isRemote) => {
+                resetDeck: (playerId, actorId, _isRemote) => {
                     const actor = actorId ?? playerId;
                     const state = get();
                     const libraryZone = getZoneByType(state.zones, playerId, ZONE.LIBRARY);
@@ -793,12 +947,13 @@ export const useGameStore = create<GameStore>()(
                         return { cards: nextCards, zones: nextZones };
                     });
 
+                    syncSnapshotToShared(get());
+
                     logPermission({ action: 'resetDeck', actorId: actor, allowed: true, details: { playerId } });
                     emitLog('deck.reset', { actorId: actor, playerId }, buildLogContext());
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'resetDeck', args: [playerId], actorId: actor } });
                 },
 
-                unloadDeck: (playerId, actorId, isRemote) => {
+                unloadDeck: (playerId, actorId, _isRemote) => {
                     const actor = actorId ?? playerId;
                     const state = get();
                     const libraryZone = getZoneByType(state.zones, playerId, ZONE.LIBRARY);
@@ -839,26 +994,32 @@ export const useGameStore = create<GameStore>()(
                         return { cards: nextCards, zones: nextZones, players: nextPlayers };
                     });
 
+                    syncSnapshotToShared(get());
+
                     logPermission({ action: 'unloadDeck', actorId: actor, allowed: true, details: { playerId } });
                     emitLog('deck.unload', { actorId: actor, playerId }, buildLogContext());
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'unloadDeck', args: [playerId], actorId: actor } });
                 },
 
-                addGlobalCounter: (name: string, color?: string, isRemote?: boolean) => {
+                addGlobalCounter: (name: string, color?: string, _isRemote?: boolean) => {
                     const existing = get().globalCounters[name];
                     if (existing) return;
 
                     const resolvedColor = resolveCounterColor(name, get().globalCounters);
+
+                    if (applyShared((maps) => {
+                        const current = maps.globalCounters.get(name) as string | undefined;
+                        if (current) return;
+                        maps.globalCounters.set(name, color || resolvedColor);
+                    })) return;
 
                     set((state) => ({
                         globalCounters: { ...state.globalCounters, [name]: color || resolvedColor }
                     }));
 
                     emitLog('counter.global.add', { counterType: name, color: color || resolvedColor }, buildLogContext());
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addGlobalCounter', args: [name, color] } });
                 },
 
-                addCounterToCard: (cardId, counter, isRemote) => {
+                addCounterToCard: (cardId, counter, _isRemote) => {
                     const state = get();
                     const card = state.cards[cardId];
                     if (!card) return;
@@ -871,6 +1032,8 @@ export const useGameStore = create<GameStore>()(
                     const nextCount = newCounters.find(c => c.type === counter.type)?.count ?? prevCount;
                     const delta = nextCount - prevCount;
                     if (delta <= 0) return;
+
+                    if (applyShared((maps) => yAddCounterToCard(maps, cardId, counter))) return;
 
                     set((current) => {
                         const currentCard = current.cards[cardId];
@@ -887,10 +1050,9 @@ export const useGameStore = create<GameStore>()(
                     });
 
                     emitLog('counter.add', { actorId: card.controllerId, cardId, zoneId: card.zoneId, counterType: counter.type, delta, newTotal: nextCount }, buildLogContext());
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'addCounterToCard', args: [cardId, counter] } });
                 },
 
-                removeCounterFromCard: (cardId, counterType, isRemote) => {
+                removeCounterFromCard: (cardId, counterType, _isRemote) => {
                     const state = get();
                     const card = state.cards[cardId];
                     if (!card) return;
@@ -903,6 +1065,8 @@ export const useGameStore = create<GameStore>()(
                     const nextCount = newCounters.find(c => c.type === counterType)?.count ?? 0;
                     const delta = nextCount - prevCount;
                     if (delta === 0) return;
+
+                    if (applyShared((maps) => yRemoveCounterFromCard(maps, cardId, counterType))) return;
 
                     set((current) => {
                         const currentCard = current.cards[cardId];
@@ -919,7 +1083,6 @@ export const useGameStore = create<GameStore>()(
                     });
 
                     emitLog('counter.remove', { actorId: card.controllerId, cardId, zoneId: card.zoneId, counterType, delta, newTotal: nextCount }, buildLogContext());
-                    if (!isRemote) peerService.broadcast({ type: 'ACTION', payload: { action: 'removeCounterFromCard', args: [cardId, counterType] } });
                 },
 
                 setActiveModal: (modal) => {
