@@ -67,14 +67,6 @@ export function useYjsSync(sessionId: string) {
 
     const pushRemoteToStore = () => {
       applyingRemote.current = true;
-      const ts = Date.now();
-      console.info('[signal] pushRemoteToStore', {
-        ts,
-        players: players.size,
-        zones: zones.size,
-        cards: cards.size,
-        globalCounters: globalCounters.size,
-      });
       useGameStore.setState((current) => ({
         ...current,
         players: toPlain(players),
@@ -91,18 +83,7 @@ export function useYjsSync(sessionId: string) {
       awareness.setLocalStateField('client', { id: localId });
     };
 
-    const handleMapChange = (evt?: any) => {
-      const ts = Date.now();
-      console.info('[signal] map change', {
-        ts,
-        players: players.size,
-        zones: zones.size,
-        cards: cards.size,
-        globalCounters: globalCounters.size,
-        origin: evt?.origin,
-      });
-      pushRemoteToStore();
-    };
+    const handleMapChange = () => pushRemoteToStore();
 
     // Advertise local presence (player id for now)
     pushLocalAwareness();
@@ -113,7 +94,6 @@ export function useYjsSync(sessionId: string) {
     globalCounters.observe(handleMapChange);
 
     provider.on('status', ({ status: s }: any) => {
-      console.info('[signal] status', s, 'ts', Date.now());
       if (s === 'connected') {
         setStatus('connected');
         // Re-broadcast our awareness after connection to ensure peers see us immediately.
@@ -122,10 +102,6 @@ export function useYjsSync(sessionId: string) {
         pushRemoteToStore();
       }
       if (s === 'disconnected') setStatus('connecting');
-    });
-
-    provider.on('sync', (synced: boolean) => {
-      console.info('[signal] sync', synced, 'ts', Date.now());
     });
 
     const handleAwareness = () => {

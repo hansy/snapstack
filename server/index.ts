@@ -105,11 +105,13 @@ export class SignalRoom extends DurableObject {
   private handleConnection(ws: WebSocket, room: RoomName) {
     ws.accept();
     let closed = false;
-    const currentRoom: RoomName = room || "default";
+    // room name preserved for potential logging
+    const _roomNameForLog: RoomName = room || "default";
+    void _roomNameForLog;
 
     this.conns.add(ws);
     this.connClients.set(ws, new Set());
-    console.log('[signal] joined room', currentRoom, 'size', this.conns.size);
+      // console.log('[signal] joined room', currentRoom, 'size', this.conns.size);
 
     ws.addEventListener("close", () => {
       closed = true;
@@ -119,7 +121,7 @@ export class SignalRoom extends DurableObject {
         awarenessProtocol.removeAwarenessStates(this.awareness, Array.from(clientIds), "disconnect");
       }
       this.connClients.delete(ws);
-      console.log('[signal] left room', currentRoom, 'size', this.conns.size);
+      // console.log('[signal] left room', currentRoom, 'size', this.conns.size);
       this.resetStateIfEmpty();
     });
 
@@ -127,7 +129,7 @@ export class SignalRoom extends DurableObject {
       if (closed) return;
       const raw = evt.data;
       const data = raw instanceof ArrayBuffer ? new Uint8Array(raw) : typeof raw === "string" ? new TextEncoder().encode(raw) : new Uint8Array([]);
-      console.log('[signal] msg', currentRoom, 'size', this.conns.size, 'type', typeof raw, 'len', raw instanceof ArrayBuffer ? raw.byteLength : (typeof raw === 'string' ? raw.length : 'n/a'));
+      // console.log('[signal] msg', currentRoom, 'size', this.conns.size, 'type', typeof raw, 'len', raw instanceof ArrayBuffer ? raw.byteLength : (typeof raw === 'string' ? raw.length : 'n/a'));
 
       const decoder = decoding.createDecoder(data);
       const encoder = encoding.createEncoder();
