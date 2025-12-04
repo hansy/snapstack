@@ -116,7 +116,7 @@ const formatMove: LogEventDefinition<MovePayload>['format'] = (payload, ctx) => 
       actor,
       { kind: 'text', text: ' sent ' },
       cardPart,
-      { kind: 'text', text: ` from ${fromLabel}` },
+      { kind: 'text', text: ` from ${fromLabel} to ${toLabel}` },
     ];
   }
 
