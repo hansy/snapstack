@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { DndContext, DragOverlay, getClientRect, useDndMonitor } from '@dnd-kit/core';
 import { useGameStore } from '../../../store/gameStore';
 import { useDragStore } from '../../../store/dragStore';
@@ -50,10 +51,9 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     const { slots, layoutMode, myPlayerId } = usePlayerLayout();
 
 
-    const { status: syncStatus, peers } = useYjsSync(sessionId);
+    useYjsSync(sessionId);
     const seededRef = React.useRef(false);
 
-    const [copiedLink, setCopiedLink] = useState(false);
     const [zoneViewerState, setZoneViewerState] = useState<{ isOpen: boolean; zoneId: string | null; count?: number }>({
         isOpen: false,
         zoneId: null
@@ -71,10 +71,10 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     const handleCopyLink = async () => {
         try {
             await navigator.clipboard.writeText(window.location.href);
-            setCopiedLink(true);
-            setTimeout(() => setCopiedLink(false), 1500);
+            toast.success('Link copied to clipboard');
         } catch (err) {
             console.error('Failed to copy link', err);
+            toast.error('Failed to copy link');
         }
     };
 
@@ -194,32 +194,18 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                 sensors={sensors}
                 onDragStart={handleDragStart}
                 onDragMove={handleDragMove}
-            onDragEnd={handleDragEnd}
-            measuring={{
-                draggable: { measure: getClientRect },
-                dragOverlay: { measure: getClientRect },
-            }}
-        >
+                onDragEnd={handleDragEnd}
+                measuring={{
+                    draggable: { measure: getClientRect },
+                    dragOverlay: { measure: getClientRect },
+                }}
+            >
                 <div className="relative h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex font-sans selection:bg-indigo-500/30" onContextMenu={(e) => e.preventDefault()}>
-                    <div className="absolute top-4 left-4 z-20 flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900/80 border border-zinc-800">
-                        <span className={`h-2 w-2 rounded-full ${syncStatus === 'connected' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
-                        <div className="text-sm text-zinc-200">Session {sessionId.slice(0, 8)} • Peers {peers}</div>
-                        <button
-                            onClick={handleCopyLink}
-                            className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100"
-                        >
-                            {copiedLink ? 'Copied!' : 'Copy link'}
-                        </button>
-                        <button
-                            onClick={handleLeave}
-                            className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100"
-                        >
-                            Leave
-                        </button>
-                    </div>
                     <Sidenav
                         onCreateToken={() => setIsTokenModalOpen(true)}
                         onToggleLog={() => setIsLogOpen(!isLogOpen)}
+                        onCopyLink={handleCopyLink}
+                        onLeaveGame={handleLeave}
                     />
 
                     <div className={`w-full h-full grid ${getGridClass()} pl-12`}>

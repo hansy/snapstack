@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCw, Plus, Trash2, ScrollText } from 'lucide-react';
+import { RefreshCw, Plus, ScrollText, Share2, LogOut } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useGameStore } from '../../../store/gameStore';
 
@@ -29,20 +29,15 @@ const NavIcon: React.FC<NavIconProps> = ({ icon, label, onClick, className }) =>
 interface SidenavProps {
     onCreateToken?: () => void;
     onToggleLog?: () => void;
+    onCopyLink?: () => void;
+    onLeaveGame?: () => void;
 }
 
-export const Sidenav: React.FC<SidenavProps> = ({ onCreateToken, onToggleLog }) => {
+export const Sidenav: React.FC<SidenavProps> = ({ onCreateToken, onToggleLog, onCopyLink, onLeaveGame }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const myPlayerId = useGameStore((state) => state.myPlayerId);
     const untapAll = useGameStore((state) => state.untapAll);
-
-    const handleReset = () => {
-        if (confirm('Are you sure you want to reset your game? This will clear your board and remove ghost players.')) {
-            localStorage.removeItem('snapstack-storage');
-            window.location.reload();
-        }
-    };
 
     return (
         <>
@@ -72,31 +67,45 @@ export const Sidenav: React.FC<SidenavProps> = ({ onCreateToken, onToggleLog }) 
 
                 <div className="flex-1" />
 
-                {/* Bottom: S Logo (Menu) */}
-                <div className="relative">
-                    <button
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        className="w-8 h-8 flex items-center justify-center font-bold text-xl text-indigo-500 hover:text-indigo-400 transition-colors font-serif"
+                {/* Bottom: Share & S Logo (Menu) */}
+                <div className="flex flex-col items-center gap-2">
+                    <NavIcon
+                        icon={<Share2 size={20} />}
+                        label="Click to copy room link and share with others"
+                        onClick={onCopyLink}
+                        className="hover:text-indigo-400"
+                    />
+
+                    <div
+                        className="relative"
+                        onMouseEnter={() => setIsMenuOpen(true)}
+                        onMouseLeave={() => setIsMenuOpen(false)}
                     >
-                        S
-                    </button>
+                        <button
+                            className="w-8 h-8 flex items-center justify-center font-bold text-xl text-indigo-500 hover:text-indigo-400 transition-colors font-serif"
+                        >
+                            S
+                        </button>
 
-                    {/* Menu Popup */}
-                    {isMenuOpen && (
-                        <div className="absolute left-full bottom-0 ml-2 w-64 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-2 flex flex-col gap-1 animate-in fade-in slide-in-from-left-2 z-50">
-                            <div className="px-2 py-1 text-xs font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 mb-1">
-                                Snapstack Menu
+                        {/* Menu Popup */}
+                        {isMenuOpen && (
+                            <div className="absolute left-full bottom-0 w-64 pl-2 z-50">
+                                <div className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-2 flex flex-col gap-1 animate-in fade-in slide-in-from-left-2">
+                                    <div className="px-2 py-1 text-xs font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 mb-1">
+                                        Snapstack Menu
+                                    </div>
+
+                                    <button
+                                        onClick={onLeaveGame}
+                                        className="flex items-center gap-3 p-2 rounded hover:bg-red-900/20 text-left text-sm text-red-400 hover:text-red-300 transition-colors"
+                                    >
+                                        <LogOut size={16} />
+                                        Leave Game
+                                    </button>
+                                </div>
                             </div>
-
-                            <button
-                                onClick={handleReset}
-                                className="flex items-center gap-3 p-2 rounded hover:bg-red-900/20 text-left text-sm text-red-400 hover:text-red-300 transition-colors"
-                            >
-                                <Trash2 size={16} />
-                                Reset Game
-                            </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
 
