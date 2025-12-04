@@ -46,6 +46,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     const battlefieldViewScale = useGameStore((state) => state.battlefieldViewScale);
     const activeModal = useGameStore((state) => state.activeModal);
     const setActiveModal = useGameStore((state) => state.setActiveModal);
+    const overCardScale = useDragStore((state) => state.overCardScale);
     const activeCardId = useDragStore((state) => state.activeCardId);
     const { sensors, handleDragStart, handleDragMove, handleDragEnd } = useGameDnD();
 
@@ -296,8 +297,9 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                         const viewScale = overlayZone?.type === ZONE.BATTLEFIELD
                             ? (battlefieldViewScale[overlayZone.ownerId] ?? 1)
                             : 1;
+                        const targetScale = overCardScale || viewScale;
                         return (
-                            <div style={{ transform: `scale(${scale * viewScale})`, transformOrigin: 'top left' }}>
+                            <div style={{ transform: `scale(${scale * targetScale})`, transformOrigin: 'top left' }}>
                                 <CardView
                                     card={overlayCard}
                                     isDragging

@@ -29,6 +29,7 @@ export const useGameDnD = () => {
     const moveCard = useGameStore((state) => state.moveCard);
     const setGhostCard = useDragStore((state) => state.setGhostCard);
     const setActiveCardId = useDragStore((state) => state.setActiveCardId);
+    const setOverCardScale = useDragStore((state) => state.setOverCardScale);
     const myPlayerId = useGameStore((state) => state.myPlayerId);
 
     const sensors = useSensors(
@@ -99,6 +100,7 @@ export const useGameDnD = () => {
 
         if (!over) {
             setGhostCard(null);
+            setOverCardScale(1);
             return;
         }
 
@@ -128,6 +130,7 @@ export const useGameDnD = () => {
                 const overRect = over.rect as any;
                 const scale = over.data.current?.scale || 1;
                 const viewScale = over.data.current?.cardScale || 1;
+                setOverCardScale(viewScale);
 
                 if (!dragPointerStart.current) return;
 
@@ -186,6 +189,7 @@ export const useGameDnD = () => {
             }
         } else {
             setGhostCard(null);
+            setOverCardScale(1);
         }
     };
 
@@ -193,6 +197,7 @@ export const useGameDnD = () => {
         const { active, over } = event;
         setGhostCard(null);
         setActiveCardId(null);
+        setOverCardScale(1);
 
         if (over && active.id !== over.id) {
             const cardId = active.data.current?.cardId as CardId;
