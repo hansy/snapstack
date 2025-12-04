@@ -183,7 +183,7 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
                 zone,
                 zones,
                 myPlayerId,
-                (cardId, toZoneId) => moveCard(cardId, toZoneId, undefined, myPlayerId),
+                (cardId, toZoneId, opts) => moveCard(cardId, toZoneId, undefined, myPlayerId, undefined, opts),
                 (cardId, toZoneId) => moveCardToBottom(cardId, toZoneId, myPlayerId)
             )
             : [];
@@ -258,28 +258,28 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
                                                 {cardsInGroup.map((card, index) => {
                                                     const isPinned = pinnedCardId === card.id;
                                                     return (
-                                                    <div
-                                                        key={card.id}
-                                                        className={cn(
-                                                            "w-[180px] mx-auto transition-all duration-200",
-                                                            !interactionsDisabled && "hover:z-[100] hover:scale-110 hover:!mb-4",
-                                                            isPinned && "scale-110 shadow-xl"
-                                                        )}
-                                                        style={{
-                                                            height: `${CARD_HEIGHT}px`,
-                                                            marginBottom: isPinned ? '16px' : `-${OVERLAP}px`,
-                                                            zIndex: isPinned ? 200 : index,
-                                                        }}
-                                                    >
-                                                        <CardView
-                                                            card={card}
-                                                            faceDown={false}
-                                                            className="w-full shadow-lg h-full"
-                                                            imageClassName="object-top"
-                                                            preferArtCrop={false}
-                                                            onContextMenu={(e) => handleContextMenu(e, card)}
-                                                        />
-                                                    </div>
+                                                        <div
+                                                            key={card.id}
+                                                            className={cn(
+                                                                "w-[180px] mx-auto transition-all duration-200",
+                                                                !interactionsDisabled && "hover:z-[100] hover:scale-110 hover:!mb-4",
+                                                                isPinned && "scale-110 shadow-xl"
+                                                            )}
+                                                            style={{
+                                                                height: `${CARD_HEIGHT}px`,
+                                                                marginBottom: isPinned ? '16px' : `-${OVERLAP}px`,
+                                                                zIndex: isPinned ? 200 : index,
+                                                            }}
+                                                        >
+                                                            <CardView
+                                                                card={card}
+                                                                faceDown={false}
+                                                                className="w-full shadow-lg h-full"
+                                                                imageClassName="object-top"
+                                                                preferArtCrop={false}
+                                                                onContextMenu={(e) => handleContextMenu(e, card)}
+                                                            />
+                                                        </div>
                                                     );
                                                 })}
                                             </div>

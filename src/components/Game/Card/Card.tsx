@@ -139,7 +139,10 @@ export const Card: React.FC<CardProps> = ({
   const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isDragging || faceDown) return;
+    if (isDragging) return;
+    // Allow preview if faceDown ONLY if we are the owner
+    const isOwner = card.ownerId === useGameStore.getState().myPlayerId;
+    if (faceDown && !isOwner) return;
 
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);

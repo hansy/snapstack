@@ -157,9 +157,9 @@ export const Seat: React.FC<SeatProps> = ({
                 onDoubleClick={
                   isMe && onDrawCard
                     ? (e) => {
-                        e.preventDefault();
-                        onDrawCard(player.id);
-                      }
+                      e.preventDefault();
+                      onDrawCard(player.id);
+                    }
                     : undefined
                 }
                 emptyContent={
@@ -190,6 +190,7 @@ export const Seat: React.FC<SeatProps> = ({
                     ? (_e) => onViewZone(graveyardZone.id)
                     : undefined
                 }
+                faceDown={graveyardCards[graveyardCards.length - 1]?.faceDown}
               />
             )}
 
@@ -206,6 +207,7 @@ export const Seat: React.FC<SeatProps> = ({
                     : undefined
                 }
                 cardClassName="opacity-60 grayscale"
+                faceDown={exileCards[exileCards.length - 1]?.faceDown}
               />
             )}
           </div>

@@ -261,92 +261,92 @@ export const useGameStore = create<GameStore>()(
                     get().addCard(clonedCard, _isRemote);
                 },
 
-            updateCard: (id, updates, actorId, _isRemote) => {
-                const actor = actorId ?? get().myPlayerId;
-                const cardBefore = get().cards[id];
+                updateCard: (id, updates, actorId, _isRemote) => {
+                    const actor = actorId ?? get().myPlayerId;
+                    const cardBefore = get().cards[id];
 
-                // Log P/T changes before applying update
-                if (cardBefore) {
-                    const newPower = updates.power ?? cardBefore.power;
-                    const newToughness = updates.toughness ?? cardBefore.toughness;
-                    const powerChanged = newPower !== cardBefore.power;
-                    const toughnessChanged = newToughness !== cardBefore.toughness;
-                    if ((powerChanged || toughnessChanged) && (newPower !== undefined || newToughness !== undefined)) {
-                        emitLog(
-                            'card.pt',
-                            {
-                                actorId: actor,
-                                cardId: id,
-                                zoneId: cardBefore.zoneId,
-                                fromPower: cardBefore.power,
-                                fromToughness: cardBefore.toughness,
-                                toPower: newPower ?? cardBefore.power,
-                                toToughness: newToughness ?? cardBefore.toughness,
-                                cardName: cardBefore.name,
-                            },
-                            buildLogContext()
-                        );
+                    // Log P/T changes before applying update
+                    if (cardBefore) {
+                        const newPower = updates.power ?? cardBefore.power;
+                        const newToughness = updates.toughness ?? cardBefore.toughness;
+                        const powerChanged = newPower !== cardBefore.power;
+                        const toughnessChanged = newToughness !== cardBefore.toughness;
+                        if ((powerChanged || toughnessChanged) && (newPower !== undefined || newToughness !== undefined)) {
+                            emitLog(
+                                'card.pt',
+                                {
+                                    actorId: actor,
+                                    cardId: id,
+                                    zoneId: cardBefore.zoneId,
+                                    fromPower: cardBefore.power,
+                                    fromToughness: cardBefore.toughness,
+                                    toPower: newPower ?? cardBefore.power,
+                                    toToughness: newToughness ?? cardBefore.toughness,
+                                    cardName: cardBefore.name,
+                                },
+                                buildLogContext()
+                            );
+                        }
                     }
-                }
 
-                if (applyShared((maps) => {
-                    const current = maps.cards.get(id) as Card | undefined;
-                    if (!current) return;
-                    const nextZoneId = updates.zoneId ?? current.zoneId;
-                    const zone = maps.zones.get(nextZoneId) as Zone | undefined;
-                    const mergedCard = { ...current, ...updates, zoneId: nextZoneId };
-                    const faces = getCardFaces(mergedCard);
-                    const normalizedFaceIndex = faces.length
-                        ? Math.min(Math.max(mergedCard.currentFaceIndex ?? 0, 0), faces.length - 1)
-                        : mergedCard.currentFaceIndex;
+                    if (applyShared((maps) => {
+                        const current = maps.cards.get(id) as Card | undefined;
+                        if (!current) return;
+                        const nextZoneId = updates.zoneId ?? current.zoneId;
+                        const zone = maps.zones.get(nextZoneId) as Zone | undefined;
+                        const mergedCard = { ...current, ...updates, zoneId: nextZoneId };
+                        const faces = getCardFaces(mergedCard);
+                        const normalizedFaceIndex = faces.length
+                            ? Math.min(Math.max(mergedCard.currentFaceIndex ?? 0, 0), faces.length - 1)
+                            : mergedCard.currentFaceIndex;
 
-                    const faceChanged = (normalizedFaceIndex ?? mergedCard.currentFaceIndex) !== current.currentFaceIndex;
-                    const cardWithFace = faceChanged
-                        ? syncCardStatsToFace(
-                            { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
-                            normalizedFaceIndex ?? mergedCard.currentFaceIndex
-                        )
-                        : syncCardStatsToFace(
-                            { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
-                            normalizedFaceIndex ?? mergedCard.currentFaceIndex,
-                            { preserveExisting: true }
-                        );
+                        const faceChanged = (normalizedFaceIndex ?? mergedCard.currentFaceIndex) !== current.currentFaceIndex;
+                        const cardWithFace = faceChanged
+                            ? syncCardStatsToFace(
+                                { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
+                                normalizedFaceIndex ?? mergedCard.currentFaceIndex
+                            )
+                            : syncCardStatsToFace(
+                                { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
+                                normalizedFaceIndex ?? mergedCard.currentFaceIndex,
+                                { preserveExisting: true }
+                            );
 
-                    maps.cards.set(id, { ...cardWithFace, counters: enforceZoneCounterRules(cardWithFace.counters, zone) });
-                })) return;
+                        maps.cards.set(id, { ...cardWithFace, counters: enforceZoneCounterRules(cardWithFace.counters, zone) });
+                    })) return;
 
-                set((state) => {
-                    const current = state.cards[id];
-                    if (!current) return state;
+                    set((state) => {
+                        const current = state.cards[id];
+                        if (!current) return state;
 
-                    const nextZoneId = updates.zoneId ?? current.zoneId;
-                    const zone = state.zones[nextZoneId];
-                    const mergedCard = { ...current, ...updates, zoneId: nextZoneId };
-                    const faces = getCardFaces(mergedCard);
-                    const normalizedFaceIndex = faces.length
-                        ? Math.min(Math.max(mergedCard.currentFaceIndex ?? 0, 0), faces.length - 1)
-                        : mergedCard.currentFaceIndex;
+                        const nextZoneId = updates.zoneId ?? current.zoneId;
+                        const zone = state.zones[nextZoneId];
+                        const mergedCard = { ...current, ...updates, zoneId: nextZoneId };
+                        const faces = getCardFaces(mergedCard);
+                        const normalizedFaceIndex = faces.length
+                            ? Math.min(Math.max(mergedCard.currentFaceIndex ?? 0, 0), faces.length - 1)
+                            : mergedCard.currentFaceIndex;
 
-                    const faceChanged = (normalizedFaceIndex ?? mergedCard.currentFaceIndex) !== current.currentFaceIndex;
-                    const cardWithFace = faceChanged
-                        ? syncCardStatsToFace(
-                            { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
-                            normalizedFaceIndex ?? mergedCard.currentFaceIndex
-                        )
-                        : syncCardStatsToFace(
-                            { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
-                            normalizedFaceIndex ?? mergedCard.currentFaceIndex,
-                            { preserveExisting: true }
-                        );
+                        const faceChanged = (normalizedFaceIndex ?? mergedCard.currentFaceIndex) !== current.currentFaceIndex;
+                        const cardWithFace = faceChanged
+                            ? syncCardStatsToFace(
+                                { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
+                                normalizedFaceIndex ?? mergedCard.currentFaceIndex
+                            )
+                            : syncCardStatsToFace(
+                                { ...mergedCard, currentFaceIndex: faces.length ? normalizedFaceIndex : mergedCard.currentFaceIndex },
+                                normalizedFaceIndex ?? mergedCard.currentFaceIndex,
+                                { preserveExisting: true }
+                            );
 
-                    return {
-                        cards: {
-                            ...state.cards,
-                            [id]: { ...cardWithFace, counters: enforceZoneCounterRules(cardWithFace.counters, zone) },
-                        },
-                    };
-                });
-            },
+                        return {
+                            cards: {
+                                ...state.cards,
+                                [id]: { ...cardWithFace, counters: enforceZoneCounterRules(cardWithFace.counters, zone) },
+                            },
+                        };
+                    });
+                },
 
                 transformCard: (cardId, faceIndex, _isRemote) => {
                     const snapshot = get();
@@ -382,7 +382,7 @@ export const useGameStore = create<GameStore>()(
                     });
                 },
 
-            moveCard: (cardId, toZoneId, position, actorId, _isRemote, opts) => {
+                moveCard: (cardId, toZoneId, position, actorId, _isRemote, opts) => {
                     const actor = actorId ?? get().myPlayerId;
                     const snapshot = get();
                     const card = snapshot.cards[cardId];
@@ -407,23 +407,24 @@ export const useGameStore = create<GameStore>()(
                     }
                     logPermission({ action: 'moveCard', actorId: actor, allowed: true, details: { cardId, fromZoneId, toZoneId } });
 
-                const bothBattlefields = fromZone.type === ZONE.BATTLEFIELD && toZone.type === ZONE.BATTLEFIELD;
-                const sameBattlefield = bothBattlefields && fromZoneId === toZoneId;
-                const controlShift = bothBattlefields && fromZone.ownerId !== toZone.ownerId;
+                    const bothBattlefields = fromZone.type === ZONE.BATTLEFIELD && toZone.type === ZONE.BATTLEFIELD;
+                    const sameBattlefield = bothBattlefields && fromZoneId === toZoneId;
+                    const controlShift = bothBattlefields && fromZone.ownerId !== toZone.ownerId;
 
-                if (!opts?.suppressLog && !sameBattlefield) {
-                    const movePayload: any = {
-                        actorId: actor,
-                        cardId,
-                        fromZoneId,
-                        toZoneId,
-                        cardName: card.name,
-                        fromZoneType: fromZone.type,
-                        toZoneType: toZone.type,
-                    };
-                    if (controlShift) movePayload.gainsControlBy = toZone.ownerId;
-                    emitLog('card.move', movePayload, buildLogContext());
-                }
+                    if (!opts?.suppressLog && !sameBattlefield) {
+                        const movePayload: any = {
+                            actorId: actor,
+                            cardId,
+                            fromZoneId,
+                            toZoneId,
+                            cardName: opts?.faceDown ? 'a card' : card.name,
+                            fromZoneType: fromZone.type,
+                            toZoneType: toZone.type,
+                            faceDown: opts?.faceDown,
+                        };
+                        if (controlShift) movePayload.gainsControlBy = toZone.ownerId;
+                        emitLog('card.move', movePayload, buildLogContext());
+                    }
 
                     if (applyShared((maps) => {
                         const sharedCard = maps.cards.get(cardId) as Card | undefined;
@@ -440,6 +441,11 @@ export const useGameStore = create<GameStore>()(
                         }
 
                         yMoveCard(maps, cardId, toZoneId, position);
+                        // Apply faceDown state if requested
+                        if (opts?.faceDown !== undefined) {
+                            const movedCard = maps.cards.get(cardId) as Card;
+                            maps.cards.set(cardId, { ...movedCard, faceDown: opts.faceDown });
+                        }
                     })) return;
 
                     const leavingBattlefield = fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
@@ -529,6 +535,7 @@ export const useGameStore = create<GameStore>()(
                                 position: newPosition,
                                 tapped: nextTapped,
                                 counters: nextCounters,
+                                faceDown: opts?.faceDown ?? nextCard.faceDown,
                             };
                             return {
                                 cards: cardsCopy,
@@ -555,6 +562,7 @@ export const useGameStore = create<GameStore>()(
                             position: newPosition,
                             tapped: nextTapped,
                             counters: nextCounters,
+                            faceDown: opts?.faceDown ?? nextCard.faceDown,
                         };
 
                         return {
@@ -868,10 +876,10 @@ export const useGameStore = create<GameStore>()(
                     }
 
                     logPermission({ action: 'drawCard', actorId: actor, allowed: true, details: { playerId, cardId } });
-                state.moveCard(cardId, handZone.id, undefined, actor, undefined, { suppressLog: true });
+                    state.moveCard(cardId, handZone.id, undefined, actor, undefined, { suppressLog: true });
 
-                emitLog('card.draw', { actorId: actor, playerId, count: 1 }, buildLogContext());
-            },
+                    emitLog('card.draw', { actorId: actor, playerId, count: 1 }, buildLogContext());
+                },
 
                 shuffleLibrary: (playerId, actorId, _isRemote) => {
                     const actor = actorId ?? playerId;

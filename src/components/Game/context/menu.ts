@@ -25,7 +25,7 @@ export const buildZoneMoveActions = (
     currentZone: Zone,
     allZones: Record<ZoneId, Zone>,
     actorId: PlayerId,
-    moveCard: (cardId: CardId, toZoneId: ZoneId) => void,
+    moveCard: (cardId: CardId, toZoneId: ZoneId, opts?: { faceDown?: boolean }) => void,
     moveCardToBottom?: (cardId: CardId, toZoneId: ZoneId) => void
 ): ContextMenuItem[] => {
     const playerZones = getPlayerZones(allZones, currentZone.ownerId);
@@ -55,7 +55,10 @@ export const buildZoneMoveActions = (
         addIfAllowed(graveyard, `Move to ${ZONE_LABEL.graveyard}`, () => moveCard(card.id, graveyard!.id));
         addIfAllowed(exile, `Move to ${ZONE_LABEL.exile}`, () => moveCard(card.id, exile!.id));
         addIfAllowed(hand, `Move to ${ZONE_LABEL.hand}`, () => moveCard(card.id, hand!.id));
-        addIfAllowed(battlefield, `Move to ${ZONE_LABEL.battlefield}`, () => moveCard(card.id, battlefield!.id));
+        if (battlefield) {
+            addIfAllowed(battlefield, `Move to ${ZONE_LABEL.battlefield}`, () => moveCard(card.id, battlefield!.id));
+            addIfAllowed(battlefield, `Play Facedown`, () => moveCard(card.id, battlefield!.id, { faceDown: true }));
+        }
     } else if (currentZone.type === ZONE.EXILE) {
         addIfAllowed(graveyard, `Move to ${ZONE_LABEL.graveyard}`, () => moveCard(card.id, graveyard!.id));
         addIfAllowed(hand, `Move to ${ZONE_LABEL.hand}`, () => moveCard(card.id, hand!.id));
@@ -73,7 +76,7 @@ interface CardActionBuilderParams {
     card: Card;
     zones: Record<ZoneId, Zone>;
     myPlayerId: PlayerId;
-    moveCard: (cardId: CardId, toZoneId: ZoneId) => void;
+    moveCard: (cardId: CardId, toZoneId: ZoneId, position?: { x: number; y: number }, actorId?: PlayerId, isRemote?: boolean, opts?: { suppressLog?: boolean; faceDown?: boolean }) => void;
     tapCard: (cardId: CardId) => void;
     transformCard: (cardId: CardId, faceIndex?: number) => void;
     duplicateCard: (cardId: CardId) => void;
@@ -83,6 +86,7 @@ interface CardActionBuilderParams {
     removeCard?: (card: Card) => void;
     openAddCounterModal: (cardId: CardId) => void;
     globalCounters: Record<string, string>;
+    updateCard?: (cardId: CardId, updates: Partial<Card>) => void;
 }
 
 export const buildCardActions = ({
@@ -99,6 +103,7 @@ export const buildCardActions = ({
     removeCard,
     openAddCounterModal,
     globalCounters,
+    updateCard,
 }: CardActionBuilderParams): ContextMenuItem[] => {
     const items: ContextMenuItem[] = [];
     const currentZone = zones[card.zoneId];
@@ -217,6 +222,7 @@ export const buildCardActions = ({
             });
             if (permission.allowed) {
                 items.push({ type: 'action', label: 'Play to Battlefield', onSelect: () => moveCard(card.id, playerZones.battlefield!.id) });
+                items.push({ type: 'action', label: 'Play Facedown', onSelect: () => moveCard(card.id, playerZones.battlefield!.id, undefined, undefined, undefined, { faceDown: true }) });
             }
         }
         if (playerZones.graveyard) {
@@ -230,6 +236,18 @@ export const buildCardActions = ({
                 items.push({ type: 'action', label: 'Discard', onSelect: () => moveCard(card.id, playerZones.graveyard!.id), danger: true });
             }
         }
+    }
+
+    if (currentZone?.type === ZONE.BATTLEFIELD && card.faceDown) {
+        items.push({
+            type: 'action',
+            label: 'Flip Face Up',
+            onSelect: () => {
+                if (updateCard) {
+                    updateCard(card.id, { faceDown: false });
+                }
+            }
+        });
     }
 
     return items;
@@ -264,8 +282,8 @@ export const buildZoneViewActions = ({
         return items;
     }
 
-        if (zone.type === ZONE.LIBRARY) {
-            if (zone.ownerId === myPlayerId) {
+    if (zone.type === ZONE.LIBRARY) {
+        if (zone.ownerId === myPlayerId) {
             items.push({ type: 'action', label: 'Draw Card', onSelect: () => drawCard(myPlayerId) });
             items.push({
                 type: 'action',

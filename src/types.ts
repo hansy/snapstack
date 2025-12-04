@@ -96,7 +96,7 @@ export interface GameState {
   addCard: (card: Card, isRemote?: boolean) => void;
   updateCard: (id: CardId, updates: Partial<Card>, actorId?: PlayerId, isRemote?: boolean) => void;
   transformCard: (id: CardId, faceIndex?: number, isRemote?: boolean) => void;
-  moveCard: (cardId: CardId, toZoneId: ZoneId, position?: { x: number; y: number }, actorId?: PlayerId, isRemote?: boolean, opts?: { suppressLog?: boolean }) => void;
+  moveCard: (cardId: CardId, toZoneId: ZoneId, position?: { x: number; y: number }, actorId?: PlayerId, isRemote?: boolean, opts?: { suppressLog?: boolean; faceDown?: boolean }) => void;
   moveCardToBottom: (cardId: CardId, toZoneId: ZoneId, actorId?: PlayerId, isRemote?: boolean) => void;
   duplicateCard: (cardId: CardId, actorId?: PlayerId, isRemote?: boolean) => void;
   reorderZoneCards: (zoneId: ZoneId, orderedCardIds: CardId[], actorId?: PlayerId, isRemote?: boolean) => void;

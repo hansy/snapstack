@@ -99,6 +99,7 @@ export const Battlefield: React.FC<BattlefieldProps> = ({
                             }}
                             scale={viewScale}
                             rotateLabel={isTop}
+                            faceDown={card.faceDown}
                         />
                     );
                 })}

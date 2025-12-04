@@ -304,6 +304,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                                     card={overlayCard}
                                     isDragging
                                     preferArtCrop={overlayPreferArtCrop}
+                                    faceDown={overlayCard.faceDown}
                                 />
                             </div>
                         );

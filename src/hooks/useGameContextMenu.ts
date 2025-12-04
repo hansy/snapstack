@@ -94,11 +94,12 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
             card,
             zones,
             myPlayerId,
-            moveCard: (cardId, toZoneId) => moveCard(cardId, toZoneId, undefined, myPlayerId),
+            moveCard: (cardId, toZoneId, position, _actorId, isRemote, opts) => moveCard(cardId, toZoneId, position, myPlayerId, isRemote, opts),
             tapCard: (cardId) => useGameStore.getState().tapCard(cardId, myPlayerId),
             transformCard: (cardId, faceIndex) => useGameStore.getState().transformCard(cardId, faceIndex),
             duplicateCard: (cardId) => duplicateCard(cardId, myPlayerId),
             createRelatedCard,
+            updateCard: (cardId, updates) => useGameStore.getState().updateCard(cardId, updates, myPlayerId),
             addCounter: (cardId, counter) => {
                 useGameStore.getState().addCounterToCard(cardId, counter);
             },
