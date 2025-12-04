@@ -5,6 +5,7 @@ import { Card } from '../Card/Card';
 import { Zone } from '../Zone/Zone';
 import { CARD_WIDTH_PX, CARD_HEIGHT_PX } from '../../../lib/constants';
 import { useDragStore } from '../../../store/dragStore';
+import { fromNormalizedPosition } from '../../../lib/positions';
 
 interface BattlefieldProps {
     zone: ZoneType;
@@ -31,6 +32,21 @@ export const Battlefield: React.FC<BattlefieldProps> = ({
     const showGrid = Boolean(activeCardId);
     const GRID_SIZE = 30;
     const gridColor = 'rgba(148, 163, 184, 0.3)'; // zinc-400/30
+    const zoneRef = React.useRef<HTMLDivElement | null>(null);
+    const [zoneSize, setZoneSize] = React.useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+    React.useEffect(() => {
+        if (!zoneRef.current) return;
+        const observer = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            if (entry?.contentRect) {
+                const { width, height } = entry.contentRect;
+                setZoneSize({ width, height });
+            }
+        });
+        observer.observe(zoneRef.current);
+        return () => observer.disconnect();
+    }, [zoneRef]);
 
     return (
         <div
@@ -46,6 +62,9 @@ export const Battlefield: React.FC<BattlefieldProps> = ({
                 layout="free-form"
                 scale={scale}
                 onContextMenu={onContextMenu}
+                innerRef={(node) => {
+                    zoneRef.current = node;
+                }}
             >
                 {showGrid && (
                     <div
@@ -58,8 +77,9 @@ export const Battlefield: React.FC<BattlefieldProps> = ({
                     />
                 )}
                 {cards.map(card => {
-                    const left = card.position.x - CARD_WIDTH_PX / 2;
-                    const top = card.position.y - CARD_HEIGHT_PX / 2;
+                    const { x, y } = fromNormalizedPosition(card.position, zoneSize.width || 1, zoneSize.height || 1);
+                    const left = x - CARD_WIDTH_PX / 2;
+                    const top = y - CARD_HEIGHT_PX / 2;
                     return (
                         <Card
                             key={card.id}

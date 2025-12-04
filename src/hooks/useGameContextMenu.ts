@@ -8,7 +8,7 @@ import { actionRegistry } from '../components/Game/context/actionsRegistry';
 import { canCreateToken } from '../rules/permissions';
 import { ZONE } from '../constants/zones';
 import { fetchScryfallCardByUri } from '../services/scryfallCard';
-import { findAvailablePosition, SNAP_GRID_SIZE } from '../lib/snapping';
+import { clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_X, GRID_STEP_Y, migratePositionToNormalized } from '../lib/positions';
 import { getDisplayName } from '../lib/cardDisplay';
 
 // Centralizes context menu state/handlers for cards and zones so UI components can stay lean.
@@ -49,11 +49,14 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
             const frontFace = scryfallCard.card_faces?.[0];
             const imageUrl = scryfallCard.image_uris?.normal || frontFace?.image_uris?.normal;
             const isToken = related.component === 'token' || scryfallCard.layout === 'token' || /token/i.test(scryfallCard.type_line ?? '');
-            const basePosition = {
-                x: card.position.x + SNAP_GRID_SIZE,
-                y: card.position.y + SNAP_GRID_SIZE,
-            };
-            const position = findAvailablePosition(basePosition, zone.cardIds, state.cards);
+            const cardPosition = (card.position.x > 1 || card.position.y > 1)
+                ? migratePositionToNormalized(card.position)
+                : card.position;
+            const basePosition = clampNormalizedPosition({
+                x: cardPosition.x + GRID_STEP_X,
+                y: cardPosition.y + GRID_STEP_Y,
+            });
+            const position = findAvailablePositionNormalized(basePosition, zone.cardIds, state.cards);
             state.addCard({
                 id: uuidv4(),
                 ownerId: zone.ownerId,

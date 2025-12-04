@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { Card, GameState, Zone } from '../types';
-import { findAvailablePosition, getSnappedPosition, SNAP_GRID_SIZE } from '../lib/snapping';
 import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
 import { getZoneByType } from '../lib/gameSelectors';
 import { ZONE } from '../constants/zones';
@@ -13,6 +12,7 @@ import { decrementCounter, enforceZoneCounterRules, isBattlefieldZone, mergeCoun
 import { emitLog, clearLogs } from '../logging/logStore';
 import { getYDocHandles } from '../yjs/yManager';
 import { addCounterToCard as yAddCounterToCard, duplicateCard as yDuplicateCard, moveCard as yMoveCard, removeCard as yRemoveCard, removeCounterFromCard as yRemoveCounterFromCard, reorderZoneCards as yReorderZoneCards, transformCard as yTransformCard, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone, SharedMaps } from '../yjs/yMutations';
+import { bumpPosition, clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_X, GRID_STEP_Y, migratePositionToNormalized, positionsRoughlyEqual } from '../lib/positions';
 
 interface GameStore extends GameState {
     // Additional actions or computed properties can go here
@@ -66,7 +66,7 @@ export const useGameStore = create<GameStore>()(
                 sessionId: uuidv4(), // Generate a new session ID by default
                 myPlayerId: uuidv4(), // Generate a temporary ID for the local player
                 hasHydrated: false,
-                positionFormat: 'center',
+                positionFormat: 'normalized',
                 globalCounters: {},
                 activeModal: null,
 
@@ -192,29 +192,35 @@ export const useGameStore = create<GameStore>()(
                         initializedCard.currentFaceIndex = Math.min(Math.max(initializedCard.currentFaceIndex ?? 0, 0), faces.length - 1);
                     }
                     const cardWithFaceStats = syncCardStatsToFace(initializedCard, initializedCard.currentFaceIndex);
+                    const normalizedCard = {
+                        ...cardWithFaceStats,
+                        position: (cardWithFaceStats.position?.x > 1 || cardWithFaceStats.position?.y > 1)
+                            ? migratePositionToNormalized(cardWithFaceStats.position)
+                            : clampNormalizedPosition(cardWithFaceStats.position || { x: 0.5, y: 0.5 }),
+                    };
 
                     if (applyShared((maps) => {
-                        yUpsertCard(maps, cardWithFaceStats);
-                        const zone = maps.zones.get(cardWithFaceStats.zoneId) as Zone | undefined;
+                        yUpsertCard(maps, normalizedCard);
+                        const zone = maps.zones.get(normalizedCard.zoneId) as Zone | undefined;
                         if (zone) {
-                            maps.zones.set(cardWithFaceStats.zoneId, { ...zone, cardIds: [...zone.cardIds, cardWithFaceStats.id] });
+                            maps.zones.set(normalizedCard.zoneId, { ...zone, cardIds: [...zone.cardIds, normalizedCard.id] });
                         }
                     })) return;
 
                     set((state) => {
-                        const targetZone = state.zones[cardWithFaceStats.zoneId];
+                        const targetZone = state.zones[normalizedCard.zoneId];
                         const cardWithCounters = {
-                            ...cardWithFaceStats,
-                            counters: enforceZoneCounterRules(cardWithFaceStats.counters, targetZone)
+                            ...normalizedCard,
+                            counters: enforceZoneCounterRules(normalizedCard.counters, targetZone)
                         };
 
                         return {
-                            cards: { ...state.cards, [cardWithFaceStats.id]: cardWithCounters },
+                            cards: { ...state.cards, [cardWithCounters.id]: cardWithCounters },
                             zones: {
                                 ...state.zones,
-                                [cardWithFaceStats.zoneId]: {
-                                    ...state.zones[cardWithFaceStats.zoneId],
-                                    cardIds: [...state.zones[cardWithFaceStats.zoneId].cardIds, cardWithFaceStats.id],
+                                [cardWithCounters.zoneId]: {
+                                    ...state.zones[cardWithCounters.zoneId],
+                                    cardIds: [...state.zones[cardWithCounters.zoneId].cardIds, cardWithCounters.id],
                                 },
                             },
                         };
@@ -237,11 +243,8 @@ export const useGameStore = create<GameStore>()(
                     }
 
                     const newCardId = uuidv4();
-                    const basePosition = {
-                        x: sourceCard.position.x + SNAP_GRID_SIZE,
-                        y: sourceCard.position.y + SNAP_GRID_SIZE,
-                    };
-                    const position = findAvailablePosition(basePosition, currentZone.cardIds, state.cards);
+                    const basePosition = bumpPosition(clampNormalizedPosition(sourceCard.position));
+                    const position = findAvailablePositionNormalized(basePosition, currentZone.cardIds, state.cards);
                     const clonedCard: Card = {
                         ...sourceCard,
                         id: newCardId,
@@ -468,31 +471,24 @@ export const useGameStore = create<GameStore>()(
                     }
 
                     set((state) => {
-                        // Calculate new position with snapping and collision handling
-                        let newPosition = position || { x: 0, y: 0 };
                         const cardsCopy = { ...state.cards };
                         const nextTapped = toZone.type === ZONE.BATTLEFIELD ? card.tapped : false;
                         const nextCounters = enforceZoneCounterRules(card.counters, toZone);
+                        const normalizedInput = position && (position.x > 1 || position.y > 1)
+                            ? migratePositionToNormalized(position)
+                            : position;
+                        const providedPosition = normalizedInput ?? card.position;
+                        let newPosition = clampNormalizedPosition(providedPosition);
 
-                        // Only apply snapping/collision if moving to a battlefield (which is free-form)
+                        // Only apply collision nudging if moving to a battlefield (free-form layout)
                         if (toZone.type === ZONE.BATTLEFIELD && position) {
-                            // Snap center to grid (edge-aligned)
-                            newPosition = getSnappedPosition(position.x, position.y);
-
-                            // Collision detection: treat collision only when centers match exactly
-                            // (i.e., same snapped grid cell). For any such overlapping card,
-                            // shift it down by one grid step, cascading if needed.
                             const otherCardIds = toZone.cardIds.filter(id => id !== cardId);
                             for (const otherId of otherCardIds) {
                                 const otherCard = cardsCopy[otherId];
                                 if (!otherCard) continue;
 
-                                // Collision only when centers match exactly
-                                if (
-                                    otherCard.position.x === newPosition.x &&
-                                    otherCard.position.y === newPosition.y
-                                ) {
-                                    let candidateY = otherCard.position.y + SNAP_GRID_SIZE;
+                                if (positionsRoughlyEqual(otherCard.position, newPosition)) {
+                                    let candidateY = otherCard.position.y + GRID_STEP_Y;
                                     const candidateX = newPosition.x;
 
                                     // Cascade down until this spot is free in the target zone
@@ -503,11 +499,8 @@ export const useGameStore = create<GameStore>()(
                                             if (checkId === otherId) continue;
                                             const checkCard = cardsCopy[checkId];
                                             if (!checkCard) continue;
-                                            if (
-                                                checkCard.position.x === candidateX &&
-                                                checkCard.position.y === candidateY
-                                            ) {
-                                                candidateY += SNAP_GRID_SIZE;
+                                            if (positionsRoughlyEqual(checkCard.position, { x: candidateX, y: candidateY })) {
+                                                candidateY += GRID_STEP_Y;
                                                 occupied = true;
                                                 break;
                                             }
@@ -516,11 +509,11 @@ export const useGameStore = create<GameStore>()(
 
                                     cardsCopy[otherId] = {
                                         ...otherCard,
-                                        position: {
+                                        position: clampNormalizedPosition({
                                             ...otherCard.position,
                                             x: candidateX,
                                             y: candidateY,
-                                        },
+                                        }),
                                     };
                                 }
                             }
@@ -1130,20 +1123,31 @@ export const useGameStore = create<GameStore>()(
             name: 'snapstack-storage',
             storage: createJSONStorage(() => localStorage),
             onRehydrateStorage: () => (state) => {
-                // Migrate legacy top-left positions to center-based storage
-                if (state && state.cards && state.positionFormat !== 'center') {
+                if (state && state.cards) {
                     const migratedCards: typeof state.cards = {};
                     Object.values(state.cards).forEach(card => {
+                        let position = card.position;
+
+                        // Legacy top-left -> center
+                        if (state.positionFormat === 'top-left') {
+                            position = {
+                                x: position.x + CARD_WIDTH_PX / 2,
+                                y: position.y + CARD_HEIGHT_PX / 2
+                            };
+                        }
+
+                        // Convert any pixel-based coordinates to normalized.
+                        if (state.positionFormat !== 'normalized' || position.x > 1 || position.y > 1) {
+                            position = migratePositionToNormalized(position);
+                        }
+
                         migratedCards[card.id] = {
                             ...card,
-                            position: {
-                                x: card.position.x + CARD_WIDTH_PX / 2,
-                                y: card.position.y + CARD_HEIGHT_PX / 2
-                            }
+                            position,
                         };
                     });
                     state.cards = migratedCards;
-                    state.positionFormat = 'center';
+                    state.positionFormat = 'normalized';
                 }
                 // Migrate legacy commander zone type from 'command' -> 'commander'
                 if (state?.zones) {

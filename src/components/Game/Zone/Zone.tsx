@@ -15,9 +15,10 @@ interface ZoneProps {
     layout?: 'stack' | 'fan' | 'grid' | 'free-form';
     scale?: number;
     onContextMenu?: (e: React.MouseEvent) => void;
+    innerRef?: (node: HTMLDivElement | null) => void;
 }
 
-export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 'stack', scale = 1, onContextMenu }) => {
+export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 'stack', scale = 1, onContextMenu, innerRef }) => {
     const cards = useGameStore((state) => state.cards);
     const zones = useGameStore((state) => state.zones);
     const myPlayerId = useGameStore((state) => state.myPlayerId);
@@ -41,6 +42,10 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
             scale,
         },
     });
+    const setRefs = React.useCallback((node: HTMLDivElement | null) => {
+        setNodeRef(node);
+        innerRef?.(node);
+    }, [innerRef, setNodeRef]);
 
     const { active } = useDndContext();
 
@@ -68,7 +73,7 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
 
     return (
         <div
-            ref={setNodeRef}
+            ref={setRefs}
             data-zone-id={zone.id}
             className={cn(
                 "transition-colors duration-200",

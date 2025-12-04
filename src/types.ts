@@ -81,7 +81,7 @@ export interface GameState {
   // Session
   sessionId: string;
   myPlayerId: PlayerId;
-  positionFormat?: 'center' | 'top-left';
+  positionFormat?: 'center' | 'top-left' | 'normalized';
 
   // Counters
   globalCounters: Record<string, string>; // type -> color

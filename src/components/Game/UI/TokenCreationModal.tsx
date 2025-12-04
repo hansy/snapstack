@@ -8,7 +8,7 @@ import { ScryfallCard } from '../../../types/scryfall';
 import { useGameStore } from '../../../store/gameStore';
 import { v4 as uuidv4 } from 'uuid';
 import { ZONE } from '../../../constants/zones';
-import { findAvailablePosition, getSnappedPosition, SNAP_GRID_SIZE } from '../../../lib/snapping';
+import { clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_X, GRID_STEP_Y } from '../../../lib/positions';
 import { toast } from 'sonner';
 
 interface TokenCreationModalProps {
@@ -74,8 +74,11 @@ export const TokenCreationModal: React.FC<TokenCreationModalProps> = ({ isOpen, 
         const name = frontFace?.name || selectedToken.name;
 
         for (let i = 0; i < quantity; i++) {
-            const base = getSnappedPosition(100 + (i * SNAP_GRID_SIZE), 100 + (i * SNAP_GRID_SIZE));
-            const position = battlefield ? findAvailablePosition(base, battlefield.cardIds, state.cards) : base;
+            const base = clampNormalizedPosition({
+                x: 0.1 + (i * GRID_STEP_X),
+                y: 0.1 + (i * GRID_STEP_Y),
+            });
+            const position = battlefield ? findAvailablePositionNormalized(base, battlefield.cardIds, state.cards) : base;
 
             addCard({
                 id: uuidv4(),

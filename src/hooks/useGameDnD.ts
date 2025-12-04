@@ -17,11 +17,11 @@ import {
     DragPosition,
     DragOffset
 } from '../lib/dnd';
-import { getSnappedPosition } from '../lib/snapping';
 import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
-import { cardFitsWithinZone, clampToZoneBounds } from '../lib/dndMath';
+import { cardFitsWithinZone } from '../lib/dndMath';
 import { ZONE } from '../constants/zones';
 import { canMoveCard } from '../rules/permissions';
+import { fromNormalizedPosition, snapNormalizedWithZone, toNormalizedPosition } from '../lib/positions';
 
 export const useGameDnD = () => {
     const cards = useGameStore((state) => state.cards);
@@ -157,25 +157,26 @@ export const useGameDnD = () => {
                     return;
                 }
 
-                let snappedPos = getSnappedPosition(unsnappedPos.x, unsnappedPos.y);
-                snappedPos = clampToZoneBounds(
-                    snappedPos,
+                const unsnappedNormalized = toNormalizedPosition(unsnappedPos, zoneWidth, zoneHeight);
+                const snappedNormalized = snapNormalizedWithZone(
+                    unsnappedNormalized,
                     zoneWidth,
                     zoneHeight,
                     cardWidth,
                     cardHeight
                 );
+                const ghostPosition = fromNormalizedPosition(snappedNormalized, zoneWidth, zoneHeight);
 
                 setGhostCard({
                     zoneId,
-                    position: snappedPos,
+                    position: ghostPosition,
                     tapped: isTapped
                 });
                 if (!dragMoveLogged.current) {
-                    startGhostPos.current = snappedPos;
+                    startGhostPos.current = ghostPosition;
                     dragMoveLogged.current = true;
                 }
-                lastGhostPos.current = snappedPos;
+                lastGhostPos.current = ghostPosition;
 
                 // One-time per drag anchor tracking (kept for potential future use)
                 if (!startLogged.current) {
@@ -254,16 +255,16 @@ export const useGameDnD = () => {
                     return;
                 }
 
-                let snappedPos = getSnappedPosition(unsnappedPos.x, unsnappedPos.y);
-                snappedPos = clampToZoneBounds(
-                    snappedPos,
+                const unsnappedNormalized = toNormalizedPosition(unsnappedPos, zoneWidth, zoneHeight);
+                const snappedNormalized = snapNormalizedWithZone(
+                    unsnappedNormalized,
                     zoneWidth,
                     zoneHeight,
                     cardWidth,
                     cardHeight
                 );
 
-                moveCard(cardId, toZoneId, snappedPos, myPlayerId);
+                moveCard(cardId, toZoneId, snappedNormalized, myPlayerId);
             }
         }
 

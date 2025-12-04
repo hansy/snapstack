@@ -1,7 +1,7 @@
 import * as Y from 'yjs';
 import { Card, Player, Zone } from '../types';
 import { enforceZoneCounterRules, mergeCounters } from '../lib/counters';
-import { findAvailablePosition, getSnappedPosition, SNAP_GRID_SIZE } from '../lib/snapping';
+import { bumpPosition, clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_Y, migratePositionToNormalized, positionsRoughlyEqual } from '../lib/positions';
 import { getCardFaces, getCurrentFaceIndex, isTransformableCard, syncCardStatsToFace } from '../lib/cardDisplay';
 import { ZONE } from '../constants/zones';
 
@@ -77,28 +77,45 @@ export function removeCard(maps: SharedMaps, cardId: string) {
 }
 
 export function moveCard(maps: SharedMaps, cardId: string, toZoneId: string, position?: { x: number; y: number }) {
-  const card = maps.cards.get(cardId) as Card | undefined;
-  if (!card) return;
+  const currentCard = maps.cards.get(cardId) as Card | undefined;
+  if (!currentCard) return;
+
+  const card = (currentCard.position.x > 1 || currentCard.position.y > 1)
+    ? { ...currentCard, position: migratePositionToNormalized(currentCard.position) }
+    : currentCard;
+  if (card !== currentCard) {
+    maps.cards.set(cardId, card);
+  }
 
   const fromZoneId = card.zoneId;
   const fromZone = maps.zones.get(fromZoneId) as Zone | undefined;
   const toZone = maps.zones.get(toZoneId) as Zone | undefined;
   if (!fromZone || !toZone) return;
 
-  let newPosition = position || card.position;
+  const normalizedInput = position && (position.x > 1 || position.y > 1)
+    ? migratePositionToNormalized(position)
+    : position;
+  let newPosition = clampNormalizedPosition(normalizedInput || card.position);
   const cardsCopy = toPlain(maps.cards) as Record<string, Card>;
+  Object.entries(cardsCopy).forEach(([id, c]) => {
+    if (c.position.x > 1 || c.position.y > 1) {
+      const normalized = { ...c, position: migratePositionToNormalized(c.position) };
+      cardsCopy[id] = normalized;
+      maps.cards.set(id, normalized);
+    }
+  });
   const leavingBattlefield = fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
   const resetToFront = leavingBattlefield ? syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0) : card;
 
   // If moving to battlefield, snap and resolve collisions
   if (toZone.type === ZONE.BATTLEFIELD && position) {
-    newPosition = getSnappedPosition(position.x, position.y);
     const otherIds = toZone.cardIds.filter((id) => id !== cardId);
     for (const otherId of otherIds) {
       const otherCard = cardsCopy[otherId];
       if (!otherCard) continue;
-      if (otherCard.position.x === newPosition.x && otherCard.position.y === newPosition.y) {
-        let candidateY = otherCard.position.y + SNAP_GRID_SIZE;
+
+      if (positionsRoughlyEqual(otherCard.position, newPosition)) {
+        let candidateY = otherCard.position.y + GRID_STEP_Y;
         const candidateX = newPosition.x;
         let occupied = true;
         while (occupied) {
@@ -107,14 +124,14 @@ export function moveCard(maps: SharedMaps, cardId: string, toZoneId: string, pos
             if (checkId === otherId) continue;
             const checkCard = cardsCopy[checkId];
             if (!checkCard) continue;
-            if (checkCard.position.x === candidateX && checkCard.position.y === candidateY) {
-              candidateY += SNAP_GRID_SIZE;
+            if (positionsRoughlyEqual(checkCard.position, { x: candidateX, y: candidateY })) {
+              candidateY += GRID_STEP_Y;
               occupied = true;
               break;
             }
           }
         }
-        cardsCopy[otherId] = { ...otherCard, position: { ...otherCard.position, x: candidateX, y: candidateY } };
+        cardsCopy[otherId] = { ...otherCard, position: clampNormalizedPosition({ ...otherCard.position, x: candidateX, y: candidateY }) };
       }
     }
   }
@@ -198,12 +215,18 @@ export function reorderZoneCards(maps: SharedMaps, zoneId: string, orderedCardId
 }
 
 export function duplicateCard(maps: SharedMaps, cardId: string, newId: string) {
-  const card = maps.cards.get(cardId) as Card | undefined;
-  if (!card) return;
+  const existing = maps.cards.get(cardId) as Card | undefined;
+  if (!existing) return;
   const zone = maps.zones.get(card.zoneId) as Zone | undefined;
   if (!zone) return;
-  const basePosition = { x: card.position.x + SNAP_GRID_SIZE, y: card.position.y + SNAP_GRID_SIZE };
-  const position = findAvailablePosition(basePosition, zone.cardIds, toPlain(maps.cards));
+  const positionSource = (existing.position.x > 1 || existing.position.y > 1)
+    ? migratePositionToNormalized(existing.position)
+    : existing.position;
+  const card = { ...existing, position: positionSource };
+  if (card !== existing) maps.cards.set(cardId, card);
+
+  const basePosition = bumpPosition(clampNormalizedPosition(card.position));
+  const position = findAvailablePositionNormalized(basePosition, zone.cardIds, toPlain(maps.cards));
   const cloned: Card = {
     ...card,
     id: newId,

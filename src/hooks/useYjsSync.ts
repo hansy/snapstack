@@ -7,6 +7,7 @@ import { bindSharedLogStore } from '../logging/logStore';
 import { createGameYDoc } from '../yjs/yDoc';
 import { setYDocHandles } from '../yjs/yManager';
 import { removePlayer } from '../yjs/yMutations';
+import { clampNormalizedPosition, migratePositionToNormalized } from '../lib/positions';
 
 type SyncStatus = 'connecting' | 'connected';
 
@@ -69,13 +70,33 @@ export function useYjsSync(sessionId: string) {
     const provider = new WebsocketProvider(signalingUrl, room, doc, { awareness, connect: true });
     console.info('[signal] connecting websocket', { signaling: signalingUrl, room });
 
+    const normalizeSharedCards = () => {
+      const result: Record<string, any> = {};
+      cards.forEach((value, key) => {
+        if (!value?.position) {
+          result[key] = value;
+          return;
+        }
+        const needsMigration = value.position.x > 1 || value.position.y > 1;
+        const nextPosition = needsMigration
+          ? migratePositionToNormalized(value.position)
+          : clampNormalizedPosition(value.position);
+        const nextValue = { ...value, position: nextPosition };
+        result[key] = nextValue;
+        if (needsMigration || nextPosition.x !== value.position.x || nextPosition.y !== value.position.y) {
+          cards.set(key, nextValue);
+        }
+      });
+      return result;
+    };
+
     const pushRemoteToStore = () => {
       applyingRemote.current = true;
       useGameStore.setState((current) => ({
         ...current,
         players: toPlain(players),
         zones: toPlain(zones),
-        cards: toPlain(cards),
+        cards: normalizeSharedCards(),
         globalCounters: toPlain(globalCounters),
       }));
       applyingRemote.current = false;
