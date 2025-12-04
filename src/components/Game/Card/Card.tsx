@@ -115,9 +115,10 @@ export const Card: React.FC<CardProps> = ({
     },
   });
   const zone = useGameStore((state) => state.zones[card.zoneId]);
+  const zoneType = zone?.type;
   const cardTypeLine = card.typeLine || card.scryfall?.type_line || "";
   const isLand = /land/i.test(cardTypeLine);
-  const isBattlefield = zone?.type === ZONE.BATTLEFIELD;
+  const isBattlefield = zoneType === ZONE.BATTLEFIELD;
   const useArtCrop = preferArtCrop ?? (!isLand && isBattlefield);
 
   const { transform: propTransform, ...restPropStyle } = propStyle || {};
@@ -136,7 +137,9 @@ export const Card: React.FC<CardProps> = ({
   };
 
   // Hover Logic
-  const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isDragging) return;
@@ -151,9 +154,9 @@ export const Card: React.FC<CardProps> = ({
 
     const rect = e.currentTarget.getBoundingClientRect();
 
-    if (card.zoneId.includes(ZONE.HAND) || card.zoneId.includes(ZONE.COMMANDER)) {
+    if (zoneType === ZONE.HAND || zoneType === ZONE.COMMANDER) {
       showPreview(card, rect);
-    } else if (card.zoneId.includes(ZONE.BATTLEFIELD)) {
+    } else if (zoneType === ZONE.BATTLEFIELD) {
       hoverTimeoutRef.current = setTimeout(() => {
         showPreview(card, rect);
         hoverTimeoutRef.current = null;
@@ -170,10 +173,12 @@ export const Card: React.FC<CardProps> = ({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    if (card.zoneId.includes(ZONE.BATTLEFIELD) && !isDragging) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      toggleLock(card, rect);
-    }
+    const state = useGameStore.getState();
+    if (zoneType !== ZONE.BATTLEFIELD || isDragging) return;
+    if (card.ownerId !== state.myPlayerId) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    toggleLock(card, rect);
   };
 
   // Cleanup on unmount
@@ -182,8 +187,9 @@ export const Card: React.FC<CardProps> = ({
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current);
       }
+      hidePreview();
     };
-  }, []);
+  }, [hidePreview]);
 
   return (
     <>
@@ -199,6 +205,7 @@ export const Card: React.FC<CardProps> = ({
           const state = useGameStore.getState();
           const zone = state.zones[card.zoneId];
           if (zone?.type !== ZONE.BATTLEFIELD) return;
+          if (card.ownerId !== state.myPlayerId) return;
           state.tapCard(card.id, state.myPlayerId);
         }}
         onClick={handleClick}
