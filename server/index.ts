@@ -26,6 +26,9 @@ export default {
 
     const roomFromPath = pathname.startsWith("/signal/") ? pathname.slice("/signal/".length) : null;
     const room = roomFromPath || url.searchParams.get("room") || "default";
+    if (!UUID_REGEX.test(room)) {
+      return new Response("Invalid room name", { status: 400 });
+    }
     const id = env.WEBSOCKET_SERVER.idFromName(room);
     const stub = env.WEBSOCKET_SERVER.get(id);
     return stub.fetch(request);
@@ -42,6 +45,7 @@ const RATE_LIMIT_WINDOW_MS = 5_000;
 const RATE_LIMIT_MAX_MESSAGES = 120;
 const RATE_LIMIT_MAX_BYTES = 512 * 1024;
 const DEFAULT_PING_INTERVAL_MS = 30_000;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Durable Object implementing y-websocket style doc + awareness sync
 export class SignalRoom extends DurableObject {
@@ -106,6 +110,9 @@ export class SignalRoom extends DurableObject {
     const pathname = url.pathname.replace(/\/+$/, "");
     const roomFromPath = pathname.startsWith("/signal/") ? pathname.slice("/signal/".length) : null;
     const room = roomFromPath || url.searchParams.get("room") || "default";
+    if (!UUID_REGEX.test(room)) {
+      return new Response("Invalid room name", { status: 400 });
+    }
     this.handleConnection(server, room);
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -214,22 +221,6 @@ export class SignalRoom extends DurableObject {
           if (!update || update.length === 0) {
             break;
           }
-          // Track client IDs from the update to clean up on disconnect.
-          try {
-            const set = this.connClients.get(ws);
-            const decoderUpdate = decoding.createDecoder(update);
-            const len = decoding.readVarUint(decoderUpdate);
-            for (let i = 0; i < len; i++) {
-              const clientID = decoding.readVarUint(decoderUpdate);
-              decoding.readVarUint(decoderUpdate); // clock (unused)
-              // skip state payload to advance decoder safely
-              try { decoding.readVarString(decoderUpdate); } catch (_err) {}
-              if (set) set.add(clientID);
-            }
-          } catch (err) {
-            console.error("[signal] awareness id decode failed", err);
-          }
-
           try {
             awarenessProtocol.applyAwarenessUpdate(this.awareness, update, ws);
           } catch (err) {

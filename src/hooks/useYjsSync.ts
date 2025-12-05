@@ -54,7 +54,7 @@ export function useYjsSync(sessionId: string) {
     setYDocHandles(handles);
     if (ENABLE_LOG_SYNC) bindSharedLogStore(logs);
     const awareness = new Awareness(doc);
-    const room = `mtg-${sessionId}`;
+    const room = sessionId;
 
     const signalingUrl = (() => {
       const envUrl = (import.meta as any).env?.VITE_SIGNAL_URL as
