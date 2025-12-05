@@ -14,7 +14,7 @@ import type { Card, Counter, Player, Zone } from "../types";
 type SyncStatus = "connecting" | "connected";
 
 const MAX_PLAYERS = 8;
-const MAX_ZONES = MAX_PLAYERS * 10; // 10 zones per seat (library, hand, battlefield, graveyard, exile, commander)
+const MAX_ZONES = MAX_PLAYERS * 10; // 6 zones per seat (library, hand, battlefield, graveyard, exile, commander)
 const MAX_CARDS = 600;
 const MAX_CARDS_PER_ZONE = 200;
 const MAX_COUNTERS = 24;
