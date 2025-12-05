@@ -51,8 +51,6 @@ export function useYjsSync(sessionId: string) {
     useGameStore.setState((state) => ({ ...state, sessionId }));
 
     const signalingUrl = (() => {
-      console.log("hello WORLD");
-      console.log(import.meta);
       const envUrl = (import.meta as any).env?.VITE_WEBSOCKET_SERVER as
         | string
         | undefined;
