@@ -38,17 +38,16 @@ export function useYjsSync(sessionId: string) {
     setStatus("connecting");
     setPeers(1);
 
-    const currentSessionId = useGameStore.getState().sessionId;
-    if (currentSessionId !== sessionId) {
-      try {
-        localStorage.removeItem("snapstack-storage");
-      } catch (_err) {}
-      useGameStore.getState().resetSession(sessionId);
+    const store = useGameStore.getState();
+    const ensuredPlayerId = store.ensurePlayerIdForSession(sessionId);
+    const needsReset = store.sessionId !== sessionId || store.myPlayerId !== ensuredPlayerId;
+    if (needsReset) {
+      store.resetSession(sessionId, ensuredPlayerId);
+    } else {
+      // Keep sessionId in sync in case it drifted.
+      useGameStore.setState((state) => ({ ...state, sessionId }));
     }
     prevSession.current = sessionId;
-
-    // Keep store in sync with the current session ID (local-only field).
-    useGameStore.setState((state) => ({ ...state, sessionId }));
 
     const signalingUrl = (() => {
       const envUrl = (import.meta as any).env?.VITE_WEBSOCKET_SERVER as
@@ -76,10 +75,6 @@ export function useYjsSync(sessionId: string) {
     const provider = new WebsocketProvider(signalingUrl, room, doc, {
       awareness,
       connect: true,
-    });
-    console.info("[signal] connecting websocket", {
-      signaling: signalingUrl,
-      room,
     });
 
     const clampNumber = (
@@ -342,7 +337,6 @@ export function useYjsSync(sessionId: string) {
     const handleAwareness = () => {
       const size = awareness.getStates().size || 1;
       setPeers(size);
-      console.info("[signal] awareness size", size);
     };
 
     awareness.on("change", handleAwareness);

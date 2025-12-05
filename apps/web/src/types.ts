@@ -117,7 +117,10 @@ export interface GameState {
   setActiveModal: (modal: { type: 'ADD_COUNTER'; cardId: string } | null) => void;
 
   // Session management
-  resetSession: (sessionId?: string) => void;
+  playerIdsBySession: Record<string, PlayerId>;
+  resetSession: (sessionId?: string, playerId?: string) => void;
+  ensurePlayerIdForSession: (sessionId: string) => string;
+  forgetSessionIdentity: (sessionId: string) => void;
   setBattlefieldViewScale: (playerId: PlayerId, scale: number) => void;
 
   // Hydration

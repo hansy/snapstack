@@ -82,6 +82,7 @@ export const useGameStore = create<GameStore>()(
                 cards: {},
                 zones: {},
                 battlefieldViewScale: {},
+                playerIdsBySession: {},
                 sessionId: uuidv4(), // Generate a new session ID by default
                 myPlayerId: uuidv4(), // Generate a temporary ID for the local player
                 hasHydrated: false,
@@ -89,21 +90,40 @@ export const useGameStore = create<GameStore>()(
                 globalCounters: {},
                 activeModal: null,
 
-                resetSession: (newSessionId) => {
+                resetSession: (newSessionId, playerId) => {
                     const freshSessionId = newSessionId ?? uuidv4();
-                    const freshPlayerId = uuidv4();
+                    const freshPlayerId = playerId ?? get().playerIdsBySession[freshSessionId] ?? uuidv4();
 
                     clearLogs();
 
-                    set({
+                    set((state) => ({
                         players: {},
                         cards: {},
                         zones: {},
                         battlefieldViewScale: {},
                         sessionId: freshSessionId,
                         myPlayerId: freshPlayerId,
+                        playerIdsBySession: { ...state.playerIdsBySession, [freshSessionId]: freshPlayerId },
                         globalCounters: {},
                         activeModal: null,
+                    }));
+                },
+
+                ensurePlayerIdForSession: (sessionId: string) => {
+                    const existing = get().playerIdsBySession[sessionId];
+                    if (existing) return existing;
+                    const fresh = uuidv4();
+                    set((state) => ({
+                        playerIdsBySession: { ...state.playerIdsBySession, [sessionId]: fresh },
+                    }));
+                    return fresh;
+                },
+
+                forgetSessionIdentity: (sessionId: string) => {
+                    set((state) => {
+                        const next = { ...state.playerIdsBySession };
+                        delete next[sessionId];
+                        return { playerIdsBySession: next };
                     });
                 },
 
@@ -1259,6 +1279,9 @@ export const useGameStore = create<GameStore>()(
 
                 if (!state.battlefieldViewScale) {
                     state.battlefieldViewScale = {};
+                }
+                if (!state.playerIdsBySession) {
+                    state.playerIdsBySession = {};
                 }
                 state.setHasHydrated(true);
             },

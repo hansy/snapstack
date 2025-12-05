@@ -45,7 +45,8 @@ describe('buildZoneMoveActions', () => {
     expect(labels).toContain(`Move to ${ZONE_LABEL.graveyard}`);
     expect(labels).toContain(`Move to ${ZONE_LABEL.exile}`);
     expect(labels).toContain(`Move to ${ZONE_LABEL.hand}`);
-    expect(labels).toContain(`Move to ${ZONE_LABEL.battlefield}`);
+    expect(labels).toContain(`Move to ${ZONE_LABEL.battlefield} (face-up)`);
+    expect(labels).toContain(`Move to ${ZONE_LABEL.battlefield} (face-down)`);
     expect(labels).toContain(`Move to Bottom of ${ZONE_LABEL.library}`);
   });
 });
@@ -62,7 +63,8 @@ describe('buildZoneViewActions', () => {
       unloadDeck: vi.fn(),
     });
 
-    const drawX = items.find((i): i is Extract<typeof i, { type: 'action' }> => i.type === 'action' && i.label.includes('Draw X'));
+    const drawMenu = items.find((i): i is Extract<typeof i, { type: 'action' }> => i.type === 'action' && i.label.includes('Draw ...'));
+    const drawX = drawMenu?.submenu?.find((i): i is Extract<typeof i, { type: 'action' }> => i.type === 'action' && i.label.includes('Draw X'));
     expect(drawX?.disabledReason).toBeTruthy();
   });
 
@@ -79,7 +81,8 @@ describe('buildZoneViewActions', () => {
       openCountPrompt,
     });
 
-    const drawX = items.find((i): i is Extract<typeof i, { type: 'action' }> => i.type === 'action' && i.label.includes('Draw X'));
+    const drawMenu = items.find((i): i is Extract<typeof i, { type: 'action' }> => i.type === 'action' && i.label.includes('Draw ...'));
+    const drawX = drawMenu?.submenu?.find((i): i is Extract<typeof i, { type: 'action' }> => i.type === 'action' && i.label.includes('Draw X'));
     expect(drawX?.disabledReason).toBeUndefined();
   });
 });

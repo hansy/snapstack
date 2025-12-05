@@ -84,6 +84,10 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
             });
         }
 
+        const currentSessionId = useGameStore.getState().sessionId;
+        if (currentSessionId) {
+            useGameStore.getState().forgetSessionIdentity(currentSessionId);
+        }
         useGameStore.getState().resetSession();
         navigate({ to: '/' });
     };
@@ -108,6 +112,13 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
 
     // Auto-initialize if player is missing (e.g. after reset)
     React.useEffect(() => {
+        const store = useGameStore.getState();
+        if (store.sessionId !== sessionId) {
+            return;
+        }
+        if (store.myPlayerId !== myPlayerId) {
+            return;
+        }
         if (!hasHydrated) return;
         if (seededRef.current) return;
 
@@ -142,7 +153,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
         });
 
         seededRef.current = true;
-    }, [myPlayerId, hasHydrated]);
+    }, [myPlayerId, hasHydrated, sessionId]);
 
     const getGridClass = () => {
         switch (layoutMode) {
