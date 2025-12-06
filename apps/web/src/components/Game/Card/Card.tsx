@@ -53,9 +53,9 @@ export const CardView = React.forwardRef<HTMLDivElement, CardViewProps>(
       onDoubleClick,
       onClick,
       onMouseEnter,
-      onMouseLeave,
-      imageTransform,
-      preferArtCrop = true,
+  onMouseLeave,
+  imageTransform,
+      preferArtCrop = false,
       rotateLabel,
       ...props
     },
@@ -134,7 +134,7 @@ export const Card: React.FC<CardProps> = ({
   const cardTypeLine = card.typeLine || "";
   const isLand = /land/i.test(cardTypeLine);
   const isBattlefield = zoneType === ZONE.BATTLEFIELD;
-  const useArtCrop = preferArtCrop ?? (!isLand && isBattlefield);
+  const useArtCrop = preferArtCrop ?? false;
 
   const { transform: propTransform, ...restPropStyle } = propStyle || {};
 

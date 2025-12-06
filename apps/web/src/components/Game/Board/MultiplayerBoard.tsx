@@ -378,7 +378,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                         const overlayCard = cards[activeCardId];
                         const overlayZone = zones[overlayCard.zoneId];
                         const overlayTypeLine = overlayCard.typeLine || '';
-                        const overlayPreferArtCrop = overlayZone?.type === ZONE.BATTLEFIELD && !/land/i.test(overlayTypeLine);
+                        const overlayPreferArtCrop = false;
                         const viewScale = overlayZone?.type === ZONE.BATTLEFIELD
                             ? (battlefieldViewScale[overlayZone.ownerId] ?? 1)
                             : 1;
