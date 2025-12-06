@@ -36,7 +36,6 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
     const moveCard = useGameStore((state) => state.moveCard);
     const moveCardToBottom = useGameStore((state) => state.moveCardToBottom);
     const reorderZoneCards = useGameStore((state) => state.reorderZoneCards);
-    const shuffleLibrary = useGameStore((state) => state.shuffleLibrary);
     const myPlayerId = useGameStore((state) => state.myPlayerId);
 
     const [contextMenu, setContextMenu] = useState<{
@@ -54,22 +53,11 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
     const zone = zoneId ? zones[zoneId] : null;
     const canView = zone ? canViewZone({ actorId: myPlayerId }, zone, { viewAll: !count }) : null;
 
-    const viewAllLibraryOwnerRef = React.useRef<string | null>(null);
-
     React.useEffect(() => {
-        if (isOpen && zone?.type === ZONE.LIBRARY && !count) {
-            viewAllLibraryOwnerRef.current = zone.ownerId;
-        } else if (isOpen) {
-            viewAllLibraryOwnerRef.current = null;
+        if (!isOpen) {
+            setFilterText("");
         }
-    }, [isOpen, zone, count]);
-
-    React.useEffect(() => {
-        if (!isOpen && viewAllLibraryOwnerRef.current) {
-            shuffleLibrary(viewAllLibraryOwnerRef.current, myPlayerId);
-            viewAllLibraryOwnerRef.current = null;
-        }
-    }, [isOpen, shuffleLibrary, myPlayerId]);
+    }, [isOpen]);
 
     const viewMode = useMemo(() => {
         if (zone?.type === ZONE.LIBRARY && !count) return "grouped";
