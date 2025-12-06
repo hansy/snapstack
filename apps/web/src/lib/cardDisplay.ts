@@ -1,5 +1,5 @@
 import { Card } from "../types";
-import { ScryfallCardFace } from "../types/scryfall";
+import { ScryfallCardFaceLite } from "../types/scryfallLite";
 
 const TRANSFORM_LAYOUTS = new Set([
   "transform",
@@ -11,7 +11,7 @@ const TRANSFORM_LAYOUTS = new Set([
   "meld",
 ]);
 
-export const getCardFaces = (card: Card): ScryfallCardFace[] => card.scryfall?.card_faces ?? [];
+export const getCardFaces = (card: Card): ScryfallCardFaceLite[] => card.scryfall?.card_faces ?? [];
 
 export const getCurrentFaceIndex = (card: Card): number => {
   const faces = getCardFaces(card);
@@ -22,13 +22,13 @@ export const getCurrentFaceIndex = (card: Card): number => {
   return index;
 };
 
-export const getCurrentFace = (card: Card): ScryfallCardFace | null => {
+export const getCurrentFace = (card: Card): ScryfallCardFaceLite | null => {
   const faces = getCardFaces(card);
   if (!faces.length) return null;
   return faces[getCurrentFaceIndex(card)];
 };
 
-export const getFrontFace = (card: Card): ScryfallCardFace | null => {
+export const getFrontFace = (card: Card): ScryfallCardFaceLite | null => {
   const faces = getCardFaces(card);
   return faces.length ? faces[0] : null;
 };
@@ -57,7 +57,7 @@ export const isTransformableCard = (card: Card): boolean => {
 
 export const getNextTransformFace = (
   card: Card
-): { nextIndex: number; face: ScryfallCardFace } | null => {
+): { nextIndex: number; face: ScryfallCardFaceLite } | null => {
   const faces = getCardFaces(card);
   if (faces.length < 2) return null;
   const nextIndex = (getCurrentFaceIndex(card) + 1) % faces.length;

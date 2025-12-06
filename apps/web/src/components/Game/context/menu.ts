@@ -1,8 +1,22 @@
 import { Card, CardId, PlayerId, ScryfallRelatedCard, Zone, ZoneId } from '../../../types';
+import { ScryfallCard } from '../../../types/scryfall';
 import { getPlayerZones } from '../../../lib/gameSelectors';
 import { ZONE, ZONE_LABEL } from '../../../constants/zones';
 import { canCreateToken, canMoveCard, canTapCard, canViewZone } from '../../../rules/permissions';
 import { getNextTransformFace, getTransformVerb, isTransformableCard } from '../../../lib/cardDisplay';
+
+/**
+ * Get related parts from a card. This requires full Scryfall data.
+ * Returns empty array if only lite data is available.
+ * TODO: Fetch full data on-demand using useScryfallCard hook
+ */
+const getRelatedParts = (card: Card): ScryfallRelatedCard[] => {
+    // Cast to full ScryfallCard to access all_parts (may be undefined if lite)
+    const fullScryfall = card.scryfall as ScryfallCard | undefined;
+    return (fullScryfall?.all_parts || []).filter(
+        (part: ScryfallRelatedCard) => part.component !== 'combo_piece'
+    );
+};
 
 export type ContextMenuItem = ContextMenuAction | ContextMenuSeparator;
 
@@ -88,6 +102,8 @@ interface CardActionBuilderParams {
     globalCounters: Record<string, string>;
     updateCard?: (cardId: CardId, updates: Partial<Card>) => void;
     openTextPrompt?: (opts: { title: string; message?: string; initialValue?: string; onSubmit: (value: string) => void }) => void;
+    /** Pre-fetched related parts from full Scryfall data (tokens, meld parts, etc.) */
+    relatedParts?: ScryfallRelatedCard[];
 }
 
 export const buildCardActions = ({
@@ -106,6 +122,7 @@ export const buildCardActions = ({
     globalCounters,
     updateCard,
     openTextPrompt,
+    relatedParts: preloadedRelatedParts,
 }: CardActionBuilderParams): ContextMenuItem[] => {
     const items: ContextMenuItem[] = [];
     const currentZone = zones[card.zoneId];
@@ -144,9 +161,10 @@ export const buildCardActions = ({
             items.push({ type: 'action', label: 'Duplicate', onSelect: () => duplicateCard(card.id) });
         }
 
-        const relatedParts = (card.scryfall?.all_parts || []).filter(part => part.component !== 'combo_piece');
+        // Use pre-fetched related parts if available, otherwise try to get from card (may be empty if lite)
+        const relatedParts = preloadedRelatedParts ?? getRelatedParts(card);
         if (relatedParts.length > 0) {
-            const relatedItems: ContextMenuItem[] = relatedParts.map((part) => {
+            const relatedItems: ContextMenuItem[] = relatedParts.map((part: ScryfallRelatedCard) => {
                 const isToken = part.component === 'token';
                 const label = `Create ${part.name}${isToken ? ' token' : ''}`;
                 return { type: 'action', label, onSelect: () => createRelatedCard(card, part) };

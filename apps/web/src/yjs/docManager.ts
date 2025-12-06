@@ -271,7 +271,7 @@ export function flushPendingMutations(): void {
 
 // Compatibility exports for existing code
 export const getYDocHandles = getActiveHandles;
-export const setYDocHandles = (handles: YDocHandles | null) => {
+export const setYDocHandles = (_handles: YDocHandles | null) => {
   // Legacy - now handled by acquireSession/setActiveSession
 };
 export const getYProvider = () => activeSessionId ? getSessionProvider(activeSessionId) : null;

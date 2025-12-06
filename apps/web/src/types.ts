@@ -1,4 +1,4 @@
-import { ScryfallCard } from './types/scryfall';
+import { ScryfallCardLite } from './types/scryfallLite';
 
 export type PlayerId = string;
 export type CardId = string;
@@ -13,15 +13,16 @@ export interface Counter {
 }
 
 // Metadata that ties a card instance back to a specific printing/source.
-// We keep the raw Scryfall payload optional so we can power richer UI (faces, legality, set symbols)
-// without forcing it into the core game state when unnecessary.
+// We store only minimal Scryfall data (ScryfallCardLite) for sync efficiency.
+// Full Scryfall data is cached locally in IndexedDB and fetched on-demand
+// using the scryfallId.
 export interface CardIdentity {
   name: string;
   imageUrl?: string; // Preferred display image (normally Scryfall image_uris.normal)
   oracleText?: string;
   typeLine?: string;
   scryfallId?: string;
-  scryfall?: ScryfallCard;
+  scryfall?: ScryfallCardLite; // Minimal data for sync - full data fetched via scryfallCache
   isToken?: boolean;
 }
 
@@ -131,3 +132,5 @@ export interface GameState {
 }
 
 export type { ScryfallCard, ScryfallIdentifier, ScryfallListResult, ScryfallRelatedCard } from './types/scryfall';
+export type { ScryfallCardLite, ScryfallCardFaceLite, ScryfallImageUrisLite } from './types/scryfallLite';
+export { toScryfallCardLite } from './types/scryfallLite';

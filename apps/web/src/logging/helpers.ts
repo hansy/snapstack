@@ -27,7 +27,6 @@ const shouldHideCardName = (card: Card | undefined, fromZone?: Zone, toZone?: Zo
 
 const resolveCardName = (card: Card) =>
   card.name ||
-  card.scryfall?.name ||
   card.scryfall?.card_faces?.[card.currentFaceIndex ?? 0]?.name ||
   card.scryfall?.card_faces?.[0]?.name ||
   'Card';

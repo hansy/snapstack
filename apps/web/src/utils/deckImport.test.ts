@@ -250,7 +250,8 @@ describe('fetchScryfallCards', () => {
         expect(result.missing).toHaveLength(0);
         expect(result.cards).toHaveLength(1);
         expect(result.cards[0].name).toBe('Wear // Tear');
-        expect(result.cards[0].scryfall?.name).toBe('Wear // Tear');
+        // scryfallId should be set (lite version doesn't have 'name' at root)
+        expect(result.cards[0].scryfallId).toBe('some-scryfall-id');
     });
 
     it('falls back to fuzzy lookup when exact named fails', async () => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCw, Plus, ScrollText, Share2, LogOut } from 'lucide-react';
+import { RefreshCw, Plus, ScrollText, Share2, LogOut, Wifi, Loader2 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useGameStore } from '../../../store/gameStore';
 
@@ -26,14 +26,25 @@ const NavIcon: React.FC<NavIconProps> = ({ icon, label, onClick, className }) =>
     </button>
 );
 
+type SyncStatus = 'connecting' | 'connected';
+
 interface SidenavProps {
     onCreateToken?: () => void;
     onToggleLog?: () => void;
     onCopyLink?: () => void;
     onLeaveGame?: () => void;
+    syncStatus?: SyncStatus;
+    peerCount?: number;
 }
 
-export const Sidenav: React.FC<SidenavProps> = ({ onCreateToken, onToggleLog, onCopyLink, onLeaveGame }) => {
+export const Sidenav: React.FC<SidenavProps> = ({ 
+    onCreateToken, 
+    onToggleLog, 
+    onCopyLink, 
+    onLeaveGame,
+    syncStatus = 'connecting',
+    peerCount = 1,
+}) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const myPlayerId = useGameStore((state) => state.myPlayerId);
@@ -94,6 +105,28 @@ export const Sidenav: React.FC<SidenavProps> = ({ onCreateToken, onToggleLog, on
                                     <div className="px-2 py-1 text-xs font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 mb-1">
                                         Snapstack Menu
                                     </div>
+
+                                    {/* Connection Status */}
+                                    <div className="flex items-center gap-3 p-2 text-sm">
+                                        {syncStatus === 'connected' ? (
+                                            <>
+                                                <Wifi size={16} className="text-emerald-400" />
+                                                <span className="text-zinc-300">
+                                                    Connected
+                                                    <span className="text-zinc-500 ml-1">
+                                                        ({peerCount} {peerCount === 1 ? 'player' : 'players'})
+                                                    </span>
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Loader2 size={16} className="text-amber-400 animate-spin" />
+                                                <span className="text-amber-400">Connecting...</span>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    <div className="border-t border-zinc-800 my-1" />
 
                                     <button
                                         onClick={onLeaveGame}

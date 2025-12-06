@@ -131,7 +131,7 @@ export const Card: React.FC<CardProps> = ({
   const isDragging = propIsDragging ?? internalIsDragging;
   const zone = useGameStore((state) => state.zones[card.zoneId]);
   const zoneType = zone?.type;
-  const cardTypeLine = card.typeLine || card.scryfall?.type_line || "";
+  const cardTypeLine = card.typeLine || "";
   const isLand = /land/i.test(cardTypeLine);
   const isBattlefield = zoneType === ZONE.BATTLEFIELD;
   const useArtCrop = preferArtCrop ?? (!isLand && isBattlefield);

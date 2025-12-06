@@ -97,14 +97,11 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
         // User explicitly asked for "left-most is deepest" for linear view.
         // For grouped view, order within groups is determined by insertion order.
 
-        // Filter
+        // Filter by name, type, oracle text, and face names
         if (filterText.trim()) {
             const lowerFilter = filterText.toLowerCase();
             currentCards = currentCards.filter((card) => {
                 const nameMatch = card.name.toLowerCase().includes(lowerFilter);
-                const scryfallNameMatch = card.scryfall?.name
-                    ?.toLowerCase()
-                    .includes(lowerFilter);
                 const faceNameMatch = card.scryfall?.card_faces?.some((face) =>
                     face.name?.toLowerCase().includes(lowerFilter)
                 );
@@ -112,21 +109,7 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
                 const oracleMatch = card.oracleText
                     ?.toLowerCase()
                     .includes(lowerFilter);
-                const flavorMatch = card.scryfall?.flavor_name
-                    ?.toLowerCase()
-                    .includes(lowerFilter);
-                const printedMatch = card.scryfall?.printed_name
-                    ?.toLowerCase()
-                    .includes(lowerFilter);
-                return (
-                    nameMatch ||
-                    scryfallNameMatch ||
-                    faceNameMatch ||
-                    typeMatch ||
-                    oracleMatch ||
-                    flavorMatch ||
-                    printedMatch
-                );
+                return nameMatch || faceNameMatch || typeMatch || oracleMatch;
             });
         }
 
@@ -253,7 +236,7 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-zinc-950/50">
+                    <div className="flex-1 overflow-x-auto overflow-y-hidden pl-6 py-6 pr-[220px] bg-zinc-950/50">
                         {displayCards.length === 0 ? (
                             <div className="h-full flex items-center justify-center text-zinc-500">
                                 No cards found matching your filter.
@@ -337,25 +320,27 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
                                                 e.preventDefault();
                                             }}
                                             className={cn(
-                                                "shrink-0 w-[50px] transition-all duration-200 relative group",
+                                                "shrink-0 w-[50px] h-full transition-all duration-200 relative group flex items-center justify-center",
                                                 !interactionsDisabled && "hover:scale-110 hover:z-[100] hover:w-[200px]",
                                                 isPinned && "scale-110 w-[200px]"
                                             )}
                                             style={{ zIndex: isPinned ? 200 : index, opacity: isDragging ? 0.5 : 1 }}
                                         >
-                                            {index === orderedCards.length - 1 && (
-                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-[101]">
-                                                    Top card
-                                                </div>
-                                            )}
-                                            <CardView
-                                                card={card}
-                                                faceDown={false}
-                                                className="w-[200px] shadow-lg h-auto aspect-[2.5/3.5]"
-                                                imageClassName="object-top"
-                                                preferArtCrop={false}
-                                                onContextMenu={(e) => handleContextMenu(e, card)}
-                                            />
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 mt-4 h-[calc(100%-2rem)] max-h-[280px] w-auto aspect-[2.5/3.5]">
+                                                {index === orderedCards.length - 1 && (
+                                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-[101]">
+                                                        Top card
+                                                    </div>
+                                                )}
+                                                <CardView
+                                                    card={card}
+                                                    faceDown={false}
+                                                    className="w-full h-full shadow-lg"
+                                                    imageClassName="object-top"
+                                                    preferArtCrop={false}
+                                                    onContextMenu={(e) => handleContextMenu(e, card)}
+                                                />
+                                            </div>
                                         </div>
                                     );
                                 })}

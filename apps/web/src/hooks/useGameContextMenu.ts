@@ -8,6 +8,8 @@ import { actionRegistry } from '../components/Game/context/actionsRegistry';
 import { canCreateToken } from '../rules/permissions';
 import { ZONE } from '../constants/zones';
 import { fetchScryfallCardByUri } from '../services/scryfallCard';
+import { getCard as getCachedCard } from '../services/scryfallCache';
+import { toScryfallCardLite } from '../types/scryfallLite';
 import { clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_X, GRID_STEP_Y, migratePositionToNormalized } from '../lib/positions';
 import { getDisplayName } from '../lib/cardDisplay';
 
@@ -48,7 +50,6 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
         try {
             const scryfallCard = await fetchScryfallCardByUri(related.uri);
             const frontFace = scryfallCard.card_faces?.[0];
-            const imageUrl = scryfallCard.image_uris?.normal || frontFace?.image_uris?.normal;
             const isToken = related.component === 'token' || scryfallCard.layout === 'token' || /token/i.test(scryfallCard.type_line ?? '');
             const cardPosition = (card.position.x > 1 || card.position.y > 1)
                 ? migratePositionToNormalized(card.position)
@@ -58,17 +59,20 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
                 y: cardPosition.y + GRID_STEP_Y,
             });
             const position = findAvailablePositionNormalized(basePosition, zone.cardIds, state.cards);
+            const power = scryfallCard.power ?? frontFace?.power;
+            const toughness = scryfallCard.toughness ?? frontFace?.toughness;
             state.addCard({
                 id: uuidv4(),
                 ownerId: zone.ownerId,
                 controllerId: zone.ownerId,
                 zoneId: zone.id,
                 name: frontFace?.name || scryfallCard.name || related.name,
-                imageUrl,
+                // imageUrl omitted - use scryfall.image_uris.normal instead
                 typeLine: scryfallCard.type_line,
-                oracleText: scryfallCard.oracle_text,
+                // oracleText omitted - fetch on-demand from cache
                 scryfallId: scryfallCard.id,
-                scryfall: scryfallCard,
+                // Store lite version for sync efficiency
+                scryfall: toScryfallCardLite(scryfallCard),
                 tapped: false,
                 faceDown: false,
                 currentFaceIndex: 0,
@@ -76,6 +80,10 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
                 counters: [],
                 position,
                 isToken,
+                power,
+                toughness,
+                basePower: power,
+                baseToughness: toughness,
             });
             toast.success(`Created ${related.name}${isToken ? ' token' : ''}`);
         } catch (error) {
@@ -85,9 +93,25 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
     };
 
     // Builds and opens card-specific actions (tap, counters, move shortcuts).
-    const handleCardContextMenu = (e: React.MouseEvent, card: Card) => {
+    const handleCardContextMenu = async (e: React.MouseEvent, card: Card) => {
         const zone = zones[card.zoneId];
         if (!seatHasDeckLoaded(zone?.ownerId ?? card.ownerId)) return;
+
+        // Fetch full Scryfall data to get related parts (tokens, meld results, etc.)
+        // This is needed because we only sync lite data over Yjs
+        let relatedParts: ScryfallRelatedCard[] | undefined;
+        if (card.scryfallId && zone?.type === ZONE.BATTLEFIELD) {
+            try {
+                const fullCard = await getCachedCard(card.scryfallId);
+                if (fullCard?.all_parts) {
+                    relatedParts = fullCard.all_parts.filter(
+                        (part) => part.component !== 'combo_piece'
+                    );
+                }
+            } catch {
+                // Ignore fetch errors - menu will just not show related cards
+            }
+        }
 
         const cardActions = actionRegistry.buildCardActions({
             card,
@@ -113,6 +137,7 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
                 useGameStore.getState().removeCard(targetCard.id, myPlayerId);
             },
             openTextPrompt: (opts) => setTextPrompt(opts),
+            relatedParts,
         });
 
         handleContextMenu(e, cardActions, getDisplayName(card));

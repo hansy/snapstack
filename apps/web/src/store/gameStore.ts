@@ -238,14 +238,17 @@ export const useGameStore = create<GameStore>()(
                 },
 
                 addCard: (card, _isRemote) => {
-                    // Initialize P/T from Scryfall if not already set
+                    // Initialize P/T from card_faces if not already set
+                    // Note: scryfall is a lite version (no power/toughness at root level)
                     const initializedCard = { ...card, currentFaceIndex: card.currentFaceIndex ?? 0 };
-                    if (card.scryfall && !card.power && !card.toughness) {
-                        const frontFace = card.scryfall.card_faces?.[0];
-                        initializedCard.power = card.scryfall.power ?? frontFace?.power;
-                        initializedCard.toughness = card.scryfall.toughness ?? frontFace?.toughness;
-                        initializedCard.basePower = card.scryfall.power ?? frontFace?.power;
-                        initializedCard.baseToughness = card.scryfall.toughness ?? frontFace?.toughness;
+                    if (!card.power && !card.toughness) {
+                        const frontFace = card.scryfall?.card_faces?.[0];
+                        if (frontFace?.power || frontFace?.toughness) {
+                            initializedCard.power = frontFace.power;
+                            initializedCard.toughness = frontFace.toughness;
+                            initializedCard.basePower = frontFace.power;
+                            initializedCard.baseToughness = frontFace.toughness;
+                        }
                     }
                     const faces = getCardFaces(initializedCard);
                     if (faces.length) {

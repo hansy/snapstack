@@ -56,7 +56,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     const { slots, layoutMode, myPlayerId } = usePlayerLayout();
 
 
-    const { status: syncStatus } = useYjsSync(sessionId);
+    const { status: syncStatus, peers } = useYjsSync(sessionId);
     const seededRef = React.useRef(false);
 
     const [zoneViewerState, setZoneViewerState] = useState<{ isOpen: boolean; zoneId: string | null; count?: number }>({
@@ -283,6 +283,8 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                         onToggleLog={() => setIsLogOpen(!isLogOpen)}
                         onCopyLink={handleCopyLink}
                         onLeaveGame={handleLeave}
+                        syncStatus={syncStatus}
+                        peerCount={peers}
                     />
 
                     <div className={`w-full h-full grid ${getGridClass()} pl-12`}>
@@ -375,7 +377,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                     {activeCardId && cards[activeCardId] ? (() => {
                         const overlayCard = cards[activeCardId];
                         const overlayZone = zones[overlayCard.zoneId];
-                        const overlayTypeLine = overlayCard.typeLine || overlayCard.scryfall?.type_line || '';
+                        const overlayTypeLine = overlayCard.typeLine || '';
                         const overlayPreferArtCrop = overlayZone?.type === ZONE.BATTLEFIELD && !/land/i.test(overlayTypeLine);
                         const viewScale = overlayZone?.type === ZONE.BATTLEFIELD
                             ? (battlefieldViewScale[overlayZone.ownerId] ?? 1)
