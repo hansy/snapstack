@@ -73,6 +73,7 @@ export const useGameStore = create<GameStore>()(
                 zones: {},
                 battlefieldViewScale: {},
                 playerIdsBySession: {},
+                sessionVersions: {},
                 sessionId: uuidv4(), // Generate a new session ID by default
                 myPlayerId: uuidv4(), // Generate a temporary ID for the local player
                 hasHydrated: false,
@@ -94,6 +95,7 @@ export const useGameStore = create<GameStore>()(
                         sessionId: freshSessionId,
                         myPlayerId: freshPlayerId,
                         playerIdsBySession: { ...state.playerIdsBySession, [freshSessionId]: freshPlayerId },
+                        sessionVersions: { ...state.sessionVersions, [freshSessionId]: (state.sessionVersions[freshSessionId] ?? 0) + 1 },
                         globalCounters: {},
                         activeModal: null,
                     }));
@@ -113,8 +115,20 @@ export const useGameStore = create<GameStore>()(
                     set((state) => {
                         const next = { ...state.playerIdsBySession };
                         delete next[sessionId];
-                        return { playerIdsBySession: next };
+                        const nextVersions = { ...state.sessionVersions };
+                        nextVersions[sessionId] = (nextVersions[sessionId] ?? 0) + 1;
+                        return { playerIdsBySession: next, sessionVersions: nextVersions };
                     });
+                },
+
+                ensureSessionVersion: (sessionId: string) => {
+                    const current = get().sessionVersions[sessionId];
+                    if (typeof current === 'number') return current;
+                    const next = 1;
+                    set((state) => ({
+                        sessionVersions: { ...state.sessionVersions, [sessionId]: next },
+                    }));
+                    return next;
                 },
 
                 setHasHydrated: (state) => {

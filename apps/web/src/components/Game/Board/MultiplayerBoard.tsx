@@ -124,12 +124,8 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     // Auto-initialize if player is missing (e.g. after reset)
     React.useEffect(() => {
         const store = useGameStore.getState();
-        if (store.sessionId !== sessionId) {
-            return;
-        }
-        if (store.myPlayerId !== myPlayerId) {
-            return;
-        }
+        if (store.sessionId !== sessionId) return;
+        if (store.myPlayerId !== myPlayerId) return;
         if (!hasHydrated) return;
         if (syncStatus !== 'connected') return;
         if (seededRef.current) return;

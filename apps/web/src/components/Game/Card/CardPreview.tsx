@@ -21,8 +21,8 @@ interface CardPreviewProps {
   onClose?: () => void;
 }
 
-const PREVIEW_WIDTH = 180; // Reduced size
-const GAP = 16;
+const PREVIEW_WIDTH = 200; // Reduced size
+const GAP = 18;
 
 export const CardPreview: React.FC<CardPreviewProps> = ({
   card,
@@ -169,7 +169,9 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
             <div
               className={cn(
                 "bg-zinc-900/90 backdrop-blur-sm p-2 rounded-lg border border-zinc-700 shadow-xl min-w-[120px] max-w-[200px] mt-2",
-                locked && currentCard.ownerId === myPlayerId && "cursor-text hover:border-indigo-500/50 transition-colors"
+                locked &&
+                  currentCard.ownerId === myPlayerId &&
+                  "cursor-text hover:border-indigo-500/50 transition-colors"
               )}
               onClick={(e) => {
                 if (!locked || currentCard.ownerId !== myPlayerId) return;
@@ -195,7 +197,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
                   parseInt(currentCard.basePower || "0")
                   ? "text-green-500"
                   : parseInt(displayPower || "0") <
-                    parseInt(currentCard.basePower || "0")
+                      parseInt(currentCard.basePower || "0")
                     ? "text-red-500"
                     : "text-white"
               )}
@@ -237,7 +239,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
                   parseInt(currentCard.baseToughness || "0")
                   ? "text-green-500"
                   : parseInt(displayToughness || "0") <
-                    parseInt(currentCard.baseToughness || "0")
+                      parseInt(currentCard.baseToughness || "0")
                     ? "text-red-500"
                     : "text-white"
               )}
@@ -273,7 +275,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   );
 };
 
-const CustomTextEditor: React.FC<{ card: CardType; locked?: boolean }> = ({ card, locked }) => {
+const CustomTextEditor: React.FC<{ card: CardType; locked?: boolean }> = ({
+  card,
+  locked,
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(card.customText || "");
   const updateCard = useGameStore((state) => state.updateCard);
@@ -324,7 +329,9 @@ const CustomTextEditor: React.FC<{ card: CardType; locked?: boolean }> = ({ card
         }
       }}
     >
-      {card.customText || <span className="text-zinc-500 italic">Add text...</span>}
+      {card.customText || (
+        <span className="text-zinc-500 italic">Add text...</span>
+      )}
     </div>
   );
 };

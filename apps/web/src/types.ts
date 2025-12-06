@@ -118,9 +118,11 @@ export interface GameState {
 
   // Session management
   playerIdsBySession: Record<string, PlayerId>;
+  sessionVersions: Record<string, number>;
   resetSession: (sessionId?: string, playerId?: string) => void;
   ensurePlayerIdForSession: (sessionId: string) => string;
   forgetSessionIdentity: (sessionId: string) => void;
+  ensureSessionVersion: (sessionId: string) => number;
   setBattlefieldViewScale: (playerId: PlayerId, scale: number) => void;
 
   // Hydration

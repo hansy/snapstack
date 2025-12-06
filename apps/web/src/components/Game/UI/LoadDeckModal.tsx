@@ -6,6 +6,7 @@ import { parseDeckList, fetchScryfallCards, createCardFromImport, validateImport
 import { useGameStore } from '../../../store/gameStore';
 import { ZONE } from '../../../constants/zones';
 import { getZoneByType } from '../../../lib/gameSelectors';
+import { batchSharedMutations, getYDocHandles, getYProvider } from '../../../yjs/yManager';
 
 
 interface LoadDeckModalProps {
@@ -26,6 +27,14 @@ export const LoadDeckModal: React.FC<LoadDeckModalProps> = ({ isOpen, onClose, p
 
     const handleImport = async () => {
         if (!importText.trim()) return;
+
+        const handles = getYDocHandles();
+        const provider = getYProvider() as any;
+        const providerReady = Boolean(handles && provider && (provider.wsconnected || provider.synced));
+        if (!providerReady) {
+            toast.error('Connecting to multiplayer, please wait a moment then try again.');
+            return;
+        }
 
         setIsImporting(true);
         setError(null);
@@ -49,27 +58,31 @@ export const LoadDeckModal: React.FC<LoadDeckModalProps> = ({ isOpen, onClose, p
                 });
             }
 
-            fetchResult.cards.forEach(cardData => {
-                // Use existing zones if present (handles legacy '-command' ids)
-                const libraryZone = getZoneByType(zones, playerId, ZONE.LIBRARY);
-                const commanderZone = getZoneByType(zones, playerId, ZONE.COMMANDER);
+            // Batch all card additions into a single Yjs transaction
+            // This reduces 100+ network messages to 1, dramatically improving sync performance
+            batchSharedMutations(() => {
+                fetchResult.cards.forEach(cardData => {
+                    // Use existing zones if present (handles legacy '-command' ids)
+                    const libraryZone = getZoneByType(zones, playerId, ZONE.LIBRARY);
+                    const commanderZone = getZoneByType(zones, playerId, ZONE.COMMANDER);
 
-                let zoneId = libraryZone?.id ?? `${playerId}-${ZONE.LIBRARY}`;
-                if (cardData.section === 'commander') {
-                    zoneId = commanderZone?.id ?? `${playerId}-${ZONE.COMMANDER}`;
-                }
+                    let zoneId = libraryZone?.id ?? `${playerId}-${ZONE.LIBRARY}`;
+                    if (cardData.section === 'commander') {
+                        zoneId = commanderZone?.id ?? `${playerId}-${ZONE.COMMANDER}`;
+                    }
 
-                const newCard = createCardFromImport(cardData, playerId, zoneId);
-                // Override faceDown for library
-                if (zoneId.includes(ZONE.LIBRARY)) {
-                    newCard.faceDown = true;
-                }
+                    const newCard = createCardFromImport(cardData, playerId, zoneId);
+                    // Override faceDown for library
+                    if (zoneId.includes(ZONE.LIBRARY)) {
+                        newCard.faceDown = true;
+                    }
 
-                addCard(newCard);
+                    addCard(newCard);
+                });
+
+                setDeckLoaded(playerId, true);
+                shuffleLibrary(playerId, playerId);
             });
-
-            setDeckLoaded(playerId, true);
-            shuffleLibrary(playerId, playerId);
             toast.success("Deck successfully loaded");
             setImportText('');
             onClose();

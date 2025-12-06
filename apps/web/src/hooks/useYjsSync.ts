@@ -4,7 +4,7 @@ import { Awareness, removeAwarenessStates } from "y-protocols/awareness";
 import { useGameStore } from "../store/gameStore";
 import { bindSharedLogStore } from "../logging/logStore";
 import { createGameYDoc } from "../yjs/yDoc";
-import { flushPendingSharedMutations, setYDocHandles, setYProvider } from "../yjs/yManager";
+import { flushPendingSharedMutations, getYDocHandles, setYDocHandles, setYProvider } from "../yjs/yManager";
 import {
   clampNormalizedPosition,
   migratePositionToNormalized,
@@ -19,6 +19,39 @@ const MAX_CARDS = 600;
 const MAX_CARDS_PER_ZONE = 200;
 const MAX_COUNTERS = 24;
 const MAX_NAME_LENGTH = 120;
+const CLIENT_KEY_STORAGE = "mtg:client-key";
+const CLIENT_VERSION = "web-1";
+
+const genUuidLike = () => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+const getClientKey = () => {
+  if (typeof window === "undefined") return "server";
+  try {
+    const existing = window.sessionStorage.getItem(CLIENT_KEY_STORAGE);
+    if (existing) return existing;
+    const next = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : genUuidLike();
+    window.sessionStorage.setItem(CLIENT_KEY_STORAGE, next);
+    return next;
+  } catch (_err) {
+    return genUuidLike();
+  }
+};
+
+// Debug logging with timestamps (disabled in normal operation)
+const DEBUG_SYNC = false;
+const syncLog = (...args: any[]) => {
+  if (!DEBUG_SYNC) return;
+  const now = performance.now().toFixed(1);
+  console.log(`[sync ${now}ms]`, ...args);
+};
 
 export function useYjsSync(sessionId: string) {
   const applyingRemote = useRef(false);
@@ -40,6 +73,7 @@ export function useYjsSync(sessionId: string) {
 
     const store = useGameStore.getState();
     const ensuredPlayerId = store.ensurePlayerIdForSession(sessionId);
+    const sessionVersion = store.ensureSessionVersion(sessionId);
     const needsReset = store.sessionId !== sessionId || store.myPlayerId !== ensuredPlayerId;
     if (needsReset) {
       store.resetSession(sessionId, ensuredPlayerId);
@@ -71,12 +105,48 @@ export function useYjsSync(sessionId: string) {
     if (ENABLE_LOG_SYNC) bindSharedLogStore(logs);
     const awareness = new Awareness(doc);
     const room = sessionId;
+    const clientKey = getClientKey();
+    
+    // Log doc-level updates to see when data arrives from network
+    doc.on("update", (update: Uint8Array, origin: any) => {
+      const isLocal = origin === doc.clientID || origin === "local";
+      syncLog("DOC UPDATE", { 
+        bytes: update.byteLength, 
+        origin: isLocal ? "local" : "remote",
+        playersSize: players.size,
+        zonesSize: zones.size,
+        cardsSize: cards.size 
+      });
+    });
 
     const provider = new WebsocketProvider(signalingUrl, room, doc, {
       awareness,
       connect: true,
+      params: {
+        userId: ensuredPlayerId,
+        clientKey,
+        sessionVersion: String(sessionVersion),
+        clientVersion: CLIENT_VERSION,
+      },
     });
     setYProvider(provider);
+    syncLog("PROVIDER created", { room: sessionId, userId: ensuredPlayerId });
+    
+    provider.on("connection-close", (evt: any) => {
+      const raw = Array.isArray(evt) ? evt[0] : evt;
+      if (raw && typeof raw.code === "number") {
+        syncLog("CONNECTION CLOSED", { code: raw.code, reason: raw.reason || "" });
+      }
+    });
+    provider.on("connection-error", (evt: any) => {
+      syncLog("CONNECTION ERROR", evt);
+    });
+    provider.on("status", ({ status: s }: any) => {
+      syncLog("STATUS changed", { status: s });
+    });
+    provider.on("sync", (isSynced: boolean) => {
+      syncLog("SYNC event", { isSynced });
+    });
 
     const clampNumber = (
       value: unknown,
@@ -282,7 +352,35 @@ export function useYjsSync(sessionId: string) {
       return result;
     };
 
+    const syncStoreToShared = () => {
+      const handles = getYDocHandles();
+      if (!handles) return;
+      const state = useGameStore.getState();
+      const syncMap = (data: Record<string, any>, map: any) => {
+        map.forEach((_value: any, key: string) => {
+          if (!Object.prototype.hasOwnProperty.call(data, key)) map.delete(key);
+        });
+        Object.entries(data).forEach(([key, value]) => map.set(key, value as any));
+      };
+      handles.doc.transact(() => {
+        syncMap(state.players, handles.players);
+        syncMap(state.zones, handles.zones);
+        syncMap(state.cards, handles.cards);
+        syncMap(state.globalCounters, handles.globalCounters);
+      });
+      console.log("[signal] syncStoreToShared", {
+        ts: Date.now(),
+        players: Object.keys(state.players).length,
+        zones: Object.keys(state.zones).length,
+        cards: Object.keys(state.cards).length,
+        globalCounters: Object.keys(state.globalCounters).length,
+      });
+    };
+
     const pushRemoteToStore = () => {
+      const startTime = performance.now();
+      syncLog("pushRemoteToStore START");
+      
       const safePlayers = sanitizePlayers();
       const safeZones = sanitizeZones();
       const safeCards = sanitizeCards(safeZones);
@@ -298,6 +396,16 @@ export function useYjsSync(sessionId: string) {
         ])
       );
       const safeGlobalCounters = sanitizeGlobalCounters();
+      
+      const sanitizeTime = performance.now() - startTime;
+      syncLog("pushRemoteToStore SANITIZED", {
+        sanitizeMs: sanitizeTime.toFixed(1),
+        players: Object.keys(safePlayers).length,
+        zones: Object.keys(safeZones).length,
+        cards: Object.keys(safeCards).length,
+        globalCounters: Object.keys(safeGlobalCounters).length,
+      });
+      
       applyingRemote.current = true;
       useGameStore.setState((current) => ({
         ...current,
@@ -307,6 +415,9 @@ export function useYjsSync(sessionId: string) {
         globalCounters: safeGlobalCounters,
       }));
       applyingRemote.current = false;
+      
+      const totalTime = performance.now() - startTime;
+      syncLog("pushRemoteToStore DONE", { totalMs: totalTime.toFixed(1) });
     };
 
     const pushLocalAwareness = () => {
@@ -314,26 +425,85 @@ export function useYjsSync(sessionId: string) {
       awareness.setLocalStateField("client", { id: localId });
     };
 
-    const handleMapChange = () => pushRemoteToStore();
+    // Simple debounce - coalesce rapid changes without causing render loops
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let pendingChanges = 0;
+    
+    const handleMapChange = (mapName: string) => () => {
+      pendingChanges++;
+      const changeId = pendingChanges;
+      syncLog(`OBSERVER fired: ${mapName}`, { changeId, hadPending: !!debounceTimer });
+      
+      // Clear any pending update
+      if (debounceTimer) clearTimeout(debounceTimer);
+      
+      // Schedule update for next frame
+      debounceTimer = setTimeout(() => {
+        syncLog(`DEBOUNCE expired, executing pushRemoteToStore`, { changeId, pendingChanges });
+        debounceTimer = null;
+        pushRemoteToStore();
+      }, 50); // 50ms debounce to batch rapid updates
+    };
 
     // Advertise local presence (player id for now)
     pushLocalAwareness();
 
-    players.observe(handleMapChange);
-    zones.observe(handleMapChange);
-    cards.observe(handleMapChange);
-    globalCounters.observe(handleMapChange);
+    const playersObserver = handleMapChange("players");
+    const zonesObserver = handleMapChange("zones");
+    const cardsObserver = handleMapChange("cards");
+    const globalCountersObserver = handleMapChange("globalCounters");
+    
+    players.observe(playersObserver);
+    zones.observe(zonesObserver);
+    cards.observe(cardsObserver);
+    globalCounters.observe(globalCountersObserver);
+    
+    syncLog("OBSERVERS registered");
+
+    // Apply any queued mutations now that observers are live
+    flushPendingSharedMutations();
 
     provider.on("status", ({ status: s }: any) => {
       if (s === "connected") {
         setStatus("connected");
         flushPendingSharedMutations();
+        const handles = getYDocHandles();
+        if (handles) {
+          const localCards = Object.keys(useGameStore.getState().cards).length;
+          if (handles.cards.size === 0 && localCards > 0) {
+            syncStoreToShared();
+          }
+        }
         // Re-broadcast our awareness after connection to ensure peers see us immediately.
         pushLocalAwareness();
         setTimeout(() => pushLocalAwareness(), 10);
-        pushRemoteToStore();
       }
       if (s === "disconnected") setStatus("connecting");
+    });
+
+    provider.on("sync", (isSynced: boolean) => {
+      syncLog("SYNC handler called", { isSynced });
+      if (!isSynced) return;
+      // When the provider finishes initial sync, apply any queued mutations.
+      // NOTE: Don't call pushRemoteToStore here - the sync event fires before 
+      // data is actually applied to Yjs maps. The observers will handle it.
+      syncLog("SYNC complete - flushing pending mutations");
+      flushPendingSharedMutations();
+      const handles = getYDocHandles();
+      if (handles) {
+        const localCards = Object.keys(useGameStore.getState().cards).length;
+        syncLog("SYNC complete - checking if need to push local", { localCards, remoteCards: handles.cards.size });
+        if (handles.cards.size === 0 && localCards > 0) {
+          syncLog("SYNC complete - pushing local to shared");
+          syncStoreToShared();
+        }
+      }
+      // Schedule a delayed push to catch any data that arrives after sync event
+      // This gives time for Yjs to process incoming updates
+      setTimeout(() => {
+        syncLog("SYNC delayed push - executing");
+        pushRemoteToStore();
+      }, 100);
     });
 
     const handleAwareness = () => {
@@ -345,6 +515,14 @@ export function useYjsSync(sessionId: string) {
     handleAwareness();
 
     return () => {
+      syncLog("CLEANUP starting");
+      
+      // Clear debounce timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+      
       // On disconnect/unmount, drop presence and transport only. Seat data stays until an explicit leave action.
       awareness.setLocalState(null);
       try {
@@ -354,18 +532,24 @@ export function useYjsSync(sessionId: string) {
       } catch (_err) {}
 
       awareness.off("change", handleAwareness);
-      players.unobserve(handleMapChange);
-      zones.unobserve(handleMapChange);
-      cards.unobserve(handleMapChange);
-      globalCounters.unobserve(handleMapChange);
+      players.unobserve(playersObserver);
+      zones.unobserve(zonesObserver);
+      cards.unobserve(cardsObserver);
+      globalCounters.unobserve(globalCountersObserver);
+      syncLog("CLEANUP - unobserved all maps");
       if (ENABLE_LOG_SYNC) bindSharedLogStore(null);
       setYDocHandles(null);
       setYProvider(null);
-      // Let awareness removal flush before tearing down the transport.
+      
+      // Disconnect the provider but DON'T destroy the doc!
+      // The doc is memoized and may be reused by a new provider (React StrictMode double-mount).
+      // Destroying the doc would break subsequent providers using the same doc reference.
       setTimeout(() => {
+        syncLog("CLEANUP - disconnecting provider (doc preserved)");
         provider.disconnect();
         provider.destroy();
-        doc.destroy();
+        // NOTE: We intentionally do NOT call doc.destroy() here.
+        // The doc persists and can be reconnected by a new provider.
       }, 25);
     };
   }, [handles, sessionId]);

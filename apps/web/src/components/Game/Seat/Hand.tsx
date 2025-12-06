@@ -108,6 +108,8 @@ export const Hand: React.FC<HandProps> = ({
         // Distinct background for hand area
         "bg-zinc-900/60 backdrop-blur-sm",
         isTop ? "border-b border-white/10" : "border-t border-white/10",
+        // Padding to prevent bleeding into adjacent seats
+        "px-4",
         className
       )}
     >
@@ -130,23 +132,29 @@ export const Hand: React.FC<HandProps> = ({
         zone={zone}
         scale={scale}
         className={cn(
-          "w-full h-full flex overflow-x-auto overflow-y-hidden pl-4 pr-12 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent",
-          isTop ? "items-start pt-4" : "items-end pb-4"
+          "w-full h-full flex overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent"
         )}
       >
         <SortableContext
           items={cards.map((c) => c.id)}
           strategy={horizontalListSortingStrategy}
         >
-          {cards.map((card) => (
-            <SortableCard
-              key={card.id}
-              card={card}
-              isTop={isTop}
-              isMe={isMe}
-              onCardContextMenu={onCardContextMenu}
-            />
-          ))}
+          <div
+            className={cn(
+              "flex m-auto gap-0", // m-auto safely centers content
+              isTop ? "items-start pt-4" : "items-end pb-4"
+            )}
+          >
+            {cards.map((card) => (
+              <SortableCard
+                key={card.id}
+                card={card}
+                isTop={isTop}
+                isMe={isMe}
+                onCardContextMenu={onCardContextMenu}
+              />
+            ))}
+          </div>
         </SortableContext>
       </Zone>
     </div>

@@ -40,17 +40,25 @@ type RoomName = string;
 const messageSync = 0;
 const messageAwareness = 1;
 
-const MAX_MESSAGE_BYTES = 64 * 1024;
+const MAX_MESSAGE_BYTES = 512 * 1024; // allow larger initial sync payloads
 const RATE_LIMIT_WINDOW_MS = 5_000;
 const RATE_LIMIT_MAX_MESSAGES = 120;
-const RATE_LIMIT_MAX_BYTES = 512 * 1024;
+const RATE_LIMIT_MAX_BYTES = 2 * 1024 * 1024;
 const DEFAULT_PING_INTERVAL_MS = 30_000;
+const EMPTY_ROOM_GRACE_MS = 60 * 60 * 1000; // 1 hour persistence after all players leave
+const PERSIST_DEBOUNCE_MS = 1_000; // Debounce storage writes
+const STORAGE_KEY_DOC = "yjs:doc";
+const STORAGE_KEY_TIMESTAMP = "yjs:timestamp";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DEBUG_SIGNAL = true;
 
 // Durable Object implementing y-websocket style doc + awareness sync
 export class SignalRoom extends DurableObject {
   conns: Set<WebSocket>;
   connClients: Map<WebSocket, Set<number>>;
+  connMeta: Map<WebSocket, { userId: string; clientKey: string; sessionVersion: number }>;
+  userToConn: Map<string, { ws: WebSocket; clientKey: string; sessionVersion: number }>;
+  userToLastVersion: Map<string, number>;
   connStats: Map<WebSocket, {
     tokens: number;
     lastRefill: number;
@@ -65,12 +73,18 @@ export class SignalRoom extends DurableObject {
   env: Env;
   pingIntervalMs: number;
   idleTimeoutMs: number;
+  emptyTimer: number | null;
+  persistTimer: number | null;
+  stateRestorePromise: Promise<void>;
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
     this.env = env;
     this.conns = new Set();
     this.connClients = new Map();
+    this.connMeta = new Map();
+    this.userToConn = new Map();
+    this.userToLastVersion = new Map();
     this.connStats = new Map();
     this.awarenessOwners = new Map();
     const parsedPing = Number.parseInt(this.env.PING_INTERVAL ?? "", 10);
@@ -78,16 +92,67 @@ export class SignalRoom extends DurableObject {
     this.idleTimeoutMs = this.pingIntervalMs * 2;
     this.doc = new Y.Doc();
     this.awareness = new awarenessProtocol.Awareness(this.doc);
+    this.emptyTimer = null;
+    this.persistTimer = null;
+    // Restore state from storage on initialization - save promise so fetch() can await it
+    this.stateRestorePromise = this.restoreFromStorage();
     this.setupDocListeners();
+  }
+
+  private async restoreFromStorage(): Promise<void> {
+    try {
+      const stored = await this.ctx.storage.get<ArrayBuffer>(STORAGE_KEY_DOC);
+      const timestamp = await this.ctx.storage.get<number>(STORAGE_KEY_TIMESTAMP);
+      
+      if (stored && timestamp) {
+        // Check if stored state is still within the grace period
+        const age = Date.now() - timestamp;
+        if (age < EMPTY_ROOM_GRACE_MS) {
+          const update = new Uint8Array(stored);
+          Y.applyUpdate(this.doc, update);
+          this.dbg("restored from storage", { bytes: update.byteLength, ageMs: age });
+        } else {
+          // State expired, clear it
+          await this.ctx.storage.delete(STORAGE_KEY_DOC);
+          await this.ctx.storage.delete(STORAGE_KEY_TIMESTAMP);
+          this.dbg("storage expired, cleared", { ageMs: age });
+        }
+      }
+    } catch (err) {
+      console.error("[signal] failed to restore from storage", err);
+    }
+  }
+
+  private schedulePersist() {
+    if (this.persistTimer !== null) return;
+    this.persistTimer = setTimeout(async () => {
+      this.persistTimer = null;
+      try {
+        const update = Y.encodeStateAsUpdate(this.doc);
+        await this.ctx.storage.put(STORAGE_KEY_DOC, update.buffer);
+        await this.ctx.storage.put(STORAGE_KEY_TIMESTAMP, Date.now());
+        this.dbg("persisted to storage", { bytes: update.byteLength });
+      } catch (err) {
+        console.error("[signal] failed to persist to storage", err);
+      }
+    }, PERSIST_DEBOUNCE_MS) as unknown as number;
+  }
+
+  private dbg(...args: any[]) {
+    if (!DEBUG_SIGNAL) return;
+    try { console.log("[signal]", ...args); } catch (_err) {}
   }
 
   private setupDocListeners() {
     this.doc.on("update", (update) => {
+      this.dbg("doc update bytes", update.byteLength, "conns", this.conns.size);
       // Broadcast doc updates to everyone (including origin) per y-websocket server behavior.
       const encoder = encoding.createEncoder();
       encoding.writeVarUint(encoder, messageSync);
       syncProtocol.writeUpdate(encoder, update);
       this.broadcast(null, encoding.toUint8Array(encoder));
+      // Persist to storage (debounced)
+      this.schedulePersist();
     });
 
     this.awareness.on("update", ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }, origin: any) => {
@@ -98,21 +163,49 @@ export class SignalRoom extends DurableObject {
         encoder,
         awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients)
       );
+      this.dbg("awareness update bytes", encoding.length(encoder), "clients", changedClients.length);
       this.broadcast(origin as WebSocket | null, encoding.toUint8Array(encoder));
     });
   }
 
   private resetStateIfEmpty() {
     if (this.conns.size > 0) return;
-    try { this.doc.destroy(); } catch (_err) {}
-    this.doc = new Y.Doc();
-    this.awareness = new awarenessProtocol.Awareness(this.doc);
-    this.connClients.clear();
-    this.awarenessOwners.clear();
-    this.setupDocListeners();
+    if (this.emptyTimer !== null) return;
+    this.emptyTimer = setTimeout(async () => {
+      if (this.conns.size > 0) {
+        this.emptyTimer = null;
+        return;
+      }
+      // Clear persisted state
+      try {
+        await this.ctx.storage.delete(STORAGE_KEY_DOC);
+        await this.ctx.storage.delete(STORAGE_KEY_TIMESTAMP);
+        this.dbg("cleared storage on empty room timeout");
+      } catch (err) {
+        console.error("[signal] failed to clear storage", err);
+      }
+      // Cancel any pending persist
+      if (this.persistTimer !== null) {
+        clearTimeout(this.persistTimer);
+        this.persistTimer = null;
+      }
+      try { this.doc.destroy(); } catch (_err) {}
+      this.doc = new Y.Doc();
+      this.awareness = new awarenessProtocol.Awareness(this.doc);
+      this.connClients.clear();
+      this.awarenessOwners.clear();
+      this.connMeta.clear();
+      this.userToConn.clear();
+      this.userToLastVersion.clear();
+      this.setupDocListeners();
+      this.emptyTimer = null;
+    }, EMPTY_ROOM_GRACE_MS) as unknown as number;
   }
 
   async fetch(request: Request): Promise<Response> {
+    // Wait for storage restoration before handling any connections
+    await this.stateRestorePromise;
+    
     const { 0: client, 1: server } = new WebSocketPair();
     const url = new URL(request.url);
     const pathname = url.pathname.replace(/\/+$/, "");
@@ -121,7 +214,7 @@ export class SignalRoom extends DurableObject {
     if (!UUID_REGEX.test(room)) {
       return new Response("Invalid room name", { status: 400 });
     }
-    this.handleConnection(server, room);
+    this.handleConnection(server, room, url.searchParams);
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -132,7 +225,36 @@ export class SignalRoom extends DurableObject {
     });
   }
 
-  private handleConnection(ws: WebSocket, room: RoomName) {
+  private handleConnection(ws: WebSocket, room: RoomName, params: URLSearchParams) {
+    const userId = params.get("userId") || "";
+    const clientKey = params.get("clientKey") || "";
+    const sessionVersionRaw = params.get("sessionVersion") || "";
+    const sessionVersion = Number.parseInt(sessionVersionRaw, 10);
+
+    if (!UUID_REGEX.test(userId) || !UUID_REGEX.test(clientKey) || !Number.isFinite(sessionVersion) || sessionVersion < 0) {
+      this.dbg("reject handshake invalid", { room, userId, clientKey, sessionVersion });
+      try { ws.close(1008, "invalid handshake"); } catch (_err) {}
+      return;
+    }
+
+    const lastVersion = this.userToLastVersion.get(userId);
+    if (lastVersion !== undefined && sessionVersion < lastVersion) {
+      this.dbg("reject stale session", { room, userId, clientKey, sessionVersion, lastVersion });
+      try { ws.close(4090, "stale session"); } catch (_err) {}
+      return;
+    }
+
+    const existing = this.userToConn.get(userId);
+    if (existing && existing.clientKey !== clientKey) {
+      this.dbg("reject duplicate user different key", { room, userId, clientKey, existing: existing.clientKey });
+      try { ws.close(4091, "user already connected"); } catch (_err) {}
+      return;
+    }
+    if (existing && existing.clientKey === clientKey) {
+      this.dbg("close existing same key before replace", { room, userId, clientKey });
+      try { existing.ws.close(4001, "replaced connection"); } catch (_err) {}
+    }
+
     ws.accept();
     let closed = false;
     // room name preserved for potential logging
@@ -141,6 +263,16 @@ export class SignalRoom extends DurableObject {
 
     this.conns.add(ws);
     this.connClients.set(ws, new Set());
+    this.connMeta.set(ws, { userId, clientKey, sessionVersion });
+    this.userToConn.set(userId, { ws, clientKey, sessionVersion });
+    this.userToLastVersion.set(userId, sessionVersion);
+    if (this.emptyTimer !== null) {
+      clearTimeout(this.emptyTimer);
+      this.emptyTimer = null;
+    }
+    const snapPlayers = this.doc.getMap("players").size;
+    const snapZones = this.doc.getMap("zones").size;
+    const snapCards = this.doc.getMap("cards").size;
     const now = Date.now();
     const stats = {
       tokens: RATE_LIMIT_MAX_MESSAGES,
@@ -163,10 +295,19 @@ export class SignalRoom extends DurableObject {
     stats.heartbeat = heartbeat as unknown as number;
     this.connStats.set(ws, stats);
       // console.log('[signal] joined room', currentRoom, 'size', this.conns.size);
+    const stateSize = Y.encodeStateAsUpdate(this.doc).byteLength;
+    this.dbg("accepted", { room, userId, clientKey, sessionVersion, connections: this.conns.size, stateSize, snapPlayers, snapZones, snapCards });
 
-    ws.addEventListener("close", () => {
+    ws.addEventListener("close", (evt: CloseEvent) => {
       closed = true;
       this.conns.delete(ws);
+      const meta = this.connMeta.get(ws);
+      if (meta) {
+        const locked = this.userToConn.get(meta.userId);
+        if (locked && locked.ws === ws) {
+          this.userToConn.delete(meta.userId);
+        }
+      }
       const clientIds = this.connClients.get(ws);
       if (clientIds && clientIds.size > 0) {
         awarenessProtocol.removeAwarenessStates(this.awareness, Array.from(clientIds), "disconnect");
@@ -179,7 +320,11 @@ export class SignalRoom extends DurableObject {
       const stat = this.connStats.get(ws);
       if (stat?.heartbeat !== undefined) clearInterval(stat.heartbeat);
       this.connStats.delete(ws);
+      this.connMeta.delete(ws);
+      const code = (evt && typeof evt.code === "number") ? evt.code : undefined;
+      const reason = (evt && typeof evt.reason === "string") ? evt.reason : undefined;
       // console.log('[signal] left room', currentRoom, 'size', this.conns.size);
+      this.dbg("closed", { room, userId: meta?.userId, clientKey: meta?.clientKey, connections: this.conns.size, code, reason });
       this.resetStateIfEmpty();
     });
 
@@ -187,6 +332,7 @@ export class SignalRoom extends DurableObject {
       if (closed) return;
       const raw = evt.data;
       const data = raw instanceof ArrayBuffer ? new Uint8Array(raw) : typeof raw === "string" ? new TextEncoder().encode(raw) : new Uint8Array([]);
+      this.dbg("recv bytes", data.byteLength, "from", userId);
       // console.log('[signal] msg', currentRoom, 'size', this.conns.size, 'type', typeof raw, 'len', raw instanceof ArrayBuffer ? raw.byteLength : (typeof raw === 'string' ? raw.length : 'n/a'));
       const size = data.byteLength;
       if (size > MAX_MESSAGE_BYTES) {
@@ -221,7 +367,10 @@ export class SignalRoom extends DurableObject {
           }
           if (encoding.length(encoder) > 1) {
             const resp = encoding.toUint8Array(encoder);
+            this.dbg("send sync response bytes", resp.byteLength, "to", userId);
             try { ws.send(resp); } catch (_err) { ws.close(); }
+          } else {
+            this.dbg("empty sync response", { to: userId });
           }
           break;
         }
@@ -265,7 +414,9 @@ export class SignalRoom extends DurableObject {
     const encoder = encoding.createEncoder();
     encoding.writeVarUint(encoder, messageSync);
     syncProtocol.writeSyncStep1(encoder, this.doc);
-    ws.send(encoding.toUint8Array(encoder));
+    const step1 = encoding.toUint8Array(encoder);
+    this.dbg("send sync step1 bytes", step1.byteLength, "to", userId);
+    ws.send(step1);
 
     // Send current awareness states
     const awarenessStates = encoding.createEncoder();
@@ -274,7 +425,9 @@ export class SignalRoom extends DurableObject {
       awarenessStates,
       awarenessProtocol.encodeAwarenessUpdate(this.awareness, Array.from(this.awareness.getStates().keys()))
     );
-    ws.send(encoding.toUint8Array(awarenessStates));
+    const aware = encoding.toUint8Array(awarenessStates);
+    this.dbg("send awareness snapshot bytes", aware.byteLength, "to", userId);
+    ws.send(aware);
   }
 
   private consumeRateLimit(ws: WebSocket, size: number) {
