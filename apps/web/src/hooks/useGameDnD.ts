@@ -7,6 +7,7 @@ import {
     DragMoveEvent,
     DragStartEvent
 } from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import { useGameStore } from '../store/gameStore';
 import { useDragStore } from '../store/dragStore';
 import { ZoneId, CardId } from '../types';
@@ -240,6 +241,20 @@ export const useGameDnD = () => {
             const activeCard = cards[cardId];
             const targetZone = zones[toZoneId];
             const fromZone = activeCard ? zones[activeCard.zoneId] : undefined;
+
+            // Handle Reordering in Hand
+            if (fromZone && targetZone && fromZone.id === targetZone.id && targetZone.type === ZONE.HAND) {
+                const overCardId = over.data.current?.cardId;
+                if (overCardId && cardId !== overCardId) {
+                    const oldIndex = targetZone.cardIds.indexOf(cardId);
+                    const newIndex = targetZone.cardIds.indexOf(overCardId);
+                    if (oldIndex !== -1 && newIndex !== -1) {
+                        const newOrder = arrayMove(targetZone.cardIds, oldIndex, newIndex);
+                        useGameStore.getState().reorderZoneCards(targetZone.id, newOrder, myPlayerId);
+                    }
+                }
+                return;
+            }
 
             if (cardId && toZoneId && activeCard && targetZone && fromZone) {
                 const permission = canMoveCard({

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../ui/dialog';
 import { Button } from '../../ui/button';
 import { toast } from 'sonner';
-import { parseDeckList, fetchScryfallCards, createCardFromImport } from '../../../utils/deckImport';
+import { parseDeckList, fetchScryfallCards, createCardFromImport, validateImportResult } from '../../../utils/deckImport';
 import { useGameStore } from '../../../store/gameStore';
 import { ZONE } from '../../../constants/zones';
 import { getZoneByType } from '../../../lib/gameSelectors';
@@ -36,9 +36,20 @@ export const LoadDeckModal: React.FC<LoadDeckModalProps> = ({ isOpen, onClose, p
                 throw new Error("No valid cards found in the list.");
             }
 
-            const cards = await fetchScryfallCards(parsedDeck);
+            const fetchResult = await fetchScryfallCards(parsedDeck);
+            const validation = validateImportResult(parsedDeck, fetchResult);
 
-            cards.forEach(cardData => {
+            if (!validation.ok) {
+                throw new Error(validation.error);
+            }
+
+            if (validation.warnings.length) {
+                toast.warning('Imported with warnings', {
+                    description: validation.warnings.join('\n'),
+                });
+            }
+
+            fetchResult.cards.forEach(cardData => {
                 // Use existing zones if present (handles legacy '-command' ids)
                 const libraryZone = getZoneByType(zones, playerId, ZONE.LIBRARY);
                 const commanderZone = getZoneByType(zones, playerId, ZONE.COMMANDER);

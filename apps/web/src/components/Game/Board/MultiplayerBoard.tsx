@@ -21,7 +21,7 @@ import { TextPromptDialog } from '../UI/TextPromptDialog';
 import { LogDrawer } from '../UI/LogDrawer';
 import { useYjsSync } from '../../../hooks/useYjsSync';
 import { useNavigate } from '@tanstack/react-router';
-import { getYDocHandles } from '../../../yjs/yManager';
+import { getYDocHandles, getYProvider, setYProvider } from '../../../yjs/yManager';
 import { removePlayer } from '../../../yjs/yMutations';
 
 
@@ -56,7 +56,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     const { slots, layoutMode, myPlayerId } = usePlayerLayout();
 
 
-    useYjsSync(sessionId);
+    const { status: syncStatus } = useYjsSync(sessionId);
     const seededRef = React.useRef(false);
 
     const [zoneViewerState, setZoneViewerState] = useState<{ isOpen: boolean; zoneId: string | null; count?: number }>({
@@ -69,27 +69,38 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     };
 
     const handleLeave = () => {
-        const handles = getYDocHandles();
-        if (handles) {
-            handles.doc.transact(() => {
-                removePlayer(
-                    {
-                        players: handles.players,
-                        zones: handles.zones,
-                        cards: handles.cards,
-                        globalCounters: handles.globalCounters,
-                    },
-                    myPlayerId,
-                );
-            });
-        }
+        const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        void (async () => {
+            const handles = getYDocHandles();
+            if (handles) {
+                handles.doc.transact(() => {
+                    removePlayer(
+                        {
+                            players: handles.players,
+                            zones: handles.zones,
+                            cards: handles.cards,
+                            globalCounters: handles.globalCounters,
+                        },
+                        myPlayerId,
+                    );
+                });
+                await sleep(25);
+            }
 
-        const currentSessionId = useGameStore.getState().sessionId;
-        if (currentSessionId) {
-            useGameStore.getState().forgetSessionIdentity(currentSessionId);
-        }
-        useGameStore.getState().resetSession();
-        navigate({ to: '/' });
+            const provider = getYProvider();
+            if (provider) {
+                try { provider.disconnect(); } catch (_err) {}
+                try { provider.destroy(); } catch (_err) {}
+                setYProvider(null);
+            }
+
+            const currentSessionId = useGameStore.getState().sessionId;
+            if (currentSessionId) {
+                useGameStore.getState().forgetSessionIdentity(currentSessionId);
+            }
+            useGameStore.getState().resetSession();
+            navigate({ to: '/' });
+        })();
     };
 
     const handleCopyLink = async () => {
@@ -120,6 +131,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
             return;
         }
         if (!hasHydrated) return;
+        if (syncStatus !== 'connected') return;
         if (seededRef.current) return;
 
         const state = useGameStore.getState();
@@ -153,7 +165,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
         });
 
         seededRef.current = true;
-    }, [myPlayerId, hasHydrated, sessionId]);
+    }, [myPlayerId, hasHydrated, sessionId, syncStatus]);
 
     const getGridClass = () => {
         switch (layoutMode) {

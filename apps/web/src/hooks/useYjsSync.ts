@@ -4,7 +4,7 @@ import { Awareness, removeAwarenessStates } from "y-protocols/awareness";
 import { useGameStore } from "../store/gameStore";
 import { bindSharedLogStore } from "../logging/logStore";
 import { createGameYDoc } from "../yjs/yDoc";
-import { setYDocHandles } from "../yjs/yManager";
+import { flushPendingSharedMutations, setYDocHandles, setYProvider } from "../yjs/yManager";
 import {
   clampNormalizedPosition,
   migratePositionToNormalized,
@@ -76,6 +76,7 @@ export function useYjsSync(sessionId: string) {
       awareness,
       connect: true,
     });
+    setYProvider(provider);
 
     const clampNumber = (
       value: unknown,
@@ -326,6 +327,7 @@ export function useYjsSync(sessionId: string) {
     provider.on("status", ({ status: s }: any) => {
       if (s === "connected") {
         setStatus("connected");
+        flushPendingSharedMutations();
         // Re-broadcast our awareness after connection to ensure peers see us immediately.
         pushLocalAwareness();
         setTimeout(() => pushLocalAwareness(), 10);
@@ -358,6 +360,7 @@ export function useYjsSync(sessionId: string) {
       globalCounters.unobserve(handleMapChange);
       if (ENABLE_LOG_SYNC) bindSharedLogStore(null);
       setYDocHandles(null);
+      setYProvider(null);
       // Let awareness removal flush before tearing down the transport.
       setTimeout(() => {
         provider.disconnect();

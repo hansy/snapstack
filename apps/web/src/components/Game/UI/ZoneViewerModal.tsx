@@ -102,11 +102,31 @@ export const ZoneViewerModal: React.FC<ZoneViewerModalProps> = ({
             const lowerFilter = filterText.toLowerCase();
             currentCards = currentCards.filter((card) => {
                 const nameMatch = card.name.toLowerCase().includes(lowerFilter);
+                const scryfallNameMatch = card.scryfall?.name
+                    ?.toLowerCase()
+                    .includes(lowerFilter);
+                const faceNameMatch = card.scryfall?.card_faces?.some((face) =>
+                    face.name?.toLowerCase().includes(lowerFilter)
+                );
                 const typeMatch = card.typeLine?.toLowerCase().includes(lowerFilter);
                 const oracleMatch = card.oracleText
                     ?.toLowerCase()
                     .includes(lowerFilter);
-                return nameMatch || typeMatch || oracleMatch;
+                const flavorMatch = card.scryfall?.flavor_name
+                    ?.toLowerCase()
+                    .includes(lowerFilter);
+                const printedMatch = card.scryfall?.printed_name
+                    ?.toLowerCase()
+                    .includes(lowerFilter);
+                return (
+                    nameMatch ||
+                    scryfallNameMatch ||
+                    faceNameMatch ||
+                    typeMatch ||
+                    oracleMatch ||
+                    flavorMatch ||
+                    printedMatch
+                );
             });
         }
 

@@ -19,6 +19,8 @@ interface CardProps {
   scale?: number;
   preferArtCrop?: boolean;
   rotateLabel?: boolean;
+  disableDrag?: boolean;
+  isDragging?: boolean;
 }
 
 export interface CardViewProps {
@@ -68,10 +70,10 @@ export const CardView = React.forwardRef<HTMLDivElement, CardViewProps>(
           CARD_ASPECT_RATIO,
           "bg-zinc-800 rounded-lg border border-zinc-700 shadow-md flex flex-col items-center justify-center select-none relative z-0",
           !isDragging &&
-            "hover:scale-105 hover:shadow-xl hover:z-10 hover:border-indigo-500/50 cursor-grab active:cursor-grabbing",
+          "hover:scale-105 hover:shadow-xl hover:z-10 hover:border-indigo-500/50 cursor-grab active:cursor-grabbing",
           card.tapped && "border-zinc-600 bg-zinc-900",
           isDragging &&
-            "shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-2 ring-indigo-500 cursor-grabbing",
+          "shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-2 ring-indigo-500 cursor-grabbing",
           className
         )}
         onDoubleClick={onDoubleClick}
@@ -111,9 +113,11 @@ export const Card: React.FC<CardProps> = ({
   scale = 1,
   preferArtCrop,
   rotateLabel,
+  disableDrag,
+  isDragging: propIsDragging,
 }) => {
   const { showPreview, hidePreview, toggleLock } = useCardPreview();
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging: internalIsDragging } = useDraggable({
     id: card.id,
     data: {
       cardId: card.id,
@@ -121,7 +125,10 @@ export const Card: React.FC<CardProps> = ({
       ownerId: card.ownerId,
       tapped: card.tapped,
     },
+    disabled: disableDrag,
   });
+
+  const isDragging = propIsDragging ?? internalIsDragging;
   const zone = useGameStore((state) => state.zones[card.zoneId]);
   const zoneType = zone?.type;
   const cardTypeLine = card.typeLine || card.scryfall?.type_line || "";

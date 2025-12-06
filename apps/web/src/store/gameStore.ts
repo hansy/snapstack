@@ -10,7 +10,7 @@ import { logPermission } from '../rules/logger';
 import { getCardFaces, getCurrentFaceIndex, isTransformableCard, syncCardStatsToFace } from '../lib/cardDisplay';
 import { decrementCounter, enforceZoneCounterRules, isBattlefieldZone, mergeCounters, resolveCounterColor } from '../lib/counters';
 import { emitLog, clearLogs } from '../logging/logStore';
-import { getYDocHandles } from '../yjs/yManager';
+import { getYDocHandles, runWithSharedDoc } from '../yjs/yManager';
 import { addCounterToCard as yAddCounterToCard, duplicateCard as yDuplicateCard, moveCard as yMoveCard, removeCard as yRemoveCard, removeCounterFromCard as yRemoveCounterFromCard, reorderZoneCards as yReorderZoneCards, transformCard as yTransformCard, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone, SharedMaps } from '../yjs/yMutations';
 import { bumpPosition, clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_Y, migratePositionToNormalized, positionsRoughlyEqual } from '../lib/positions';
 
@@ -39,17 +39,7 @@ const createSafeStorage = (): Storage => {
 export const useGameStore = create<GameStore>()(
     persist(
         (set, get) => {
-            const applyShared = (fn: (maps: SharedMaps) => void) => {
-                const handles = getYDocHandles();
-                if (!handles) return false;
-                handles.doc.transact(() => fn({
-                    players: handles.players,
-                    zones: handles.zones,
-                    cards: handles.cards,
-                    globalCounters: handles.globalCounters,
-                }));
-                return true;
-            };
+            const applyShared = (fn: (maps: SharedMaps) => void) => runWithSharedDoc(fn);
 
             const syncSnapshotToShared = (state: GameState) => {
                 const handles = getYDocHandles();
