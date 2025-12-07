@@ -131,7 +131,7 @@ export const Hand: React.FC<HandProps> = ({
         zone={zone}
         scale={scale}
         className={cn(
-          "w-full h-full flex overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent"
+          "w-full h-full flex overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent overscroll-x-none"
         )}
       >
         <SortableContext

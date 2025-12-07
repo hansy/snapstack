@@ -14,12 +14,10 @@ import { ZoneId, CardId } from '../types';
 import {
     getEventCoordinates,
     calculatePointerOffset,
-    calculateRelativePosition,
     DragPosition,
     DragOffset
 } from '../lib/dnd';
 import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from '../lib/constants';
-import { cardFitsWithinZone } from '../lib/dndMath';
 import { ZONE } from '../constants/zones';
 import { canMoveCard } from '../rules/permissions';
 import { fromNormalizedPosition, snapNormalizedWithZone, toNormalizedPosition } from '../lib/positions';
@@ -134,15 +132,21 @@ export const useGameDnD = () => {
                 const viewScale = over.data.current?.cardScale || 1;
                 setOverCardScale(viewScale);
 
-                if (!dragPointerStart.current) return;
+                // Use the translated rect center for accurate position
+                // This correctly handles scroll offsets in the source container
+                // @ts-ignore - active.rect.current.translated is available at runtime
+                const activeRect = active.rect.current?.translated;
+                if (!activeRect) return;
 
-                const unsnappedPos = calculateRelativePosition(
-                    dragPointerStart.current,
-                    dragPointerToCenter.current,
-                    { x: event.delta.x, y: event.delta.y },
-                    overRect,
-                    scale
-                );
+                const centerScreen = {
+                    x: activeRect.left + activeRect.width / 2,
+                    y: activeRect.top + activeRect.height / 2,
+                };
+
+                const unsnappedPos = {
+                    x: (centerScreen.x - overRect.left) / scale,
+                    y: (centerScreen.y - overRect.top) / scale,
+                };
 
                 const zoneWidth = (overRect?.width || 0) / scale;
                 const zoneHeight = (overRect?.height || 0) / scale;
@@ -151,20 +155,14 @@ export const useGameDnD = () => {
                 const cardWidth = (isTapped ? BASE_CARD_HEIGHT : baseWidth) * viewScale;
                 const cardHeight = (isTapped ? baseWidth : BASE_CARD_HEIGHT) * viewScale;
 
-                const fitsWithinZone = cardFitsWithinZone(
-                    unsnappedPos,
-                    zoneWidth,
-                    zoneHeight,
-                    cardWidth,
-                    cardHeight
-                );
+                // Clamp the position to zone bounds (instead of rejecting)
+                // This is more forgiving and handles scroll offset issues
+                const clampedPos = {
+                    x: Math.max(cardWidth / 2, Math.min(unsnappedPos.x, zoneWidth - cardWidth / 2)),
+                    y: Math.max(cardHeight / 2, Math.min(unsnappedPos.y, zoneHeight - cardHeight / 2))
+                };
 
-                if (!fitsWithinZone) {
-                    setGhostCard(null);
-                    return;
-                }
-
-                const unsnappedNormalized = toNormalizedPosition(unsnappedPos, zoneWidth, zoneHeight);
+                const unsnappedNormalized = toNormalizedPosition(clampedPos, zoneWidth, zoneHeight);
                 const snappedNormalized = snapNormalizedWithZone(
                     unsnappedNormalized,
                     zoneWidth,
@@ -281,15 +279,21 @@ export const useGameDnD = () => {
                 const scale = over.data.current?.scale || 1;
                 const viewScale = over.data.current?.cardScale || 1;
 
-                if (!dragPointerStart.current) return;
+                // Use the translated rect center for accurate position
+                // This correctly handles scroll offsets in the source container
+                // @ts-ignore - active.rect.current.translated is available at runtime
+                const activeRect = active.rect.current?.translated;
+                if (!activeRect) return;
 
-                const unsnappedPos = calculateRelativePosition(
-                    dragPointerStart.current,
-                    dragPointerToCenter.current,
-                    { x: event.delta.x, y: event.delta.y },
-                    overRect,
-                    scale
-                );
+                const centerScreen = {
+                    x: activeRect.left + activeRect.width / 2,
+                    y: activeRect.top + activeRect.height / 2,
+                };
+
+                const unsnappedPos = {
+                    x: (centerScreen.x - overRect.left) / scale,
+                    y: (centerScreen.y - overRect.top) / scale,
+                };
 
                 const zoneWidth = (overRect?.width || 0) / scale;
                 const zoneHeight = (overRect?.height || 0) / scale;
@@ -299,21 +303,14 @@ export const useGameDnD = () => {
                 const cardWidth = (isTapped ? BASE_CARD_HEIGHT : baseWidth) * viewScale;
                 const cardHeight = (isTapped ? baseWidth : BASE_CARD_HEIGHT) * viewScale;
 
-                const fitsWithinZone = cardFitsWithinZone(
-                    unsnappedPos,
-                    zoneWidth,
-                    zoneHeight,
-                    cardWidth,
-                    cardHeight
-                );
+                // Clamp the position to zone bounds (instead of rejecting)
+                // This is more forgiving and handles scroll offset issues
+                const clampedPos = {
+                    x: Math.max(cardWidth / 2, Math.min(unsnappedPos.x, zoneWidth - cardWidth / 2)),
+                    y: Math.max(cardHeight / 2, Math.min(unsnappedPos.y, zoneHeight - cardHeight / 2))
+                };
 
-                if (!fitsWithinZone) {
-                    // Invalid placement: card would straddle battlefield edges.
-                    // Treat as a cancelled drop so the card snaps back.
-                    return;
-                }
-
-                const unsnappedNormalized = toNormalizedPosition(unsnappedPos, zoneWidth, zoneHeight);
+                const unsnappedNormalized = toNormalizedPosition(clampedPos, zoneWidth, zoneHeight);
                 const snappedNormalized = snapNormalizedWithZone(
                     unsnappedNormalized,
                     zoneWidth,
