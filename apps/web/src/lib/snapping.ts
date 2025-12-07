@@ -1,4 +1,4 @@
-import { CARD_WIDTH_PX, CARD_HEIGHT_PX } from './constants';
+import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from './constants';
 import { Card, CardId } from '../types';
 
 export const SNAP_GRID_SIZE = 30;
@@ -9,19 +9,31 @@ export const snapToGrid = (value: number, gridSize: number = SNAP_GRID_SIZE): nu
     return snapped;
 };
 
-export const getSnappedPosition = (x: number, y: number) => {
+/**
+ * Snap a card center to the grid.
+ * @param x - Card center X in zone space
+ * @param y - Card center Y in zone space
+ * @param cardWidth - Width of the card (or derive from height)
+ * @param cardHeight - Height of the card
+ */
+export const getSnappedPosition = (
+    x: number,
+    y: number,
+    cardWidth: number = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO,
+    cardHeight: number = BASE_CARD_HEIGHT
+) => {
     // Incoming x,y are the card center in zone space.
     // Snap the *top-left corner* to the grid, then convert back to center
     // so that card edges visually align with grid lines.
-    const left = x - CARD_WIDTH_PX / 2;
-    const top = y - CARD_HEIGHT_PX / 2;
+    const left = x - cardWidth / 2;
+    const top = y - cardHeight / 2;
 
     const snappedLeft = snapToGrid(left);
     const snappedTop = snapToGrid(top);
 
     return {
-        x: snappedLeft + CARD_WIDTH_PX / 2,
-        y: snappedTop + CARD_HEIGHT_PX / 2
+        x: snappedLeft + cardWidth / 2,
+        y: snappedTop + cardHeight / 2
     };
 };
 

@@ -3,7 +3,6 @@ import { cn } from "../../../lib/utils";
 import { Zone as ZoneType, Card as CardType, ZoneId } from "../../../types";
 import { Card } from "../Card/Card";
 import { Zone } from "../Zone/Zone";
-import { ZONE_BASE_CLASSES } from "../../../lib/constants";
 import { useGameStore } from "../../../store/gameStore";
 
 interface CommanderZoneProps {
@@ -59,7 +58,7 @@ export const CommanderZone: React.FC<CommanderZoneProps> = ({
               "flex items-center bg-transparent rounded-full transition-all p-1 gap-1 border border-transparent",
               // Only show hover effects if it's my zone
               useGameStore.getState().myPlayerId === zone.ownerId &&
-                "hover:bg-zinc-900/90 hover:border-zinc-700/50 hover:backdrop-blur-sm"
+              "hover:bg-zinc-900/90 hover:border-zinc-700/50 hover:backdrop-blur-sm"
             )}
           >
             {/* Decrement Button (Hidden until hover, only for owner) */}
@@ -69,7 +68,7 @@ export const CommanderZone: React.FC<CommanderZoneProps> = ({
                   "w-10 h-10 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-full text-white text-base border border-zinc-600 opacity-0 group-hover/tax:opacity-100 transition-opacity pointer-events-none group-hover/tax:pointer-events-auto",
                   (useGameStore.getState().players[zone.ownerId]
                     ?.commanderTax || 0) <= 0 &&
-                    "opacity-0 cursor-not-allowed pointer-events-none"
+                  "opacity-0 cursor-not-allowed pointer-events-none"
                 )}
                 disabled={
                   (useGameStore.getState().players[zone.ownerId]
@@ -109,7 +108,7 @@ export const CommanderZone: React.FC<CommanderZoneProps> = ({
         <Zone
           zone={zone}
           className={cn(
-            ZONE_BASE_CLASSES,
+            "h-full aspect-[11/15]",
             "bg-red-950/40 flex items-center justify-center relative shadow-lg backdrop-blur-sm p-2"
           )}
           scale={scale}

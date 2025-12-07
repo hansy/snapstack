@@ -18,7 +18,7 @@ import {
     DragPosition,
     DragOffset
 } from '../lib/dnd';
-import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
+import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from '../lib/constants';
 import { cardFitsWithinZone } from '../lib/dndMath';
 import { ZONE } from '../constants/zones';
 import { canMoveCard } from '../rules/permissions';
@@ -147,8 +147,9 @@ export const useGameDnD = () => {
                 const zoneWidth = (overRect?.width || 0) / scale;
                 const zoneHeight = (overRect?.height || 0) / scale;
 
-                const cardWidth = (isTapped ? CARD_HEIGHT_PX : CARD_WIDTH_PX) * viewScale;
-                const cardHeight = (isTapped ? CARD_WIDTH_PX : CARD_HEIGHT_PX) * viewScale;
+                const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
+                const cardWidth = (isTapped ? BASE_CARD_HEIGHT : baseWidth) * viewScale;
+                const cardHeight = (isTapped ? baseWidth : BASE_CARD_HEIGHT) * viewScale;
 
                 const fitsWithinZone = cardFitsWithinZone(
                     unsnappedPos,
@@ -294,8 +295,9 @@ export const useGameDnD = () => {
                 const zoneHeight = (overRect?.height || 0) / scale;
 
                 const isTapped = active.data.current?.tapped || activeCard?.tapped;
-                const cardWidth = (isTapped ? CARD_HEIGHT_PX : CARD_WIDTH_PX) * viewScale;
-                const cardHeight = (isTapped ? CARD_WIDTH_PX : CARD_HEIGHT_PX) * viewScale;
+                const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
+                const cardWidth = (isTapped ? BASE_CARD_HEIGHT : baseWidth) * viewScale;
+                const cardHeight = (isTapped ? baseWidth : BASE_CARD_HEIGHT) * viewScale;
 
                 const fitsWithinZone = cardFitsWithinZone(
                     unsnappedPos,

@@ -1,6 +1,6 @@
 import { clampToZoneBounds } from './dndMath';
 import { snapToGrid, SNAP_GRID_SIZE } from './snapping';
-import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from './constants';
+import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from './constants';
 
 export const LEGACY_BATTLEFIELD_WIDTH = 1000;
 export const LEGACY_BATTLEFIELD_HEIGHT = 600;
@@ -57,8 +57,11 @@ export const snapNormalizedWithZone = (
     if (!zoneWidth || !zoneHeight) return clampNormalizedPosition(position);
 
     const asPixels = fromNormalizedPosition(position, zoneWidth, zoneHeight);
-    const gridScaleX = cardWidth / CARD_WIDTH_PX;
-    const gridScaleY = cardHeight / CARD_HEIGHT_PX;
+
+    // Scale grid based on card size relative to base
+    const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
+    const gridScaleX = cardWidth / baseWidth;
+    const gridScaleY = cardHeight / BASE_CARD_HEIGHT;
     const gridX = SNAP_GRID_SIZE * (gridScaleX || 1);
     const gridY = SNAP_GRID_SIZE * (gridScaleY || 1);
 

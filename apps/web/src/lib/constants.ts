@@ -1,11 +1,17 @@
-export const CARD_HEIGHT = 'h-32';
-export const CARD_ASPECT_RATIO = 'aspect-[11/15]';
-export const CARD_WIDTH = 'w-auto'; // Let aspect ratio drive width
+// Core dimensions
+export const CARD_ASPECT_RATIO = 2 / 3; // 10/15 = 2/3 for clean math
+export const BASE_CARD_HEIGHT = 120; // Base height in px
 
-// Base classes for zones that should match card dimensions
-export const ZONE_BASE_CLASSES = `${CARD_HEIGHT} ${CARD_ASPECT_RATIO}`;
-export const ZONE_SIDEWAYS_CLASSES = `w-32 aspect-[15/11]`;
+// Derived helper
+export const getCardWidth = (height: number) => height * CARD_ASPECT_RATIO;
 
-// Numeric logical dimensions (px) for calculations (center/positioning/snap)
-export const CARD_HEIGHT_PX = 128; // tailwind h-32
-export const CARD_WIDTH_PX = 94; // 128 * 11/15 ≈ 93.8
+// Tailwind classes (derived from base)
+export const CARD_HEIGHT_CLASS = 'h-[120px]';
+export const CARD_ASPECT_CLASS = 'aspect-[2/3]';
+export const ZONE_BASE_CLASSES = `${CARD_HEIGHT_CLASS} ${CARD_ASPECT_CLASS}`;
+export const ZONE_SIDEWAYS_CLASSES = `w-[120px] aspect-[3/2]`;
+
+// Legacy aliases for backwards compatibility during migration
+// TODO: Remove these after all usages are updated
+export const CARD_HEIGHT = CARD_HEIGHT_CLASS;
+export const CARD_ASPECT_RATIO_CLASS = CARD_ASPECT_CLASS;

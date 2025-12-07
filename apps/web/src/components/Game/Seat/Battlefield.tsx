@@ -3,7 +3,7 @@ import { cn } from '../../../lib/utils';
 import { Zone as ZoneType, Card as CardType, Player } from '../../../types';
 import { Card } from '../Card/Card';
 import { Zone } from '../Zone/Zone';
-import { CARD_WIDTH_PX, CARD_HEIGHT_PX } from '../../../lib/constants';
+import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from '../../../lib/constants';
 import { useDragStore } from '../../../store/dragStore';
 import { useGameStore } from '../../../store/gameStore';
 import { fromNormalizedPosition } from '../../../lib/positions';
@@ -85,8 +85,10 @@ export const Battlefield: React.FC<BattlefieldProps> = ({
                 )}
                 {cards.map(card => {
                     const { x, y } = fromNormalizedPosition(card.position, zoneSize.width || 1, zoneSize.height || 1);
-                    const left = x - CARD_WIDTH_PX / 2;
-                    const top = y - CARD_HEIGHT_PX / 2;
+                    const cardWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO * viewScale;
+                    const cardHeight = BASE_CARD_HEIGHT * viewScale;
+                    const left = x - cardWidth / 2;
+                    const top = y - cardHeight / 2;
                     return (
                         <Card
                             key={card.id}

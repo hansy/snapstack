@@ -3,7 +3,6 @@ import { cn } from "../../../lib/utils";
 import { Zone as ZoneType, Card as CardType } from "../../../types";
 import { Card } from "../Card/Card";
 import { Zone } from "../Zone/Zone";
-import { CARD_HEIGHT } from "../../../lib/constants";
 import { ZONE_LABEL } from "@/constants/zones";
 import {
   SortableContext,
@@ -62,20 +61,19 @@ const SortableCard = ({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "relative shrink-0 w-12 transition-all duration-200 ease-out group",
-        "hover:w-[94px] hover:z-50 hover:scale-110",
-        isDragging && "z-50 opacity-0",
-        CARD_HEIGHT
+        "relative shrink-0 h-full w-auto max-w-12 transition-all duration-200 ease-out group",
+        "hover:max-w-[20rem] hover:z-50 hover:scale-110",
+        isDragging && "z-50 opacity-0"
       )}
       {...attributes}
       {...listeners}
     >
       <div
         className={cn(
-          "w-[94px] h-full transition-transform duration-200",
+          "w-auto aspect-[11/15] transition-transform duration-200",
           isTop
-            ? "-translate-y-[35%] group-hover:-translate-y-[10%]"
-            : "translate-y-[35%] group-hover:translate-y-[10%]"
+            ? "-translate-y-[35%] group-hover:translate-y-0"
+            : "translate-y-[35%] group-hover:translate-y-0"
         )}
       >
         <Card
@@ -85,6 +83,7 @@ const SortableCard = ({
           onContextMenu={(e) => onCardContextMenu?.(e, card)}
           disableDrag // We use Sortable's drag handle
           isDragging={isDragging}
+          scale={1.5}
         />
       </div>
     </div>

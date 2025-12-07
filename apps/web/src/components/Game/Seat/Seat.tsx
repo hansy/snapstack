@@ -158,9 +158,9 @@ export const Seat: React.FC<SeatProps> = ({
                 onDoubleClick={
                   isMe && onDrawCard
                     ? (e) => {
-                      e.preventDefault();
-                      onDrawCard(player.id);
-                    }
+                        e.preventDefault();
+                        onDrawCard(player.id);
+                      }
                     : undefined
                 }
                 emptyContent={
@@ -239,7 +239,7 @@ export const Seat: React.FC<SeatProps> = ({
           )}
 
           {/* Bottom Bar (Hand + Commander) */}
-          <BottomBar isTop={isTop} isRight={isRight}>
+          <BottomBar isTop={isTop} isRight={isRight} className="h-40">
             {/* Commander Zone */}
             {commandZone && (
               <CommanderZone

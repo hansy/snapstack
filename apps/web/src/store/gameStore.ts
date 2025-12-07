@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { Card, GameState, Zone } from '../types';
-import { CARD_HEIGHT_PX, CARD_WIDTH_PX } from '../lib/constants';
+import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from '../lib/constants';
 import { getZoneByType } from '../lib/gameSelectors';
 import { ZONE } from '../constants/zones';
 import { canCreateToken, canMoveCard, canTapCard, canUpdatePlayer, canViewZone } from '../rules/permissions';
@@ -1250,8 +1250,8 @@ export const useGameStore = create<GameStore>()(
                         // Legacy top-left -> center
                         if (state.positionFormat === 'top-left') {
                             position = {
-                                x: position.x + CARD_WIDTH_PX / 2,
-                                y: position.y + CARD_HEIGHT_PX / 2
+                                x: position.x + (BASE_CARD_HEIGHT * CARD_ASPECT_RATIO) / 2,
+                                y: position.y + BASE_CARD_HEIGHT / 2
                             };
                         }
 

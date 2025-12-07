@@ -3,7 +3,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { Card as CardType } from "../../../types";
 import { cn } from "../../../lib/utils";
 import { useGameStore } from "../../../store/gameStore";
-import { CARD_HEIGHT, CARD_ASPECT_RATIO } from "../../../lib/constants";
+import { CARD_HEIGHT_CLASS, CARD_ASPECT_CLASS } from "../../../lib/constants";
 import { ZONE } from "../../../constants/zones";
 
 import { CardFace } from "./CardFace";
@@ -53,8 +53,8 @@ export const CardView = React.forwardRef<HTMLDivElement, CardViewProps>(
       onDoubleClick,
       onClick,
       onMouseEnter,
-  onMouseLeave,
-  imageTransform,
+      onMouseLeave,
+      imageTransform,
       preferArtCrop = false,
       rotateLabel,
       ...props
@@ -66,8 +66,8 @@ export const CardView = React.forwardRef<HTMLDivElement, CardViewProps>(
         ref={ref}
         style={style}
         className={cn(
-          CARD_HEIGHT,
-          CARD_ASPECT_RATIO,
+          CARD_HEIGHT_CLASS,
+          CARD_ASPECT_CLASS,
           "bg-zinc-800 rounded-lg border border-zinc-700 shadow-md flex flex-col items-center justify-center select-none relative z-0",
           !isDragging &&
           "hover:scale-105 hover:shadow-xl hover:z-10 hover:border-indigo-500/50 cursor-grab active:cursor-grabbing",
@@ -117,7 +117,12 @@ export const Card: React.FC<CardProps> = ({
   isDragging: propIsDragging,
 }) => {
   const { showPreview, hidePreview, toggleLock } = useCardPreview();
-  const { attributes, listeners, setNodeRef, isDragging: internalIsDragging } = useDraggable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    isDragging: internalIsDragging,
+  } = useDraggable({
     id: card.id,
     data: {
       cardId: card.id,

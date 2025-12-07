@@ -2,7 +2,7 @@ import React from 'react';
 import { useDroppable, useDndContext } from '@dnd-kit/core';
 import { Zone as ZoneType } from '../../../types';
 import { cn } from '../../../lib/utils';
-import { CARD_WIDTH_PX, CARD_HEIGHT_PX } from '../../../lib/constants';
+import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from '../../../lib/constants';
 import { useDragStore } from '../../../store/dragStore';
 
 import { useGameStore } from '../../../store/gameStore';
@@ -85,17 +85,21 @@ export const Zone: React.FC<ZoneProps> = ({ zone, className, children, layout = 
             onContextMenu={onContextMenu}
         >
             {children}
-            {ghostPosition && (
-                <div
-                    className="absolute bg-indigo-500/40 rounded-lg pointer-events-none z-0"
-                    style={{
-                        width: CARD_WIDTH_PX * cardScale,
-                        height: CARD_HEIGHT_PX * cardScale,
-                        transform: `translate3d(${ghostPosition.x - (CARD_WIDTH_PX * cardScale) / 2}px, ${ghostPosition.y - (CARD_HEIGHT_PX * cardScale) / 2}px, 0)${ghostTapped ? ' rotate(90deg)' : ''}`,
-                        transformOrigin: 'center center'
-                    }}
-                />
-            )}
+            {ghostPosition && (() => {
+                const ghostWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO * cardScale;
+                const ghostHeight = BASE_CARD_HEIGHT * cardScale;
+                return (
+                    <div
+                        className="absolute bg-indigo-500/40 rounded-lg pointer-events-none z-0"
+                        style={{
+                            width: ghostWidth,
+                            height: ghostHeight,
+                            transform: `translate3d(${ghostPosition.x - ghostWidth / 2}px, ${ghostPosition.y - ghostHeight / 2}px, 0)${ghostTapped ? ' rotate(90deg)' : ''}`,
+                            transformOrigin: 'center center'
+                        }}
+                    />
+                );
+            })()}
         </div>
     );
 };
