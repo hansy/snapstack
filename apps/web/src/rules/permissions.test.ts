@@ -59,7 +59,7 @@ describe('canMoveCard', () => {
     ).toBe(false);
     expect(
       canMoveCard({ actorId: 'opponent', card, fromZone, toZone }).allowed
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('allows tokens to move between battlefields under the same rules', () => {
@@ -108,17 +108,30 @@ describe('canMoveCard', () => {
     ).toBe(false);
   });
 
-  it('requires destination hidden zone owner to receive cards', () => {
+  it('allows only the card owner to move a card into their own hand', () => {
     const card = makeCard({ ownerId: 'owner', zoneId: 'bf-owner' });
     const fromZone = makeZone('bf-owner', ZONE.BATTLEFIELD, 'owner');
-    const toZone = makeZone('hand-opponent', ZONE.HAND, 'opponent');
+    const toZone = makeZone('hand-owner', ZONE.HAND, 'owner');
+
+    expect(
+      canMoveCard({ actorId: 'owner', card, fromZone, toZone }).allowed
+    ).toBe(true);
+    expect(
+      canMoveCard({ actorId: 'opponent', card, fromZone, toZone }).allowed
+    ).toBe(false);
+  });
+
+  it('blocks placing a card into another player\'s seat zone', () => {
+    const card = makeCard({ ownerId: 'owner', zoneId: 'bf-owner' });
+    const fromZone = makeZone('bf-owner', ZONE.BATTLEFIELD, 'owner');
+    const toZone = makeZone('gy-opponent', ZONE.GRAVEYARD, 'opponent');
 
     expect(
       canMoveCard({ actorId: 'owner', card, fromZone, toZone }).allowed
     ).toBe(false);
     expect(
       canMoveCard({ actorId: 'opponent', card, fromZone, toZone }).allowed
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 

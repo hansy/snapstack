@@ -3,8 +3,16 @@ import { ZoneType, isTokenCard, Player } from '../types';
 import { ActorContext, MoveContext, PermissionResult, ViewResult } from './types';
 
 const HIDDEN_ZONES = new Set<ZoneType>([ZONE.LIBRARY, ZONE.HAND]);
+const SEAT_ZONES = new Set<ZoneType>([
+  ZONE.LIBRARY,
+  ZONE.HAND,
+  ZONE.GRAVEYARD,
+  ZONE.EXILE,
+  ZONE.COMMANDER,
+]);
 
 const isHiddenZone = (zoneType: ZoneType) => HIDDEN_ZONES.has(zoneType);
+const isSeatZone = (zoneType: ZoneType) => SEAT_ZONES.has(zoneType);
 
 /**
  * Who can see what in a zone.
@@ -45,7 +53,14 @@ export function canMoveCard(ctx: MoveContext): PermissionResult {
 
   const fromHidden = isHiddenZone(fromZone.type);
   const toHidden = isHiddenZone(toZone.type);
-  const bothBattlefields = fromZone.type === ZONE.BATTLEFIELD && toZone.type === ZONE.BATTLEFIELD;
+  const fromBattlefield = fromZone.type === ZONE.BATTLEFIELD;
+  const toBattlefield = toZone.type === ZONE.BATTLEFIELD;
+  const bothBattlefields = fromBattlefield && toBattlefield;
+
+  // Non-battlefield destinations must belong to the card owner (battlefields are the only shared space).
+  if (!toBattlefield && toZone.ownerId !== card.ownerId) {
+    return { allowed: false, reason: 'Cards may only enter their owner seat zones or any battlefield' };
+  }
 
   // Hidden -> anything: only owner of the hidden zone can initiate.
   if (fromHidden && !actorIsFromHost) {
@@ -61,18 +76,15 @@ export function canMoveCard(ctx: MoveContext): PermissionResult {
     return { allowed: true };
   }
 
-  if (toZone.type === ZONE.COMMANDER) {
-    if (!actorIsToHost) {
-      return { allowed: false, reason: "Cannot place cards into another player's command zone" };
-    }
-    return { allowed: true };
+  if (toZone.type === ZONE.COMMANDER && !actorIsOwner) {
+    return { allowed: false, reason: "Cannot place cards into another player's command zone" };
   }
 
-  const tokenLeavingBattlefield = isToken && fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
+  const tokenLeavingBattlefield = isToken && fromBattlefield && !toBattlefield;
   if (tokenLeavingBattlefield) {
-    // Tokens vanish when they leave the battlefield; owner or host can initiate the move.
-    if (actorIsOwner || actorIsFromHost) return { allowed: true };
-    return { allowed: false, reason: 'Only owner or host may move this token off the battlefield' };
+    // Tokens vanish when they leave the battlefield; only the owner can initiate this move.
+    if (actorIsOwner) return { allowed: true };
+    return { allowed: false, reason: 'Only owner may move this token off the battlefield' };
   }
 
   if (bothBattlefields) {
@@ -81,7 +93,13 @@ export function canMoveCard(ctx: MoveContext): PermissionResult {
     return { allowed: false, reason: 'Only owner or host of battlefield may move this card' };
   }
 
-  // Default allowance: owner can move their own card between non-hidden zones they interact with.
+  if (toBattlefield) {
+    // Entering a battlefield from a non-battlefield zone.
+    if (actorIsOwner || actorIsToHost) return { allowed: true };
+    return { allowed: false, reason: 'Only card owner or battlefield host may move this card here' };
+  }
+
+  // Non-battlefield destinations (seat zones): only the card owner may move their card here.
   if (actorIsOwner) return { allowed: true };
 
   // Host may move cards within their own non-hidden zones (e.g., public piles).
