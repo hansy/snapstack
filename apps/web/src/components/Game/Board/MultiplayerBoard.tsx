@@ -250,8 +250,8 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                     newScale -= ZOOM_STEP;
                 }
 
-                // Clamp between 0.5 and 1.2
-                newScale = Math.max(0.5, Math.min(1.2, newScale));
+                // Clamp between 50% and 100%
+                newScale = Math.max(0.5, Math.min(1, newScale));
 
                 if (newScale !== currentScale) {
                     setBattlefieldViewScale(myPlayerId, newScale);

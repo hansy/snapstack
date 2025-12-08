@@ -18,6 +18,7 @@ export type SharedMaps = {
   cards: Y.Map<Y.Map<any>>;
   zoneCardOrders: Y.Map<Y.Array<string>>;
   globalCounters: Y.Map<any>;
+  battlefieldViewScale: Y.Map<any>;
 };
 
 type Counter = Card['counters'][number];
@@ -265,6 +266,7 @@ const getCardsSnapshot = (maps: SharedMaps): Record<string, Card> => {
 
 export function removePlayer(maps: SharedMaps, playerId: string) {
   maps.players.delete(playerId);
+  maps.battlefieldViewScale.delete(playerId);
 
   // Remove owned zones and their cards
   maps.zones.forEach((_zoneValue, zoneId) => {
@@ -315,6 +317,11 @@ export function upsertCard(maps: SharedMaps, card: Card) {
   const zone = readZone(maps, card.zoneId);
   const nextCounters = enforceZoneCounterRules(card.counters, zone || undefined);
   writeCard(maps, { ...card, counters: nextCounters });
+}
+
+export function setBattlefieldViewScale(maps: SharedMaps, playerId: string, scale: number) {
+  const clamped = Math.max(0.5, Math.min(1, scale));
+  maps.battlefieldViewScale.set(playerId, clamped);
 }
 
 export function removeCard(maps: SharedMaps, cardId: string) {
@@ -491,6 +498,7 @@ export const sharedSnapshot = (maps: SharedMaps) => {
   const zones: Record<string, Zone> = {};
   const cards: Record<string, Card> = {};
   const globalCounters: Record<string, string> = {};
+  const battlefieldViewScale: Record<string, number> = {};
 
   maps.players.forEach((_value, key) => {
     const p = readPlayer(maps, key as string);
@@ -510,5 +518,11 @@ export const sharedSnapshot = (maps: SharedMaps) => {
     }
   });
 
-  return { players, zones, cards, globalCounters };
+  maps.battlefieldViewScale.forEach((value, key) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      battlefieldViewScale[key as string] = value;
+    }
+  });
+
+  return { players, zones, cards, globalCounters, battlefieldViewScale };
 };

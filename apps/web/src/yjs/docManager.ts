@@ -47,6 +47,7 @@ export function acquireSession(sessionId: string): YDocHandles {
       cards: doc.getMap('cards'),
       zoneCardOrders: doc.getMap('zoneCardOrders'),
       globalCounters: doc.getMap('globalCounters'),
+      battlefieldViewScale: doc.getMap('battlefieldViewScale'),
       logs: doc.getArray('logs'),
       meta: doc.getMap('meta'),
     };
@@ -216,6 +217,7 @@ export function runMutation(fn: (maps: SharedMaps) => void): boolean {
     cards: handles.cards,
     zoneCardOrders: handles.zoneCardOrders,
     globalCounters: handles.globalCounters,
+    battlefieldViewScale: handles.battlefieldViewScale,
   }));
   
   return true;
@@ -251,6 +253,7 @@ export function batchMutations(fn: () => void): void {
         cards: handles.cards,
         zoneCardOrders: handles.zoneCardOrders,
         globalCounters: handles.globalCounters,
+        battlefieldViewScale: handles.battlefieldViewScale,
       };
       mutations.forEach(m => m(maps));
     });
@@ -278,6 +281,7 @@ export function flushPendingMutations(): void {
       cards: handles.cards,
       zoneCardOrders: handles.zoneCardOrders,
       globalCounters: handles.globalCounters,
+      battlefieldViewScale: handles.battlefieldViewScale,
     };
     mutations.forEach(fn => fn(maps));
   });

@@ -12,7 +12,7 @@ import { decrementCounter, enforceZoneCounterRules, isBattlefieldZone, mergeCoun
 import { emitLog, clearLogs } from '../logging/logStore';
 import { getYDocHandles, runWithSharedDoc } from '../yjs/yManager';
 import { isApplyingRemoteUpdate } from '../hooks/useYjsSync';
-import { addCounterToCard as yAddCounterToCard, duplicateCard as yDuplicateCard, moveCard as yMoveCard, patchPlayer as yPatchPlayer, removeCard as yRemoveCard, removeCounterFromCard as yRemoveCounterFromCard, reorderZoneCards as yReorderZoneCards, sharedSnapshot, transformCard as yTransformCard, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone, SharedMaps } from '../yjs/yMutations';
+import { addCounterToCard as yAddCounterToCard, duplicateCard as yDuplicateCard, moveCard as yMoveCard, patchPlayer as yPatchPlayer, removeCard as yRemoveCard, removeCounterFromCard as yRemoveCounterFromCard, reorderZoneCards as yReorderZoneCards, setBattlefieldViewScale as ySetBattlefieldViewScale, sharedSnapshot, transformCard as yTransformCard, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone, SharedMaps } from '../yjs/yMutations';
 import { bumpPosition, clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_Y, migratePositionToNormalized, positionsRoughlyEqual } from '../lib/positions';
 
 interface GameStore extends GameState {
@@ -72,6 +72,7 @@ export const useGameStore = create<GameStore>()(
                     cards: handles.cards,
                     zoneCardOrders: handles.zoneCardOrders,
                     globalCounters: handles.globalCounters,
+                    battlefieldViewScale: handles.battlefieldViewScale,
                 } as SharedMaps;
                 handles.doc.transact(() => {
                     // Players
@@ -103,6 +104,15 @@ export const useGameStore = create<GameStore>()(
                         if (!Object.prototype.hasOwnProperty.call(state.globalCounters, key)) handles.globalCounters.delete(key);
                     });
                     Object.entries(state.globalCounters).forEach(([key, value]) => handles.globalCounters.set(key, value));
+
+                    // Battlefield view scale
+                    handles.battlefieldViewScale.forEach((_value: any, key: string) => {
+                        if (!Object.prototype.hasOwnProperty.call(state.battlefieldViewScale, key)) handles.battlefieldViewScale.delete(key);
+                    });
+                    Object.entries(state.battlefieldViewScale).forEach(([playerId, scale]) => {
+                        const clamped = Math.min(Math.max(scale, 0.5), 1);
+                        handles.battlefieldViewScale.set(playerId, clamped);
+                    });
                 });
             };
 
@@ -1295,7 +1305,12 @@ export const useGameStore = create<GameStore>()(
                 },
 
                 setBattlefieldViewScale: (playerId, scale) => {
-                    const clamped = Math.min(Math.max(scale, 0.5), 1.2);
+                    const clamped = Math.min(Math.max(scale, 0.5), 1);
+                    const current = get().battlefieldViewScale[playerId];
+                    if (current === clamped) return;
+
+                    if (applyShared((maps) => ySetBattlefieldViewScale(maps, playerId, clamped))) return;
+
                     set((state) => ({
                         battlefieldViewScale: {
                             ...state.battlefieldViewScale,

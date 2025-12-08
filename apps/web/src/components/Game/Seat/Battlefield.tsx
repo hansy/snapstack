@@ -144,7 +144,7 @@ const ZoomEdgeOverlay = () => {
     const zoomPercentage = Math.round(currentScale * 100);
 
     // Check limits based on the displayed percentage to match user perception
-    const isMaxedIn = zoomPercentage >= 120;
+    const isMaxedIn = zoomPercentage >= 100;
     const isMaxedOut = zoomPercentage <= 50;
 
     const showZoomingText = (isZoomingIn && !isMaxedIn) || (isZoomingOut && !isMaxedOut);

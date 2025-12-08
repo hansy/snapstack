@@ -251,7 +251,7 @@ export function useYjsSync(sessionId: string) {
     const handles = acquireSession(sessionId);
     setActiveSession(sessionId);
 
-    const { doc, players, zones, cards, zoneCardOrders, globalCounters, logs } = handles;
+    const { doc, players, zones, cards, zoneCardOrders, globalCounters, battlefieldViewScale, logs } = handles;
 
     // Setup store
     const store = useGameStore.getState();
@@ -310,7 +310,7 @@ export function useYjsSync(sessionId: string) {
       }
       applyingRemoteUpdate = true;
       try {
-        const snapshot = sharedSnapshot({ players, zones, cards, zoneCardOrders, globalCounters } as any);
+        const snapshot = sharedSnapshot({ players, zones, cards, zoneCardOrders, globalCounters, battlefieldViewScale } as any);
 
         const safePlayers: Record<string, Player> = {};
         let playerCount = 0;
@@ -357,11 +357,18 @@ export function useYjsSync(sessionId: string) {
           }
         });
 
+        const safeBattlefieldViewScale: Record<string, number> = {};
+        Object.entries(snapshot.battlefieldViewScale ?? {}).forEach(([pid, value]) => {
+          if (!safePlayers[pid]) return;
+          safeBattlefieldViewScale[pid] = clampNumber(value, 0.5, 1, 1);
+        });
+
         useGameStore.setState({
           players: safePlayers,
           zones: safeZones,
           cards: safeCards,
           globalCounters: safeGlobalCounters,
+          battlefieldViewScale: safeBattlefieldViewScale,
         });
       } finally {
         applyingRemoteUpdate = false;
@@ -381,7 +388,7 @@ export function useYjsSync(sessionId: string) {
     // Sync local store to Yjs (for recovery)
     const syncStoreToShared = () => {
       const state = useGameStore.getState();
-      const sharedMaps = { players, zones, cards, zoneCardOrders, globalCounters } as any;
+      const sharedMaps = { players, zones, cards, zoneCardOrders, globalCounters, battlefieldViewScale } as any;
       doc.transact(() => {
         // Players
         players.forEach((_value, key) => {
@@ -412,6 +419,13 @@ export function useYjsSync(sessionId: string) {
           if (!state.globalCounters[key as string]) globalCounters.delete(key);
         });
         Object.entries(state.globalCounters).forEach(([key, value]) => globalCounters.set(key, value));
+
+        battlefieldViewScale.forEach((_value, key) => {
+          if (!state.battlefieldViewScale[key as string]) battlefieldViewScale.delete(key);
+        });
+        Object.entries(state.battlefieldViewScale).forEach(([key, value]) => {
+          battlefieldViewScale.set(key, clampNumber(value, 0.5, 1, 1));
+        });
       });
     };
 

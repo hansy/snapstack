@@ -13,6 +13,7 @@ const createSharedMaps = (): SharedMaps => {
     cards: doc.getMap('cards'),
     zoneCardOrders: doc.getMap('zoneCardOrders'),
     globalCounters: doc.getMap('globalCounters'),
+    battlefieldViewScale: doc.getMap('battlefieldViewScale'),
   };
 };
 
