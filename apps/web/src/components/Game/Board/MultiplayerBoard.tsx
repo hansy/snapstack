@@ -81,6 +81,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                             cards: handles.cards,
                             zoneCardOrders: handles.zoneCardOrders,
                             globalCounters: handles.globalCounters,
+                            battlefieldViewScale: handles.battlefieldViewScale,
                         },
                         myPlayerId,
                     );
