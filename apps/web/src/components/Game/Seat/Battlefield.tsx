@@ -28,10 +28,9 @@ const BattlefieldCard = React.memo<{
     zoneWidth: number;
     zoneHeight: number;
     mirrorForViewer?: boolean;
-    isTop: boolean;
     viewScale: number;
     onCardContextMenu?: (e: React.MouseEvent, card: CardType) => void;
-}>(({ card, zoneWidth, zoneHeight, mirrorForViewer, isTop, viewScale, onCardContextMenu }) => {
+}>(({ card, zoneWidth, zoneHeight, mirrorForViewer, viewScale, onCardContextMenu }) => {
     const viewPosition = mirrorForViewer ? mirrorNormalizedY(card.position) : card.position;
     const { x, y } = fromNormalizedPosition(viewPosition, zoneWidth || 1, zoneHeight || 1);
     const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
@@ -42,9 +41,8 @@ const BattlefieldCard = React.memo<{
     const style = React.useMemo(() => ({
         position: 'absolute' as const,
         left,
-        top,
-        transform: isTop ? 'rotate(180deg)' : undefined
-    }), [left, top, isTop]);
+        top
+    }), [left, top]);
 
     const handleContextMenu = React.useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -57,7 +55,6 @@ const BattlefieldCard = React.memo<{
             style={style}
             onContextMenu={handleContextMenu}
             scale={viewScale}
-            rotateLabel={isTop}
             faceDown={card.faceDown}
         />
     );
@@ -156,7 +153,6 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
                         zoneWidth={zoneSize.width}
                         zoneHeight={zoneSize.height}
                         mirrorForViewer={mirrorForViewer}
-                        isTop={isTop}
                         viewScale={viewScale}
                         onCardContextMenu={onCardContextMenu}
                     />
