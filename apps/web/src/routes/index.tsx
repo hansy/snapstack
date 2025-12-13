@@ -14,7 +14,7 @@ const LandingPage = () => {
       <div className="max-w-xl w-full px-8 py-12 rounded-2xl border border-zinc-800 bg-zinc-900/60 shadow-lg">
         <h1 className="text-3xl font-semibold tracking-tight mb-4">Snapstack</h1>
         <p className="text-zinc-300 mb-8">
-          Start a peer-to-peer table and share the link so others can join. No central host; state is synced between everyone at the table.
+          Start a multiplayer table and share the link so others can join. State is synced in realtime.
         </p>
         <button
           onClick={handleCreateGame}

@@ -6,7 +6,7 @@ import { parseDeckList, fetchScryfallCards, createCardFromImport, validateImport
 import { useGameStore } from '../../../store/gameStore';
 import { ZONE } from '../../../constants/zones';
 import { getZoneByType } from '../../../lib/gameSelectors';
-import { batchSharedMutations, getYDocHandles, getYProvider } from '../../../yjs/yManager';
+import { batchSharedMutations, getYDocHandles, getYProvider } from '../../../yjs/docManager';
 
 
 interface LoadDeckModalProps {

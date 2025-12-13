@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as Y from 'yjs';
 import { v4 as uuidv4 } from 'uuid';
-import { getYDocHandles } from '../yjs/yManager';
+import { getYDocHandles } from '../yjs/docManager';
 import { logEventRegistry } from './eventRegistry';
 import { LogContext, LogEventDefinition, LogEventId, LogMessage } from './types';
 

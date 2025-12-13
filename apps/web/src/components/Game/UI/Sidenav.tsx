@@ -26,7 +26,7 @@ const NavIcon: React.FC<NavIconProps> = ({ icon, label, onClick, className }) =>
     </button>
 );
 
-type SyncStatus = 'connecting' | 'connected' | 'p2p';
+type SyncStatus = 'connecting' | 'connected';
 
 interface SidenavProps {
     onCreateToken?: () => void;
@@ -108,17 +108,7 @@ export const Sidenav: React.FC<SidenavProps> = ({
 
                                     {/* Connection Status */}
                                     <div className="flex items-center gap-3 p-2 text-sm">
-                                        {syncStatus === 'p2p' ? (
-                                            <>
-                                                <Wifi size={16} className="text-cyan-400" />
-                                                <span className="text-zinc-300">
-                                                    P2P
-                                                    <span className="text-zinc-500 ml-1">
-                                                        ({peerCount} {peerCount === 1 ? 'player' : 'players'})
-                                                    </span>
-                                                </span>
-                                            </>
-                                        ) : syncStatus === 'connected' ? (
+                                        {syncStatus === 'connected' ? (
                                             <>
                                                 <Wifi size={16} className="text-emerald-400" />
                                                 <span className="text-zinc-300">
@@ -162,4 +152,3 @@ export const Sidenav: React.FC<SidenavProps> = ({
         </>
     );
 };
-

@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { Card, GameState, Zone } from '../types';
-import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from '../lib/constants';
 import { getZoneByType } from '../lib/gameSelectors';
 import { ZONE } from '../constants/zones';
 import { canModifyCardState, canMoveCard, canTapCard, canUpdatePlayer, canViewZone } from '../rules/permissions';
@@ -10,9 +9,9 @@ import { logPermission } from '../rules/logger';
 import { getCardFaces, getCurrentFaceIndex, isTransformableCard, syncCardStatsToFace } from '../lib/cardDisplay';
 import { decrementCounter, enforceZoneCounterRules, isBattlefieldZone, mergeCounters, resolveCounterColor } from '../lib/counters';
 import { emitLog, clearLogs } from '../logging/logStore';
-import { getYDocHandles, runWithSharedDoc } from '../yjs/yManager';
-import { isApplyingRemoteUpdate } from '../hooks/useYjsSync';
-import { addCounterToCard as yAddCounterToCard, duplicateCard as yDuplicateCard, moveCard as yMoveCard, patchPlayer as yPatchPlayer, removeCard as yRemoveCard, removeCounterFromCard as yRemoveCounterFromCard, reorderZoneCards as yReorderZoneCards, setBattlefieldViewScale as ySetBattlefieldViewScale, sharedSnapshot, transformCard as yTransformCard, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone, SharedMaps } from '../yjs/yMutations';
+import { runWithSharedDoc } from '../yjs/docManager';
+import { isApplyingRemoteUpdate } from '../yjs/sync';
+import { addCounterToCard as yAddCounterToCard, duplicateCard as yDuplicateCard, moveCard as yMoveCard, patchPlayer as yPatchPlayer, removeCard as yRemoveCard, removeCounterFromCard as yRemoveCounterFromCard, reorderZoneCards as yReorderZoneCards, resetDeck as yResetDeck, setBattlefieldViewScale as ySetBattlefieldViewScale, sharedSnapshot, transformCard as yTransformCard, unloadDeck as yUnloadDeck, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone, SharedMaps } from '../yjs/yMutations';
 import { bumpPosition, clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_Y, migratePositionToNormalized, positionsRoughlyEqual } from '../lib/positions';
 
 interface GameStore extends GameState {
@@ -61,72 +60,6 @@ export const useGameStore = create<GameStore>()(
                     return false;
                 }
                 return runWithSharedDoc(fn);
-            };
-
-            const syncSnapshotToShared = (state: GameState) => {
-                const handles = getYDocHandles();
-                if (!handles) return;
-                const maps = {
-                    players: handles.players,
-                    playerOrder: handles.playerOrder,
-                    zones: handles.zones,
-                    cards: handles.cards,
-                    zoneCardOrders: handles.zoneCardOrders,
-                    globalCounters: handles.globalCounters,
-                    battlefieldViewScale: handles.battlefieldViewScale,
-                } as SharedMaps;
-                handles.doc.transact(() => {
-                    // Players
-                    handles.players.forEach((_value: any, key: string) => {
-                        if (!Object.prototype.hasOwnProperty.call(state.players, key)) handles.players.delete(key);
-                    });
-                    Object.values(state.players).forEach((player) => yUpsertPlayer(maps, player));
-
-                    // Zones + ordering
-                    handles.zones.forEach((_value: any, key: string) => {
-                        if (!Object.prototype.hasOwnProperty.call(state.zones, key)) {
-                            handles.zones.delete(key);
-                            handles.zoneCardOrders.delete(key);
-                        }
-                    });
-                    Object.values(state.zones).forEach((zone) => yUpsertZone(maps, zone));
-                    Object.entries(state.zones).forEach(([id, zone]) => yReorderZoneCards(maps, id, zone.cardIds));
-
-                    // Cards
-                    handles.cards.forEach((_value: any, key: string) => {
-                        if (!Object.prototype.hasOwnProperty.call(state.cards, key)) {
-                            yRemoveCard(maps, key);
-                        }
-                    });
-                    Object.values(state.cards).forEach((card) => yUpsertCard(maps, card));
-
-                    // Global counters
-                    handles.globalCounters.forEach((_value: any, key: string) => {
-                        if (!Object.prototype.hasOwnProperty.call(state.globalCounters, key)) handles.globalCounters.delete(key);
-                    });
-                    Object.entries(state.globalCounters).forEach(([key, value]) => handles.globalCounters.set(key, value));
-
-                    // Battlefield view scale
-                    handles.battlefieldViewScale.forEach((_value: any, key: string) => {
-                        if (!Object.prototype.hasOwnProperty.call(state.battlefieldViewScale, key)) handles.battlefieldViewScale.delete(key);
-                    });
-                    Object.entries(state.battlefieldViewScale).forEach(([playerId, scale]) => {
-                        const clamped = Math.min(Math.max(scale, 0.5), 1);
-                        handles.battlefieldViewScale.set(playerId, clamped);
-                    });
-
-                    const MAX_PLAYERS_SYNC = 8;
-                    const allowedPlayers = new Set(Object.keys(state.players));
-                    const desiredOrder = (state.playerOrder ?? []).filter((id) => allowedPlayers.has(id)).slice(0, MAX_PLAYERS_SYNC);
-                    Array.from(allowedPlayers).sort().forEach((id) => {
-                        if (desiredOrder.length >= MAX_PLAYERS_SYNC) return;
-                        if (!desiredOrder.includes(id)) desiredOrder.push(id);
-                    });
-                    handles.playerOrder.delete(0, handles.playerOrder.length);
-                    if (desiredOrder.length) {
-                        handles.playerOrder.insert(0, desiredOrder);
-                    }
-                });
             };
 
             const buildLogContext = () => {
@@ -1122,57 +1055,61 @@ export const useGameStore = create<GameStore>()(
                         return;
                     }
 
-	                    set((current) => {
-	                        const nextCards = { ...current.cards };
-	                        const nextZones = { ...current.zones };
-
-	                        const ownedCards = Object.values(current.cards).filter(card => card.ownerId === playerId);
-	                        const libraryKeeps = nextZones[libraryZone.id]?.cardIds.filter(id => {
-	                            const card = nextCards[id];
-	                            return card && card.ownerId !== playerId;
-	                        }) ?? [];
-
-	                        const toLibrary: string[] = [];
-
-	                        ownedCards.forEach(card => {
-	                            const fromZone = nextZones[card.zoneId];
-	                            if (fromZone && fromZone.ownerId === playerId) {
-	                                const fromType = (fromZone as any).type as string;
-	                                if (fromType === ZONE.COMMANDER || fromType === 'command') {
-	                                    return;
-	                                }
-	                            }
-	                            if (fromZone) {
-	                                nextZones[card.zoneId] = {
-	                                    ...fromZone,
-	                                    cardIds: fromZone.cardIds.filter(id => id !== card.id),
-	                                };
-                            }
-
-                            if (card.isToken) {
-                                delete nextCards[card.id];
-                                return;
-                            }
-
-                            const resetCard = syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0);
-                            nextCards[card.id] = {
-                                ...resetCard,
-                                zoneId: libraryZone.id,
-                                tapped: false,
-                                faceDown: false,
-                                position: { x: 0, y: 0 },
-                                counters: enforceZoneCounterRules(resetCard.counters, libraryZone),
-                            };
-                            toLibrary.push(card.id);
-                        });
-
-                        const shuffled = [...libraryKeeps, ...toLibrary].sort(() => Math.random() - 0.5);
-                        nextZones[libraryZone.id] = { ...nextZones[libraryZone.id], cardIds: shuffled };
-
-                        return { cards: nextCards, zones: nextZones };
+                    const sharedApplied = applyShared((maps) => {
+                        yResetDeck(maps, playerId);
                     });
 
-                    syncSnapshotToShared(get());
+                    if (!sharedApplied) {
+                        set((current) => {
+                            const nextCards = { ...current.cards };
+                            const nextZones = { ...current.zones };
+
+                            const ownedCards = Object.values(current.cards).filter(card => card.ownerId === playerId);
+                            const libraryKeeps = nextZones[libraryZone.id]?.cardIds.filter(id => {
+                                const card = nextCards[id];
+                                return card && card.ownerId !== playerId;
+                            }) ?? [];
+
+                            const toLibrary: string[] = [];
+
+                            ownedCards.forEach(card => {
+                                const fromZone = nextZones[card.zoneId];
+                                if (fromZone && fromZone.ownerId === playerId) {
+                                    const fromType = (fromZone as any).type as string;
+                                    if (fromType === ZONE.COMMANDER || fromType === 'command') {
+                                        return;
+                                    }
+                                }
+                                if (fromZone) {
+                                    nextZones[card.zoneId] = {
+                                        ...fromZone,
+                                        cardIds: fromZone.cardIds.filter(id => id !== card.id),
+                                    };
+                                }
+
+                                if (card.isToken) {
+                                    delete nextCards[card.id];
+                                    return;
+                                }
+
+                                const resetCard = syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0);
+                                nextCards[card.id] = {
+                                    ...resetCard,
+                                    zoneId: libraryZone.id,
+                                    tapped: false,
+                                    faceDown: false,
+                                    position: { x: 0, y: 0 },
+                                    counters: enforceZoneCounterRules(resetCard.counters, libraryZone),
+                                };
+                                toLibrary.push(card.id);
+                            });
+
+                            const shuffled = [...libraryKeeps, ...toLibrary].sort(() => Math.random() - 0.5);
+                            nextZones[libraryZone.id] = { ...nextZones[libraryZone.id], cardIds: shuffled };
+
+                            return { cards: nextCards, zones: nextZones };
+                        });
+                    }
 
                     logPermission({ action: 'resetDeck', actorId: actor, allowed: true, details: { playerId } });
                     emitLog('deck.reset', { actorId: actor, playerId }, buildLogContext());
@@ -1196,30 +1133,34 @@ export const useGameStore = create<GameStore>()(
                         return;
                     }
 
-                    set((current) => {
-                        const nextCards = { ...current.cards };
-                        const nextZones: typeof current.zones = {};
-
-                        const removeIds = new Set(Object.values(current.cards).filter(card => card.ownerId === playerId).map(card => card.id));
-
-                        Object.values(current.zones).forEach(zone => {
-                            const filteredIds = zone.cardIds.filter(id => !removeIds.has(id));
-                            nextZones[zone.id] = { ...zone, cardIds: filteredIds };
-                        });
-
-                        removeIds.forEach(id => { delete nextCards[id]; });
-
-                        const nextPlayers = current.players[playerId]
-                            ? {
-                                ...current.players,
-                                [playerId]: { ...current.players[playerId], deckLoaded: false }
-                            }
-                            : current.players;
-
-                        return { cards: nextCards, zones: nextZones, players: nextPlayers };
+                    const sharedApplied = applyShared((maps) => {
+                        yUnloadDeck(maps, playerId);
                     });
 
-                    syncSnapshotToShared(get());
+                    if (!sharedApplied) {
+                        set((current) => {
+                            const nextCards = { ...current.cards };
+                            const nextZones: typeof current.zones = {};
+
+                            const removeIds = new Set(Object.values(current.cards).filter(card => card.ownerId === playerId).map(card => card.id));
+
+                            Object.values(current.zones).forEach(zone => {
+                                const filteredIds = zone.cardIds.filter(id => !removeIds.has(id));
+                                nextZones[zone.id] = { ...zone, cardIds: filteredIds };
+                            });
+
+                            removeIds.forEach(id => { delete nextCards[id]; });
+
+                            const nextPlayers = current.players[playerId]
+                                ? {
+                                    ...current.players,
+                                    [playerId]: { ...current.players[playerId], deckLoaded: false }
+                                }
+                                : current.players;
+
+                            return { cards: nextCards, zones: nextZones, players: nextPlayers };
+                        });
+                    }
 
                     logPermission({ action: 'unloadDeck', actorId: actor, allowed: true, details: { playerId } });
                     emitLog('deck.unload', { actorId: actor, playerId }, buildLogContext());
@@ -1348,67 +1289,27 @@ export const useGameStore = create<GameStore>()(
         },
         {
             name: 'snapstack-storage',
+            version: 2,
+            migrate: (persistedState: any, _version) => {
+                // v2: only persist identity/session bookkeeping; game state comes from Yjs.
+                return {
+                    playerIdsBySession: persistedState?.playerIdsBySession ?? {},
+                    sessionVersions: persistedState?.sessionVersions ?? {},
+                } as any;
+            },
+            partialize: (state) => ({
+                playerIdsBySession: state.playerIdsBySession,
+                sessionVersions: state.sessionVersions,
+            }),
             storage: createJSONStorage(createSafeStorage),
             onRehydrateStorage: () => (state) => {
-                if (state && state.cards) {
-                    const migratedCards: typeof state.cards = {};
-                    Object.values(state.cards).forEach(card => {
-                        let position = card.position;
-
-                        // Legacy top-left -> center
-                        if (state.positionFormat === 'top-left') {
-                            position = {
-                                x: position.x + (BASE_CARD_HEIGHT * CARD_ASPECT_RATIO) / 2,
-                                y: position.y + BASE_CARD_HEIGHT / 2
-                            };
-                        }
-
-                        // Convert any pixel-based coordinates to normalized.
-                        if (state.positionFormat !== 'normalized' || position.x > 1 || position.y > 1) {
-                            position = migratePositionToNormalized(position);
-                        }
-
-                        migratedCards[card.id] = {
-                            ...card,
-                            position,
-                        };
-                    });
-                    state.cards = migratedCards;
-                    state.positionFormat = 'normalized';
-                }
-                // Migrate legacy commander zone type from 'command' -> 'commander'
-                if (state?.zones) {
-                    const migratedZones: typeof state.zones = {};
-                    Object.values(state.zones).forEach(zone => {
-                        const isLegacyCommander = (zone as any).type === 'command';
-                        if (isLegacyCommander) {
-                            migratedZones[zone.id] = { ...zone, type: ZONE.COMMANDER };
-                        } else {
-                            migratedZones[zone.id] = zone;
-                        }
-                    });
-                    state.zones = migratedZones;
-                }
-                // Strip counters from any cards not on the battlefield to enforce counter rules on load
-                if (state?.cards && state?.zones) {
-                    const migratedCounters: typeof state.cards = {};
-                    Object.values(state.cards).forEach(card => {
-                        const zone = state.zones[card.zoneId];
-                        const counters = enforceZoneCounterRules(card.counters, zone);
-                        migratedCounters[card.id] = counters === card.counters ? card : { ...card, counters };
-                    });
-                    state.cards = migratedCounters;
-                }
                 if (!state) return;
 
-                if (!state.battlefieldViewScale) {
-                    state.battlefieldViewScale = {};
-                }
-                if (!state.playerOrder) {
-                    state.playerOrder = [];
-                }
                 if (!state.playerIdsBySession) {
                     state.playerIdsBySession = {};
+                }
+                if (!state.sessionVersions) {
+                    state.sessionVersions = {};
                 }
                 state.setHasHydrated(true);
             },

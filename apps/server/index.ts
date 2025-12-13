@@ -8,7 +8,6 @@ import * as decoding from "lib0/decoding";
 
 interface Env {
   WEBSOCKET_SERVER: DurableObjectNamespace;
-  WEBRTC_SIGNALING: DurableObjectNamespace;
   PING_INTERVAL?: string;
 }
 
@@ -18,26 +17,16 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname.replace(/\/+$/, "");
 
-    // WebRTC signaling endpoint
-    // Note: y-webrtc doesn't pass room in URL - rooms are managed via subscribe/unsubscribe messages
-    // We use a single global signaling DO that manages all room topics internally
-    if (pathname.startsWith("/webrtc")) {
-      if (request.headers.get("Upgrade") !== "websocket") {
-        return new Response("Expected Upgrade: websocket", { status: 426 });
-      }
-      // Use a single global signaling instance - rooms are topics within it
-      const id = env.WEBRTC_SIGNALING.idFromName("global-signaling");
-      const stub = env.WEBRTC_SIGNALING.get(id);
-      return stub.fetch(request);
-    }
-
     // Yjs sync endpoint (existing)
     if (pathname.startsWith("/signal")) {
       if (request.headers.get("Upgrade") !== "websocket") {
         return new Response("Expected Upgrade: websocket", { status: 426 });
       }
       const roomFromPath = pathname.startsWith("/signal/") ? pathname.slice("/signal/".length) : null;
-      const room = roomFromPath || url.searchParams.get("room") || "default";
+      const room = roomFromPath || url.searchParams.get("room");
+      if (!room) {
+        return new Response("Missing room name", { status: 400 });
+      }
       if (!UUID_REGEX.test(room)) {
         return new Response("Invalid room name", { status: 400 });
       }
@@ -225,7 +214,10 @@ export class SignalRoom extends DurableObject {
     const url = new URL(request.url);
     const pathname = url.pathname.replace(/\/+$/, "");
     const roomFromPath = pathname.startsWith("/signal/") ? pathname.slice("/signal/".length) : null;
-    const room = roomFromPath || url.searchParams.get("room") || "default";
+    const room = roomFromPath || url.searchParams.get("room");
+    if (!room) {
+      return new Response("Missing room name", { status: 400 });
+    }
     if (!UUID_REGEX.test(room)) {
       return new Response("Invalid room name", { status: 400 });
     }
@@ -273,7 +265,7 @@ export class SignalRoom extends DurableObject {
     ws.accept();
     let closed = false;
     // room name preserved for potential logging
-    const _roomNameForLog: RoomName = room || "default";
+    const _roomNameForLog: RoomName = room;
     void _roomNameForLog;
 
     this.conns.add(ws);
@@ -489,233 +481,5 @@ export class SignalRoom extends DurableObject {
       console.warn("[signal] awareness id decode failed", err);
     }
     return ids;
-  }
-}
-
-// =============================================================================
-// WebRTC Signaling Durable Object
-// Implements y-webrtc signaling protocol for P2P connection establishment
-// =============================================================================
-
-interface WebRTCMessage {
-  type: "subscribe" | "unsubscribe" | "publish" | "ping" | "pong";
-  topics?: string[];
-  topic?: string;
-  clients?: number;
-  [key: string]: unknown;
-}
-
-const WEBRTC_PING_INTERVAL_MS = 30_000;
-const WEBRTC_IDLE_TIMEOUT_MS = 60_000;
-
-export class WebRTCSignaling extends DurableObject {
-  // Map of topic -> Set of WebSocket connections subscribed to that topic
-  private topics: Map<string, Set<WebSocket>> = new Map();
-  // Map of WebSocket -> Set of topics it's subscribed to
-  private connTopics: Map<WebSocket, Set<string>> = new Map();
-  // Map of WebSocket -> last activity timestamp
-  private connActivity: Map<WebSocket, number> = new Map();
-  // All active connections
-  private conns: Set<WebSocket> = new Set();
-  // Heartbeat interval
-  private heartbeatInterval: number | null = null;
-
-  constructor(state: DurableObjectState, env: Env) {
-    super(state, env);
-    this.startHeartbeat();
-  }
-
-  private startHeartbeat() {
-    if (this.heartbeatInterval !== null) return;
-    this.heartbeatInterval = setInterval(() => {
-      const now = Date.now();
-      for (const [ws, lastActivity] of this.connActivity.entries()) {
-        if (now - lastActivity > WEBRTC_IDLE_TIMEOUT_MS) {
-          this.closeConnection(ws, 1000, "idle timeout");
-        } else {
-          // Send ping
-          try {
-            ws.send(JSON.stringify({ type: "pong" }));
-          } catch {
-            this.closeConnection(ws, 1000, "send error");
-          }
-        }
-      }
-    }, WEBRTC_PING_INTERVAL_MS) as unknown as number;
-  }
-
-  async fetch(_request: Request): Promise<Response> {
-    const { 0: client, 1: server } = new WebSocketPair();
-    this.handleConnection(server);
-    return new Response(null, { status: 101, webSocket: client });
-  }
-
-  private handleConnection(ws: WebSocket) {
-    ws.accept();
-    this.conns.add(ws);
-    this.connTopics.set(ws, new Set());
-    this.connActivity.set(ws, Date.now());
-
-    ws.addEventListener("close", () => {
-      this.cleanupConnection(ws);
-    });
-
-    ws.addEventListener("error", () => {
-      this.cleanupConnection(ws);
-    });
-
-    ws.addEventListener("message", (event) => {
-      this.connActivity.set(ws, Date.now());
-
-      let message: WebRTCMessage;
-      try {
-        const data = typeof event.data === "string" 
-          ? event.data 
-          : new TextDecoder().decode(event.data as ArrayBuffer);
-        message = JSON.parse(data);
-      } catch {
-        console.warn("[webrtc] invalid JSON message");
-        return;
-      }
-
-      switch (message.type) {
-        case "subscribe":
-          this.handleSubscribe(ws, message.topics || []);
-          break;
-
-        case "unsubscribe":
-          this.handleUnsubscribe(ws, message.topics || []);
-          break;
-
-        case "publish":
-          if (message.topic) {
-            this.handlePublish(ws, message.topic, message);
-          }
-          break;
-
-        case "ping":
-          try {
-            ws.send(JSON.stringify({ type: "pong" }));
-          } catch {
-            this.closeConnection(ws, 1000, "send error");
-          }
-          break;
-
-        case "pong":
-          // Client responded to our ping, connection is alive
-          break;
-      }
-    });
-  }
-
-  private handleSubscribe(ws: WebSocket, topicNames: string[]) {
-    const myTopics = this.connTopics.get(ws);
-    if (!myTopics) return;
-
-    for (const topicName of topicNames) {
-      // Add to topic
-      let topic = this.topics.get(topicName);
-      if (!topic) {
-        topic = new Set();
-        this.topics.set(topicName, topic);
-      }
-
-      // Notify existing subscribers about new peer
-      const existingCount = topic.size;
-      topic.add(ws);
-      myTopics.add(topicName);
-
-      // Tell the new subscriber how many peers are in the room
-      try {
-        ws.send(JSON.stringify({
-          type: "subscribe",
-          topics: [topicName],
-          clients: topic.size,
-        }));
-      } catch {
-        this.closeConnection(ws, 1000, "send error");
-        return;
-      }
-
-      // Notify existing peers that someone joined (they'll initiate WebRTC)
-      if (existingCount > 0) {
-        const notification = JSON.stringify({
-          type: "subscribe",
-          topics: [topicName],
-          clients: topic.size,
-        });
-        for (const peer of topic) {
-          if (peer !== ws) {
-            try {
-              peer.send(notification);
-            } catch {
-              this.closeConnection(peer, 1000, "send error");
-            }
-          }
-        }
-      }
-    }
-  }
-
-  private handleUnsubscribe(ws: WebSocket, topicNames: string[]) {
-    const myTopics = this.connTopics.get(ws);
-    if (!myTopics) return;
-
-    for (const topicName of topicNames) {
-      const topic = this.topics.get(topicName);
-      if (topic) {
-        topic.delete(ws);
-        myTopics.delete(topicName);
-
-        // Clean up empty topics
-        if (topic.size === 0) {
-          this.topics.delete(topicName);
-        }
-      }
-    }
-  }
-
-  private handlePublish(ws: WebSocket, topicName: string, message: WebRTCMessage) {
-    const topic = this.topics.get(topicName);
-    if (!topic) return;
-
-    // Forward message to all other subscribers in the topic
-    const serialized = JSON.stringify(message);
-    for (const peer of topic) {
-      if (peer !== ws) {
-        try {
-          peer.send(serialized);
-        } catch {
-          this.closeConnection(peer, 1000, "send error");
-        }
-      }
-    }
-  }
-
-  private cleanupConnection(ws: WebSocket) {
-    const myTopics = this.connTopics.get(ws);
-    if (myTopics) {
-      for (const topicName of myTopics) {
-        const topic = this.topics.get(topicName);
-        if (topic) {
-          topic.delete(ws);
-          if (topic.size === 0) {
-            this.topics.delete(topicName);
-          }
-        }
-      }
-    }
-    this.connTopics.delete(ws);
-    this.connActivity.delete(ws);
-    this.conns.delete(ws);
-  }
-
-  private closeConnection(ws: WebSocket, code: number, reason: string) {
-    try {
-      ws.close(code, reason);
-    } catch {
-      // Already closed
-    }
-    this.cleanupConnection(ws);
   }
 }
