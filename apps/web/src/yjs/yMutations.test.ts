@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import { describe, expect, it } from 'vitest';
-import { moveCard, removePlayer, SharedMaps, sharedSnapshot, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone } from './yMutations';
+import { moveCard, patchCard, removePlayer, SharedMaps, sharedSnapshot, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone } from './yMutations';
 import { ZONE } from '../constants/zones';
 import { Card, Player, Zone } from '../types';
 import { SNAP_GRID_SIZE } from '../lib/snapping';
@@ -16,6 +16,31 @@ const createSharedMaps = (): SharedMaps => {
     globalCounters: doc.getMap('globalCounters'),
     battlefieldViewScale: doc.getMap('battlefieldViewScale'),
   };
+};
+
+const createDocAndMaps = (): { doc: Y.Doc; maps: SharedMaps } => {
+  const doc = new Y.Doc();
+  const maps: SharedMaps = {
+    players: doc.getMap('players'),
+    playerOrder: doc.getArray('playerOrder'),
+    zones: doc.getMap('zones'),
+    cards: doc.getMap('cards'),
+    zoneCardOrders: doc.getMap('zoneCardOrders'),
+    globalCounters: doc.getMap('globalCounters'),
+    battlefieldViewScale: doc.getMap('battlefieldViewScale'),
+  };
+  return { doc, maps };
+};
+
+const measureTransactionUpdateBytes = (doc: Y.Doc, fn: () => void) => {
+  let bytes = 0;
+  const handler = (update: Uint8Array) => {
+    bytes += update.byteLength;
+  };
+  doc.on('update', handler);
+  doc.transact(fn);
+  doc.off('update', handler);
+  return bytes;
 };
 
 describe('moveCard', () => {
@@ -49,6 +74,88 @@ describe('moveCard', () => {
 
     const updatedZone = sharedSnapshot(maps).zones[zone.id];
     expect(updatedZone?.cardIds).toEqual(['c1']);
+  });
+});
+
+describe('Yjs update size regression', () => {
+  it('moveCard does not rewrite the whole doc', () => {
+    const { doc, maps } = createDocAndMaps();
+
+    const zone: Zone = {
+      id: 'z1',
+      type: ZONE.BATTLEFIELD,
+      ownerId: 'p1',
+      cardIds: [],
+    };
+    yUpsertZone(maps, zone);
+
+    const bigText = 'x'.repeat(5_000);
+
+    // Add 100 cards with large identity fields.
+    doc.transact(() => {
+      for (let i = 0; i < 100; i++) {
+        const id = `c${i}`;
+        const card: Card = {
+          id,
+          ownerId: 'p1',
+          controllerId: 'p1',
+          zoneId: zone.id,
+          name: `Card ${i}`,
+          oracleText: bigText,
+          tapped: false,
+          faceDown: false,
+          position: { x: 0.02 + i * 0.001, y: 0.02 + i * 0.001 },
+          rotation: 0,
+          counters: [],
+        };
+        zone.cardIds.push(id);
+        yUpsertCard(maps, card);
+      }
+    });
+
+    // Force a single collision to exercise the overlap-shift logic.
+    const bytes = measureTransactionUpdateBytes(doc, () => {
+      moveCard(maps, 'c0', zone.id, { x: 0.1, y: 0.1 });
+    });
+
+    // Should only touch the moved card (and at most a couple collision-adjusted cards).
+    // If this ever spikes, it likely means we're rewriting full card payloads again.
+    expect(bytes).toBeLessThan(10_000);
+  });
+
+  it('patchCard(tapped) stays small even with large card payloads', () => {
+    const { doc, maps } = createDocAndMaps();
+
+    const zone: Zone = {
+      id: 'z1',
+      type: ZONE.BATTLEFIELD,
+      ownerId: 'p1',
+      cardIds: ['c1'],
+    };
+    const card: Card = {
+      id: 'c1',
+      ownerId: 'p1',
+      controllerId: 'p1',
+      zoneId: zone.id,
+      name: 'Big Card',
+      oracleText: 'x'.repeat(10_000),
+      tapped: false,
+      faceDown: false,
+      position: { x: 0.1, y: 0.1 },
+      rotation: 0,
+      counters: [],
+    };
+
+    doc.transact(() => {
+      yUpsertZone(maps, zone);
+      yUpsertCard(maps, card);
+    });
+
+    const bytes = measureTransactionUpdateBytes(doc, () => {
+      patchCard(maps, card.id, { tapped: true });
+    });
+
+    expect(bytes).toBeLessThan(2_000);
   });
 });
 

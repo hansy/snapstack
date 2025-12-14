@@ -61,7 +61,15 @@ const writeCounters = (target: Y.Map<any>, counters: Counter[]) => {
   const seen = new Set<string>();
   counters.forEach((c) => {
     seen.add(c.type);
-    target.set(c.type, { type: c.type, count: c.count, color: c.color });
+    const existing = target.get(c.type);
+    const next = { type: c.type, count: c.count, color: c.color };
+    const same =
+      existing &&
+      typeof existing === 'object' &&
+      (existing as any).type === next.type &&
+      (existing as any).count === next.count &&
+      (existing as any).color === next.color;
+    if (!same) target.set(c.type, next);
   });
   target.forEach((_value, key) => {
     if (!seen.has(key as string)) target.delete(key as string);
@@ -248,6 +256,13 @@ const readCard = (maps: SharedMaps, cardId: string): Card | null => {
   if (!target) return null;
   const getVal = (key: string) => (target instanceof Y.Map ? target.get(key) : (target as any)[key]);
   const counters = readCounters(getVal('counters'));
+  const rawPosition = getVal('position');
+  const normalizedPosition =
+    rawPosition && typeof rawPosition.x === 'number' && typeof rawPosition.y === 'number'
+      ? rawPosition.x > 1 || rawPosition.y > 1
+        ? migratePositionToNormalized(rawPosition)
+        : clampNormalizedPosition(rawPosition)
+      : { x: 0.5, y: 0.5 };
   return {
     id: cardId,
     ownerId: getVal('ownerId'),
@@ -256,7 +271,7 @@ const readCard = (maps: SharedMaps, cardId: string): Card | null => {
     tapped: getVal('tapped'),
     faceDown: getVal('faceDown'),
     currentFaceIndex: getVal('currentFaceIndex'),
-    position: getVal('position') || { x: 0.5, y: 0.5 },
+    position: normalizedPosition,
     rotation: getVal('rotation'),
     counters,
     name: getVal('name'),
@@ -273,6 +288,90 @@ const readCard = (maps: SharedMaps, cardId: string): Card | null => {
     customText: getVal('customText'),
   } as Card;
 };
+
+export type CardPatch = Partial<
+  Pick<
+    Card,
+    | 'tapped'
+    | 'faceDown'
+    | 'controllerId'
+    | 'rotation'
+    | 'currentFaceIndex'
+    | 'position'
+    | 'counters'
+    | 'power'
+    | 'toughness'
+    | 'basePower'
+    | 'baseToughness'
+    | 'customText'
+  >
+>;
+
+const ensureCardMap = (maps: SharedMaps, cardId: string): Y.Map<any> | null => {
+  const existing = maps.cards.get(cardId);
+  if (existing instanceof Y.Map) return existing;
+
+  const card = readCard(maps, cardId);
+  if (!card) return null;
+
+  // Migrate legacy plain-object card into a Y.Map while preserving fields.
+  const next = new Y.Map<any>();
+  maps.cards.set(cardId, next);
+  writeCard(maps, card);
+  return maps.cards.get(cardId) as Y.Map<any>;
+};
+
+const setIfChanged = (target: Y.Map<any>, key: string, value: any) => {
+  const prev = target.get(key);
+  if (value === undefined) {
+    if (prev !== undefined) target.delete(key);
+    return;
+  }
+  if (key === 'position' && prev && typeof prev === 'object' && typeof value === 'object') {
+    const px = (prev as any).x;
+    const py = (prev as any).y;
+    const vx = (value as any).x;
+    const vy = (value as any).y;
+    if (typeof px === 'number' && typeof py === 'number' && typeof vx === 'number' && typeof vy === 'number') {
+      if (px === vx && py === vy) return;
+    }
+  } else if (prev === value) {
+    return;
+  }
+  target.set(key, value);
+};
+
+export function patchCard(maps: SharedMaps, cardId: string, updates: CardPatch) {
+  const target = ensureCardMap(maps, cardId);
+  if (!target) return;
+
+  if ('tapped' in updates) setIfChanged(target, 'tapped', updates.tapped);
+  if ('faceDown' in updates) setIfChanged(target, 'faceDown', updates.faceDown);
+  if ('controllerId' in updates) setIfChanged(target, 'controllerId', updates.controllerId);
+  if ('rotation' in updates) setIfChanged(target, 'rotation', updates.rotation);
+  if ('currentFaceIndex' in updates) setIfChanged(target, 'currentFaceIndex', updates.currentFaceIndex ?? 0);
+  if ('customText' in updates) setIfChanged(target, 'customText', updates.customText);
+  if ('power' in updates) setIfChanged(target, 'power', updates.power);
+  if ('toughness' in updates) setIfChanged(target, 'toughness', updates.toughness);
+  if ('basePower' in updates) setIfChanged(target, 'basePower', updates.basePower);
+  if ('baseToughness' in updates) setIfChanged(target, 'baseToughness', updates.baseToughness);
+
+  if ('position' in updates && updates.position) {
+    const normalized =
+      updates.position.x > 1 || updates.position.y > 1
+        ? migratePositionToNormalized(updates.position)
+        : clampNormalizedPosition(updates.position);
+    setIfChanged(target, 'position', normalized);
+  }
+
+  if ('counters' in updates) {
+    const zoneId = target.get('zoneId') as string | undefined;
+    const zone = zoneId ? readZone(maps, zoneId) : null;
+    const nextCounters = enforceZoneCounterRules(Array.isArray(updates.counters) ? updates.counters : [], zone || undefined);
+    const countersMap = ensureChildMap(target, 'counters');
+    writeCounters(countersMap, nextCounters);
+  }
+}
 
 const getCardsSnapshot = (maps: SharedMaps): Record<string, Card> => {
   const result: Record<string, Card> = {};
@@ -355,96 +454,99 @@ export function removeCard(maps: SharedMaps, cardId: string) {
 }
 
 export function moveCard(maps: SharedMaps, cardId: string, toZoneId: string, position?: { x: number; y: number }) {
-  const currentCard = readCard(maps, cardId);
-  if (!currentCard) return;
-
-  const card =
-    currentCard.position.x > 1 || currentCard.position.y > 1
-      ? { ...currentCard, position: migratePositionToNormalized(currentCard.position) }
-      : currentCard;
-  if (card !== currentCard) {
-    writeCard(maps, card);
-  }
+  const card = readCard(maps, cardId);
+  if (!card) return;
 
   const fromZoneId = card.zoneId;
   const fromZone = readZone(maps, fromZoneId);
   const toZone = readZone(maps, toZoneId);
   if (!fromZone || !toZone) return;
 
-  const normalizedInput = position && (position.x > 1 || position.y > 1) ? migratePositionToNormalized(position) : position;
-  let newPosition = clampNormalizedPosition(normalizedInput || card.position);
-  const cardsCopy = getCardsSnapshot(maps);
-  Object.entries(cardsCopy).forEach(([id, c]) => {
-    if (c.position.x > 1 || c.position.y > 1) {
-      const normalized = { ...c, position: migratePositionToNormalized(c.position) };
-      cardsCopy[id] = normalized;
-      writeCard(maps, normalized);
-    }
-  });
+  // Ensure we operate on a Y.Map-backed card (migrates legacy plain objects).
+  // Do this before touching zone order so migration doesn't re-add the card after we remove it.
+  const target = ensureCardMap(maps, cardId);
+  if (!target) return;
+
+  const normalizedInput = position
+    ? position.x > 1 || position.y > 1
+      ? migratePositionToNormalized(position)
+      : clampNormalizedPosition(position)
+    : undefined;
+  const newPosition = clampNormalizedPosition(normalizedInput ?? card.position);
+
   const leavingBattlefield = fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
-  const resetToFront = leavingBattlefield ? syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0) : card;
 
-  // If moving to battlefield, snap and resolve collisions
+  // If moving to battlefield with an explicit position, resolve collisions by shifting any exact-overlap cards down.
   if (toZone.type === ZONE.BATTLEFIELD && position) {
-    const otherIds = ensureZoneOrder(maps, toZone.id, toZone.cardIds).toArray().filter((id) => id !== cardId);
-    for (const otherId of otherIds) {
-      const otherCard = cardsCopy[otherId];
-      if (!otherCard) continue;
+    const toOrder = ensureZoneOrder(maps, toZone.id, toZone.cardIds);
+    const otherIds = toOrder.toArray().filter((id) => id !== cardId);
+    const key = (p: { x: number; y: number }) => `${p.x.toFixed(4)}:${p.y.toFixed(4)}`;
+    const occupied = new Set<string>();
+    const positions: Record<string, { x: number; y: number }> = {};
 
-      if (positionsRoughlyEqual(otherCard.position, newPosition)) {
-        let candidateY = otherCard.position.y + GRID_STEP_Y;
-        const candidateX = newPosition.x;
-        let occupied = true;
-        while (occupied) {
-          occupied = false;
-          for (const checkId of otherIds) {
-            if (checkId === otherId) continue;
-            const checkCard = cardsCopy[checkId];
-            if (!checkCard) continue;
-            if (positionsRoughlyEqual(checkCard.position, { x: candidateX, y: candidateY })) {
-              candidateY += GRID_STEP_Y;
-              occupied = true;
-              break;
-            }
-          }
-        }
-        cardsCopy[otherId] = { ...otherCard, position: clampNormalizedPosition({ ...otherCard.position, x: candidateX, y: candidateY }) };
-      }
+    for (const otherId of otherIds) {
+      const otherCard = readCard(maps, otherId);
+      if (!otherCard) continue;
+      positions[otherId] = otherCard.position;
+      occupied.add(key(otherCard.position));
     }
+
+    const reserved = key(newPosition);
+    occupied.add(reserved);
+
+    const moved: Array<{ id: string; position: { x: number; y: number } }> = [];
+    for (const otherId of otherIds) {
+      const otherPos = positions[otherId];
+      if (!otherPos) continue;
+      if (!positionsRoughlyEqual(otherPos, newPosition)) continue;
+
+      const oldKey = key(otherPos);
+      let candidate = clampNormalizedPosition({ x: newPosition.x, y: otherPos.y + GRID_STEP_Y });
+      let attempts = 0;
+      while (occupied.has(key(candidate)) && attempts < 200) {
+        candidate = clampNormalizedPosition({ x: candidate.x, y: candidate.y + GRID_STEP_Y });
+        attempts += 1;
+      }
+      if (attempts >= 200) continue;
+
+      if (oldKey !== reserved) occupied.delete(oldKey);
+      occupied.add(key(candidate));
+      positions[otherId] = candidate;
+      moved.push({ id: otherId, position: candidate });
+    }
+
+    moved.forEach(({ id, position }) => patchCard(maps, id, { position }));
   }
 
-  // Apply collision adjustments back
-  Object.entries(cardsCopy).forEach(([id, c]) => {
-    if (maps.cards.get(id)) {
-      writeCard(maps, c);
-    }
-  });
-
-  // Remove from old zone
+  // Update zone order first.
   const fromOrder = ensureZoneOrder(maps, fromZoneId, fromZone.cardIds);
   removeFromOrder(fromOrder, cardId);
-  const nextCounters = enforceZoneCounterRules(card.counters, toZone);
-  const nextCard = leavingBattlefield ? resetToFront : card;
-  const movingWithinSameZone = fromZoneId === toZoneId;
-  const nextCardState = {
-    ...nextCard,
-    zoneId: toZoneId,
-    position: newPosition,
-    tapped: toZone.type === ZONE.BATTLEFIELD ? card.tapped : false,
-    counters: nextCounters,
-  };
-
-  // If we're staying in the same zone, just move and ensure the id isn't duplicated
   const toOrder = ensureZoneOrder(maps, toZoneId, toZone.cardIds);
-  if (movingWithinSameZone) {
-    toOrder.push([cardId]);
-    writeCard(maps, nextCardState);
+  removeFromOrder(toOrder, cardId);
+  toOrder.push([cardId]);
+
+  // Patch card state without rewriting identity fields.
+  setIfChanged(target, 'zoneId', toZoneId);
+
+  const nextCounters = enforceZoneCounterRules(card.counters, toZone);
+  const nextTapped = toZone.type === ZONE.BATTLEFIELD ? card.tapped : false;
+
+  if (leavingBattlefield) {
+    const resetToFront = syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0);
+    patchCard(maps, cardId, {
+      position: newPosition,
+      tapped: nextTapped,
+      counters: nextCounters,
+      currentFaceIndex: 0,
+      power: resetToFront.power,
+      toughness: resetToFront.toughness,
+      basePower: resetToFront.basePower,
+      baseToughness: resetToFront.baseToughness,
+    });
     return;
   }
 
-  // Add to new zone
-  toOrder.push([cardId]);
-  writeCard(maps, nextCardState);
+  patchCard(maps, cardId, { position: newPosition, tapped: nextTapped, counters: nextCounters });
 }
 
 export function transformCard(maps: SharedMaps, cardId: string, faceIndex?: number) {
@@ -461,7 +563,14 @@ export function transformCard(maps: SharedMaps, cardId: string, faceIndex?: numb
       : (getCurrentFaceIndex(card) + 1) % faces.length
     : 0;
 
-  writeCard(maps, syncCardStatsToFace(card, targetIndex));
+  const next = syncCardStatsToFace(card, targetIndex);
+  patchCard(maps, cardId, {
+    currentFaceIndex: next.currentFaceIndex,
+    power: next.power,
+    toughness: next.toughness,
+    basePower: next.basePower,
+    baseToughness: next.baseToughness,
+  });
 }
 
 export function addCounterToCard(maps: SharedMaps, cardId: string, counter: { type: string; count: number; color?: string }) {
@@ -470,7 +579,7 @@ export function addCounterToCard(maps: SharedMaps, cardId: string, counter: { ty
   const zone = readZone(maps, card.zoneId);
   if (!zone || zone.type !== ZONE.BATTLEFIELD) return;
   const merged = mergeCounters(card.counters, counter);
-  writeCard(maps, { ...card, counters: merged });
+  patchCard(maps, cardId, { counters: merged });
 }
 
 export function removeCounterFromCard(maps: SharedMaps, cardId: string, counterType: string) {
@@ -479,7 +588,7 @@ export function removeCounterFromCard(maps: SharedMaps, cardId: string, counterT
   const zone = readZone(maps, card.zoneId);
   if (!zone || zone.type !== ZONE.BATTLEFIELD) return;
   const next = card.counters.map((c) => (c.type === counterType ? { ...c, count: c.count - 1 } : c)).filter((c) => c.count > 0);
-  writeCard(maps, { ...card, counters: next });
+  patchCard(maps, cardId, { counters: next });
 }
 
 export function reorderZoneCards(maps: SharedMaps, zoneId: string, orderedCardIds: string[]) {

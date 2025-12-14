@@ -58,28 +58,28 @@ export const LoadDeckModal: React.FC<LoadDeckModalProps> = ({ isOpen, onClose, p
                 });
             }
 
-            // Batch all card additions into a single Yjs transaction
-            // This reduces 100+ network messages to 1, dramatically improving sync performance
-            batchSharedMutations(() => {
-                fetchResult.cards.forEach(cardData => {
-                    // Use existing zones if present (handles legacy '-command' ids)
-                    const libraryZone = getZoneByType(zones, playerId, ZONE.LIBRARY);
-                    const commanderZone = getZoneByType(zones, playerId, ZONE.COMMANDER);
+            // Chunk into multiple transactions to avoid oversized websocket messages.
+            const libraryZone = getZoneByType(zones, playerId, ZONE.LIBRARY);
+            const commanderZone = getZoneByType(zones, playerId, ZONE.COMMANDER);
+            const libraryZoneId = libraryZone?.id ?? `${playerId}-${ZONE.LIBRARY}`;
+            const commanderZoneId = commanderZone?.id ?? `${playerId}-${ZONE.COMMANDER}`;
 
-                    let zoneId = libraryZone?.id ?? `${playerId}-${ZONE.LIBRARY}`;
-                    if (cardData.section === 'commander') {
-                        zoneId = commanderZone?.id ?? `${playerId}-${ZONE.COMMANDER}`;
-                    }
-
-                    const newCard = createCardFromImport(cardData, playerId, zoneId);
-                    // Override faceDown for library
-                    if (zoneId.includes(ZONE.LIBRARY)) {
-                        newCard.faceDown = true;
-                    }
-
-                    addCard(newCard);
+            const CHUNK_SIZE = 20;
+            for (let i = 0; i < fetchResult.cards.length; i += CHUNK_SIZE) {
+                const chunk = fetchResult.cards.slice(i, i + CHUNK_SIZE);
+                batchSharedMutations(() => {
+                    chunk.forEach(cardData => {
+                        const zoneId = cardData.section === 'commander' ? commanderZoneId : libraryZoneId;
+                        const newCard = createCardFromImport(cardData, playerId, zoneId);
+                        if (zoneId === libraryZoneId) {
+                            newCard.faceDown = true;
+                        }
+                        addCard(newCard);
+                    });
                 });
+            }
 
+            batchSharedMutations(() => {
                 setDeckLoaded(playerId, true);
                 shuffleLibrary(playerId, playerId);
             });

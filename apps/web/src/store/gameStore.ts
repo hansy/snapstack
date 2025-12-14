@@ -11,7 +11,7 @@ import { decrementCounter, enforceZoneCounterRules, isBattlefieldZone, mergeCoun
 import { emitLog, clearLogs } from '../logging/logStore';
 import { destroySession, getSessionHandles, runWithSharedDoc } from '../yjs/docManager';
 import { isApplyingRemoteUpdate } from '../yjs/sync';
-import { addCounterToCard as yAddCounterToCard, duplicateCard as yDuplicateCard, moveCard as yMoveCard, patchPlayer as yPatchPlayer, removeCard as yRemoveCard, removeCounterFromCard as yRemoveCounterFromCard, removePlayer as yRemovePlayer, reorderZoneCards as yReorderZoneCards, resetDeck as yResetDeck, setBattlefieldViewScale as ySetBattlefieldViewScale, sharedSnapshot, transformCard as yTransformCard, unloadDeck as yUnloadDeck, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone, SharedMaps } from '../yjs/yMutations';
+import { addCounterToCard as yAddCounterToCard, duplicateCard as yDuplicateCard, moveCard as yMoveCard, patchCard as yPatchCard, patchPlayer as yPatchPlayer, removeCard as yRemoveCard, removeCounterFromCard as yRemoveCounterFromCard, removePlayer as yRemovePlayer, reorderZoneCards as yReorderZoneCards, resetDeck as yResetDeck, setBattlefieldViewScale as ySetBattlefieldViewScale, sharedSnapshot, transformCard as yTransformCard, unloadDeck as yUnloadDeck, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone, SharedMaps } from '../yjs/yMutations';
 import { bumpPosition, clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_Y, migratePositionToNormalized, positionsRoughlyEqual } from '../lib/positions';
 
 interface GameStore extends GameState {
@@ -349,6 +349,20 @@ export const useGameStore = create<GameStore>()(
                     const actor = actorId ?? get().myPlayerId;
                     const cardBefore = get().cards[id];
 
+                    // `updateCard` is intentionally limited to battlefield-only card state edits.
+                    // Movement and ordering must go through `moveCard` so zone orders stay consistent.
+                    if (
+                        Object.prototype.hasOwnProperty.call(updates, 'zoneId') ||
+                        Object.prototype.hasOwnProperty.call(updates, 'position') ||
+                        Object.prototype.hasOwnProperty.call(updates, 'counters')
+                    ) {
+                        console.warn('[updateCard] Unsupported fields (use moveCard / addCounterToCard instead)', {
+                            cardId: id,
+                            fields: Object.keys(updates),
+                        });
+                        return;
+                    }
+
                     // Log P/T changes before applying update
                     if (cardBefore) {
                         const newPower = updates.power ?? cardBefore.power;
@@ -407,7 +421,24 @@ export const useGameStore = create<GameStore>()(
                                 { preserveExisting: true }
                             );
 
-                        yUpsertCard(maps, cardWithFace);
+                        const patch: any = {};
+                        ([
+                            'power',
+                            'toughness',
+                            'basePower',
+                            'baseToughness',
+                            'customText',
+                            'faceDown',
+                            'currentFaceIndex',
+                            'rotation',
+                        ] as const).forEach((key) => {
+                            if ((cardWithFace as any)[key] !== (cardBefore as any)[key]) {
+                                patch[key] = (cardWithFace as any)[key];
+                            }
+                        });
+                        if (Object.keys(patch).length) {
+                            yPatchCard(maps, id, patch);
+                        }
                     })) return;
 
                     set((state) => {
@@ -533,13 +564,7 @@ export const useGameStore = create<GameStore>()(
                     // Apply to Yjs (if connected) but always continue to update local state
                     // This "dual-write" ensures immediate visual feedback while Yjs syncs in background
                     applyShared((maps) => {
-                        const snapshot = sharedSnapshot(maps);
-                        const sharedCard = snapshot.cards[cardId];
-                        const sharedFrom = snapshot.zones[fromZoneId];
-                        const sharedTo = snapshot.zones[toZoneId];
-                        if (!sharedCard || !sharedFrom || !sharedTo) return;
-
-                        const tokenLeavingBattlefield = sharedCard.isToken && sharedTo.type !== ZONE.BATTLEFIELD;
+                        const tokenLeavingBattlefield = card.isToken && toZone.type !== ZONE.BATTLEFIELD;
                         if (tokenLeavingBattlefield) {
                             yRemoveCard(maps, cardId);
                             return;
@@ -548,27 +573,21 @@ export const useGameStore = create<GameStore>()(
                         yMoveCard(maps, cardId, toZoneId, position);
 
                         if (controlWillChange) {
-                            const movedCard = sharedSnapshot(maps).cards[cardId];
-                            if (movedCard && movedCard.controllerId !== nextControllerId) {
-                                yUpsertCard(maps, { ...movedCard, controllerId: nextControllerId });
-                            }
+                            yPatchCard(maps, cardId, { controllerId: nextControllerId });
                         }
 
                         // Determine new faceDown state
                         let newFaceDown = opts?.faceDown;
                         if (newFaceDown === undefined) {
                             // If not specified, default to false unless moving between battlefields
-                            const isBattlefieldToBattlefield = sharedFrom.type === ZONE.BATTLEFIELD && sharedTo.type === ZONE.BATTLEFIELD;
+                            const isBattlefieldToBattlefield = fromZone.type === ZONE.BATTLEFIELD && toZone.type === ZONE.BATTLEFIELD;
                             if (!isBattlefieldToBattlefield) {
                                 newFaceDown = false;
                             }
                         }
 
                         if (newFaceDown !== undefined) {
-                            const movedCard = sharedSnapshot(maps).cards[cardId];
-                            if (movedCard && movedCard.faceDown !== newFaceDown) {
-                                yUpsertCard(maps, { ...movedCard, faceDown: newFaceDown });
-                            }
+                            yPatchCard(maps, cardId, { faceDown: newFaceDown });
                         }
                     });
 
@@ -759,13 +778,7 @@ export const useGameStore = create<GameStore>()(
                     }
 
                     if (applyShared((maps) => {
-                        const snapshot = sharedSnapshot(maps);
-                        const sharedCard = snapshot.cards[cardId];
-                        const sharedFrom = snapshot.zones[fromZoneId];
-                        const sharedTo = snapshot.zones[toZoneId];
-                        if (!sharedCard || !sharedFrom || !sharedTo) return;
-
-                        const tokenLeavingBattlefield = sharedCard.isToken && sharedTo.type !== ZONE.BATTLEFIELD;
+                        const tokenLeavingBattlefield = card.isToken && toZone.type !== ZONE.BATTLEFIELD;
                         if (tokenLeavingBattlefield) {
                             yRemoveCard(maps, cardId);
                             return;
@@ -774,14 +787,12 @@ export const useGameStore = create<GameStore>()(
                         yMoveCard(maps, cardId, toZoneId);
 
                         if (controlWillChange) {
-                            const movedCard = sharedSnapshot(maps).cards[cardId];
-                            if (movedCard && movedCard.controllerId !== nextControllerId) {
-                                yUpsertCard(maps, { ...movedCard, controllerId: nextControllerId });
-                            }
+                            yPatchCard(maps, cardId, { controllerId: nextControllerId });
                         }
 
                         // place at bottom (front) of toZone
-                        const toOrder = sharedSnapshot(maps).zones[toZoneId]?.cardIds ?? [];
+                        const snapshot = sharedSnapshot(maps);
+                        const toOrder = snapshot.zones[toZoneId]?.cardIds ?? [];
                         const reordered = [cardId, ...toOrder.filter((id) => id !== cardId)];
                         yReorderZoneCards(maps, toZoneId, reordered);
                     })) return;
@@ -955,12 +966,7 @@ export const useGameStore = create<GameStore>()(
                     const newTapped = !card.tapped;
                     emitLog('card.tap', { actorId: actor, cardId, zoneId: card.zoneId, tapped: newTapped, cardName: card.name }, buildLogContext());
 
-                    if (applyShared((maps) => {
-                        const snapshot = sharedSnapshot(maps);
-                        const current = snapshot.cards[cardId];
-                        if (!current) return;
-                        yUpsertCard(maps, { ...current, tapped: !current.tapped });
-                    })) return;
+                    if (applyShared((maps) => yPatchCard(maps, cardId, { tapped: newTapped }))) return;
 
                     set((state) => {
                         const next = state.cards[cardId];
@@ -979,7 +985,7 @@ export const useGameStore = create<GameStore>()(
                         const snapshot = sharedSnapshot(maps);
                         Object.values(snapshot.cards).forEach((card) => {
                             if (card.controllerId === playerId && card.tapped) {
-                                yUpsertCard(maps, { ...card, tapped: false });
+                                yPatchCard(maps, card.id, { tapped: false });
                             }
                         });
                     })) return;
