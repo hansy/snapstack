@@ -333,12 +333,11 @@ const writeCard = (maps: SharedMaps, card: Card) => {
   target.set('faceDown', card.faceDown);
   target.set('knownToAll', Boolean(card.knownToAll));
   target.set('revealedToAll', Boolean(card.revealedToAll));
-  target.set(
-    'revealedTo',
-    Array.isArray(card.revealedTo)
-      ? Array.from(new Set(card.revealedTo.filter((id) => typeof id === 'string'))).slice(0, MAX_REVEALED_TO)
-      : undefined
-  );
+  const revealedTo = Array.isArray(card.revealedTo)
+    ? Array.from(new Set(card.revealedTo.filter((id) => typeof id === 'string'))).slice(0, MAX_REVEALED_TO)
+    : undefined;
+  if (revealedTo === undefined) target.delete('revealedTo');
+  else target.set('revealedTo', revealedTo);
   target.set('currentFaceIndex', card.currentFaceIndex ?? 0);
   target.set('position', normalizedPosition);
   target.set('rotation', card.rotation);

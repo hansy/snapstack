@@ -1180,9 +1180,13 @@ export const useGameStore = create<GameStore>()(
                         updates.revealedToAll = true;
                         updates.revealedTo = [];
                     } else {
-                        const to = Array.isArray(reveal.to) ? reveal.to.filter((id) => typeof id === 'string' && id !== card.ownerId) : [];
+                        const MAX_REVEALED_TO = 8;
+                        const to = Array.isArray(reveal.to)
+                            ? reveal.to.filter((id) => typeof id === 'string' && id !== card.ownerId)
+                            : [];
                         updates.revealedToAll = false;
-                        updates.revealedTo = Array.from(new Set([...(card.revealedTo ?? []), ...to]));
+                        const merged = Array.from(new Set([...(card.revealedTo ?? []), ...to]));
+                        updates.revealedTo = merged.slice(Math.max(0, merged.length - MAX_REVEALED_TO));
                     }
 
                     if (applyShared((maps) => {

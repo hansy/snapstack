@@ -37,6 +37,11 @@ export const OpponentLibraryRevealsModal: React.FC<
     return visible.reverse();
   }, [zone, cards, myPlayerId]);
 
+  const actualTopCardId = React.useMemo(() => {
+    if (!zone || zone.type !== ZONE.LIBRARY) return null;
+    return zone.cardIds.length ? zone.cardIds[zone.cardIds.length - 1] : null;
+  }, [zone]);
+
   // If the reveal disappears while open, close (per UX request: only open when there's something).
   React.useEffect(() => {
     if (!isOpen) return;
@@ -63,12 +68,12 @@ export const OpponentLibraryRevealsModal: React.FC<
             {revealedCardIds.map((id, index) => {
               const card = cards[id];
               if (!card) return null;
-              const isTop = index === 0;
+              const isActualTop = Boolean(actualTopCardId && id === actualTopCardId);
               return (
                 <div key={id} className="relative shrink-0">
-                  {isTop && (
+                  {index === 0 && (
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-10">
-                      Top
+                      {isActualTop ? "Top" : "Topmost revealed"}
                     </div>
                   )}
                   <div className={cn("w-[150px] h-[210px] rounded-lg shadow-lg")}>
@@ -88,4 +93,3 @@ export const OpponentLibraryRevealsModal: React.FC<
     </Dialog>
   );
 };
-

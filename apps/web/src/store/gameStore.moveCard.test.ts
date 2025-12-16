@@ -191,6 +191,24 @@ describe('gameStore move/tap interactions', () => {
     expect(next.c2.knownToAll).toBe(false);
   });
 
+  it('caps revealedTo recipients locally to avoid divergence', () => {
+    const hand = makeZone('hand-me', 'HAND', 'me', ['cR']);
+    const card = {
+      ...makeCard('cR', hand.id, 'me', false),
+      revealedToAll: false,
+      revealedTo: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
+    };
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [hand.id]: hand },
+      cards: { ...state.cards, [card.id]: card },
+    }));
+
+    useGameStore.getState().setCardReveal(card.id, { to: ['p9', 'p10', 'p11'] }, 'me');
+    const updated = useGameStore.getState().cards[card.id];
+    expect((updated.revealedTo ?? []).length).toBeLessThanOrEqual(8);
+  });
+
   it('reorders cards within a zone for the owner', () => {
     const graveyard = makeZone('gy-me', 'GRAVEYARD', 'me', ['c3', 'c4', 'c5']);
     const cardsInZone = [
