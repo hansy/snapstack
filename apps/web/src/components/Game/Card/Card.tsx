@@ -21,6 +21,7 @@ interface CardProps {
   rotateLabel?: boolean;
   disableDrag?: boolean;
   isDragging?: boolean;
+  highlightColor?: string;
 }
 
 export interface CardViewProps {
@@ -38,6 +39,8 @@ export interface CardViewProps {
   onClick?: (e: React.MouseEvent) => void;
   onMouseEnter?: (e: React.MouseEvent<HTMLDivElement>) => void;
   onMouseLeave?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  highlightColor?: string;
+  disableHoverAnimation?: boolean;
 }
 
 export const CardView = React.memo(
@@ -58,6 +61,8 @@ export const CardView = React.memo(
         imageTransform,
         preferArtCrop = false,
         rotateLabel,
+        highlightColor,
+        disableHoverAnimation,
         ...props
       },
       ref
@@ -80,11 +85,15 @@ export const CardView = React.memo(
             CARD_HEIGHT_CLASS,
             CARD_ASPECT_CLASS,
             "bg-zinc-800 rounded-lg border border-zinc-700 shadow-md flex flex-col items-center justify-center select-none relative z-0",
-            !isDragging &&
-              "hover:scale-105 hover:shadow-xl hover:z-10 hover:border-indigo-500/50 cursor-grab active:cursor-grabbing",
+            !isDragging && !disableHoverAnimation &&
+            "hover:scale-105 hover:shadow-xl hover:z-10 hover:border-indigo-500/50 cursor-grab active:cursor-grabbing",
             card.tapped && "border-zinc-600 bg-zinc-900",
             isDragging &&
-              "shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-2 ring-indigo-500 cursor-grabbing",
+            "shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-2 ring-indigo-500 cursor-grabbing",
+            highlightColor === "rose" && "ring-2 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)]",
+            highlightColor === "violet" && "ring-2 ring-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.5)]",
+            highlightColor === "sky" && "ring-2 ring-sky-500 shadow-[0_0_15px_rgba(14,165,233,0.5)]",
+            highlightColor === "amber" && "ring-2 ring-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]",
             className
           )}
           onDoubleClick={onDoubleClick}
@@ -121,6 +130,7 @@ const CardInner: React.FC<CardProps> = ({
   rotateLabel,
   disableDrag,
   isDragging: propIsDragging,
+  highlightColor,
 }) => {
   const { showPreview, hidePreview, toggleLock } = useCardPreview();
   const {
@@ -186,7 +196,12 @@ const CardInner: React.FC<CardProps> = ({
 
       const rect = e.currentTarget.getBoundingClientRect();
 
-      if (zoneType === ZONE.HAND || zoneType === ZONE.COMMANDER) {
+      if (zoneType === ZONE.HAND) {
+        // Only allowing hover jump/preview for MY hand (or if I own the card)
+        if (card.ownerId === myPlayerId) {
+          showPreview(card, rect);
+        }
+      } else if (zoneType === ZONE.COMMANDER) {
         showPreview(card, rect);
       } else if (zoneType === ZONE.BATTLEFIELD) {
         hoverTimeoutRef.current = setTimeout(() => {
@@ -209,7 +224,8 @@ const CardInner: React.FC<CardProps> = ({
   const handleClick = React.useCallback(
     (e: React.MouseEvent) => {
       if (zoneType !== ZONE.BATTLEFIELD || isDragging) return;
-      if (card.controllerId !== myPlayerId) return;
+      // Removed controller check to allow locking any card
+      // if (card.controllerId !== myPlayerId) return;
 
       const rect = e.currentTarget.getBoundingClientRect();
       toggleLock(card, rect);
@@ -233,6 +249,9 @@ const CardInner: React.FC<CardProps> = ({
     };
   }, [hidePreview]);
 
+  // Disable hover animation for opponent hands
+  const disableHoverAnimation = zoneType === ZONE.HAND && card.ownerId !== myPlayerId;
+
   return (
     <CardView
       ref={setNodeRef}
@@ -250,6 +269,8 @@ const CardInner: React.FC<CardProps> = ({
       imageTransform={imageTransform}
       preferArtCrop={useArtCrop}
       rotateLabel={rotateLabel}
+      highlightColor={highlightColor}
+      disableHoverAnimation={disableHoverAnimation}
       {...listeners}
       {...attributes}
     />

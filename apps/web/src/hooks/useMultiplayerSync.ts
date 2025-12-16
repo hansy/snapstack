@@ -20,12 +20,22 @@ import {
   setActiveSession,
   flushPendingMutations,
 } from "../yjs/docManager";
-import { sharedSnapshot, type SharedMaps, upsertPlayer, upsertZone } from "../yjs/yMutations";
+import {
+  patchPlayer,
+  sharedSnapshot,
+  type SharedMaps,
+  upsertPlayer,
+  upsertZone,
+} from "../yjs/yMutations";
 import {
   isApplyingRemoteUpdate,
   sanitizeSharedSnapshot,
   withApplyingRemoteUpdate,
 } from "../yjs/sync";
+import {
+  computePlayerColors,
+  resolveOrderedPlayerIds,
+} from "../lib/playerColors";
 
 export type SyncStatus = "connecting" | "connected";
 
@@ -171,7 +181,25 @@ export function useMultiplayerSync(sessionId: string) {
         { type: ZONE.COMMANDER, shouldCreate: !hasCommanderZone },
       ];
 
-      if (playerExists && zoneSpecs.every((z) => !z.shouldCreate)) return;
+      const orderedIds = resolveOrderedPlayerIds(
+        snapshot.players as any,
+        (snapshot.playerOrder as any) ?? []
+      );
+      const orderedIdsWithLocal = orderedIds.includes(playerId)
+        ? orderedIds
+        : [...orderedIds, playerId];
+      const desiredColors = computePlayerColors(orderedIdsWithLocal);
+
+      const missingAnyColor = Object.values(snapshot.players).some(
+        (p: any) => !p?.color
+      );
+
+      if (
+        playerExists &&
+        zoneSpecs.every((z) => !z.shouldCreate) &&
+        !missingAnyColor
+      )
+        return;
 
       doc.transact(() => {
         if (!playerExists) {
@@ -183,8 +211,18 @@ export function useMultiplayerSync(sessionId: string) {
             commanderDamage: {},
             commanderTax: 0,
             deckLoaded: false,
+            color: desiredColors[playerId],
           } as any);
+        } else if (!snapshot.players[playerId]?.color) {
+          patchPlayer(sharedMaps, playerId, { color: desiredColors[playerId] } as any);
         }
+
+        Object.entries(desiredColors).forEach(([id, color]) => {
+          const current = (snapshot.players as any)?.[id];
+          if (!current?.color) {
+            patchPlayer(sharedMaps, id, { color } as any);
+          }
+        });
 
         zoneSpecs.forEach(({ type, shouldCreate }) => {
           if (!shouldCreate) return;

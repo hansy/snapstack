@@ -67,7 +67,7 @@ export interface Player {
   id: PlayerId;
   name: string;
   life: number;
-  color?: string; // Seat color
+  color?: string; // Player identity color (shared across clients)
   cursor?: { x: number; y: number }; // For multiplayer presence
   counters: Counter[];
   commanderDamage: Record<PlayerId, number>;

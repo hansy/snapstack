@@ -1,4 +1,9 @@
 import { useGameStore } from "../store/gameStore";
+import {
+  computePlayerColors,
+  isPlayerColor,
+  PLAYER_COLOR_PALETTE,
+} from "../lib/playerColors";
 
 export const usePlayerLayout = () => {
   const players = useGameStore((state) => state.players);
@@ -35,30 +40,41 @@ export const usePlayerLayout = () => {
   // Generate Slots based on Mode
   let slots = [];
 
-  // Color mapping based on player index
-  const PLAYER_COLORS = ["rose", "violet", "sky", "amber"];
+  // Colors are assigned to players (not seats) so they remain consistent regardless of view rotation.
+  const canonicalIds = sortedPlayers.map((p) => p.id);
+  const canonicalColors = computePlayerColors(canonicalIds);
+  const resolveColor = (playerId: string, fallbackIndex = 0) => {
+    const player = players[playerId];
+    if (player && isPlayerColor(player.color)) return player.color;
+    return canonicalColors[playerId] ?? PLAYER_COLOR_PALETTE[fallbackIndex];
+  };
+
+  const getPlayerAt = (index: number) => layoutPlayers[index];
 
   if (layoutMode === "single") {
     // 1 Player: Full Screen anchored bottom-left
+    const player0 = getPlayerAt(0);
     slots = [
       {
-        player: layoutPlayers[0],
+        player: player0,
         position: "bottom-left",
-        color: PLAYER_COLORS[0],
+        color: player0 ? resolveColor(player0.id, 0) : PLAYER_COLOR_PALETTE[0],
       },
     ];
   } else if (layoutMode === "split") {
     // 2 Players: Top/Bottom using shared order
+    const player0 = getPlayerAt(0);
+    const player1 = getPlayerAt(1);
     slots = [
       {
-        player: layoutPlayers[1],
+        player: player1,
         position: "top-left",
-        color: PLAYER_COLORS[1],
+        color: player1 ? resolveColor(player1.id, 1) : PLAYER_COLOR_PALETTE[1],
       },
       {
-        player: layoutPlayers[0],
+        player: player0,
         position: "bottom-left",
-        color: PLAYER_COLORS[0],
+        color: player0 ? resolveColor(player0.id, 0) : PLAYER_COLOR_PALETTE[0],
       },
     ];
   } else {
@@ -67,26 +83,31 @@ export const usePlayerLayout = () => {
     // Row 2: BL, BR
     // Slots follow the shared order so all clients see the same seating.
 
+    const player0 = getPlayerAt(0);
+    const player1 = getPlayerAt(1);
+    const player2 = getPlayerAt(2);
+    const player3 = getPlayerAt(3);
+
     slots = [
       {
-        player: layoutPlayers[1],
+        player: player1,
         position: "top-left",
-        color: PLAYER_COLORS[1],
+        color: player1 ? resolveColor(player1.id, 1) : PLAYER_COLOR_PALETTE[1],
       },
       {
-        player: layoutPlayers[2],
+        player: player2,
         position: "top-right",
-        color: PLAYER_COLORS[2],
+        color: player2 ? resolveColor(player2.id, 2) : PLAYER_COLOR_PALETTE[2],
       },
       {
-        player: layoutPlayers[0],
+        player: player0,
         position: "bottom-left",
-        color: PLAYER_COLORS[0],
+        color: player0 ? resolveColor(player0.id, 0) : PLAYER_COLOR_PALETTE[0],
       },
       {
-        player: layoutPlayers[3],
+        player: player3,
         position: "bottom-right",
-        color: PLAYER_COLORS[3],
+        color: player3 ? resolveColor(player3.id, 3) : PLAYER_COLOR_PALETTE[3],
       },
     ];
   }

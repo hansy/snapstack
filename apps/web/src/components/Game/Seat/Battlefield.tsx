@@ -20,6 +20,7 @@ interface BattlefieldProps {
     onCardContextMenu?: (e: React.MouseEvent, card: CardType) => void;
     onContextMenu?: (e: React.MouseEvent) => void;
     showContextMenuCursor?: boolean;
+    playerColors: Record<string, string>;
 }
 
 // Memoized card wrapper to prevent unnecessary re-renders
@@ -30,13 +31,28 @@ const BattlefieldCard = React.memo<{
     mirrorForViewer?: boolean;
     viewScale: number;
     onCardContextMenu?: (e: React.MouseEvent, card: CardType) => void;
-}>(({ card, zoneWidth, zoneHeight, mirrorForViewer, viewScale, onCardContextMenu }) => {
+    playerColors: Record<string, string>;
+    zoneOwnerId: string;
+}>(({ card, zoneWidth, zoneHeight, mirrorForViewer, viewScale, onCardContextMenu, playerColors, zoneOwnerId }) => {
     const viewPosition = mirrorForViewer ? mirrorNormalizedY(card.position) : card.position;
     const { x, y } = fromNormalizedPosition(viewPosition, zoneWidth || 1, zoneHeight || 1);
     const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
     const baseHeight = BASE_CARD_HEIGHT;
     const left = x - baseWidth / 2;
     const top = y - baseHeight / 2;
+
+    const myPlayerId = useGameStore((state) => state.myPlayerId);
+
+    // Highlight if card is owned by someone else AND not on their battlefield (which is implied if it's on THIS battlefield and owner != zoneOwner)
+    // Actually simpler: if card.ownerId != zoneOwnerId, it's a foreign card on this battlefield. 
+    // Requirement: "cards controlled by others when NOT on their battlefield to be lightly highlighted by their color"
+    // Interpretation: "controlled by others" -> "owned by others" (based on example). 
+    // Example: "I am red, I give my card to someone else". That card is on someone else's board. Owner=Me(Red), ZoneOwner=Them. 
+    // Highlight Color = My Color (Red).
+    const highlightColor = card.ownerId !== zoneOwnerId ? playerColors[card.ownerId] : undefined;
+
+    // Disable drag if I don't control the card
+    const isController = card.controllerId === myPlayerId;
 
     const style = React.useMemo(() => ({
         position: 'absolute' as const,
@@ -56,6 +72,8 @@ const BattlefieldCard = React.memo<{
             onContextMenu={handleContextMenu}
             scale={viewScale}
             faceDown={card.faceDown}
+            highlightColor={highlightColor}
+            disableDrag={!isController}
         />
     );
 });
@@ -73,7 +91,8 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
     viewScale = 1,
     onCardContextMenu,
     onContextMenu,
-    showContextMenuCursor
+    showContextMenuCursor,
+    playerColors
 }) => {
     const activeCardId = useDragStore((state) => state.activeCardId);
     const showGrid = Boolean(activeCardId);
@@ -155,6 +174,8 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
                         mirrorForViewer={mirrorForViewer}
                         viewScale={viewScale}
                         onCardContextMenu={onCardContextMenu}
+                        playerColors={playerColors}
+                        zoneOwnerId={zone.ownerId}
                     />
                 ))}
             </Zone>

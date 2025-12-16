@@ -162,7 +162,7 @@ export const useGameStore = create<GameStore>()(
 
                         try {
                             destroySession(sessionId);
-                        } catch (_err) {}
+                        } catch (_err) { }
 
                         get().forgetSessionIdentity(sessionId);
                     }

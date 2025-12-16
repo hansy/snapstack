@@ -158,9 +158,9 @@ const SeatInner: React.FC<SeatProps> = ({
                 onDoubleClick={
                   isMe && onDrawCard
                     ? (e) => {
-                        e.preventDefault();
-                        onDrawCard(player.id);
-                      }
+                      e.preventDefault();
+                      onDrawCard(player.id);
+                    }
                     : undefined
                 }
                 emptyContent={
@@ -236,6 +236,7 @@ const SeatInner: React.FC<SeatProps> = ({
               onCardContextMenu={onCardContextMenu}
               onContextMenu={isMe ? onBattlefieldContextMenu : undefined}
               showContextMenuCursor={player.deckLoaded && isMe}
+              playerColors={{ [player.id]: color, ...opponentColors }}
             />
           )}
 
@@ -250,6 +251,7 @@ const SeatInner: React.FC<SeatProps> = ({
                 isRight={isRight}
                 onZoneContextMenu={onZoneContextMenu}
                 scale={scale}
+                color={color}
               />
             )}
 

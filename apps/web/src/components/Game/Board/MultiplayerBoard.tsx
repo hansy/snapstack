@@ -21,6 +21,7 @@ import { TextPromptDialog } from '../UI/TextPromptDialog';
 import { LogDrawer } from '../UI/LogDrawer';
 import { useMultiplayerSync } from '../../../hooks/useMultiplayerSync';
 import { useNavigate } from '@tanstack/react-router';
+import { computePlayerColors, resolveOrderedPlayerIds } from '../../../lib/playerColors';
 
 
 
@@ -44,6 +45,8 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     const navigate = useNavigate();
     const zones = useGameStore((state) => state.zones);
     const cards = useGameStore((state) => state.cards);
+    const players = useGameStore((state) => state.players);
+    const playerOrder = useGameStore((state) => state.playerOrder);
     const battlefieldViewScale = useGameStore((state) => state.battlefieldViewScale);
     const activeModal = useGameStore((state) => state.activeModal);
     const setActiveModal = useGameStore((state) => state.setActiveModal);
@@ -98,14 +101,14 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
 
     // Create a map of player ID -> Color for the LifeBox
     const playerColors = React.useMemo(() => {
-        const colors: Record<string, string> = {};
-        slots.forEach(slot => {
-            if (slot.player) {
-                colors[slot.player.id] = slot.color;
-            }
+        const orderedIds = resolveOrderedPlayerIds(players as any, playerOrder ?? []);
+        const canonical = computePlayerColors(orderedIds);
+        const colors: Record<string, string> = { ...canonical };
+        Object.entries(players).forEach(([id, player]) => {
+            if (player?.color) colors[id] = player.color;
         });
         return colors;
-    }, [slots]);
+    }, [players, playerOrder]);
 
     // Dynamic Scaling Logic
     const [scale, setScale] = useState(1);

@@ -26,10 +26,11 @@ const resetStore = () => {
   });
 };
 
-const createPlayer = (id: string) => ({
+const createPlayer = (id: string, color?: string) => ({
   id,
   name: id.toUpperCase(),
   life: 40,
+  color,
   counters: [],
   commanderDamage: {},
   commanderTax: 0,
@@ -129,6 +130,69 @@ describe('usePlayerLayout', () => {
       expect(br).toBe('p1');
       expect(tl).toBe('p3');
       expect(tr).toBe('p4');
+    });
+  });
+
+  it('uses player-assigned colors (not seat colors) after rotation', async () => {
+    const p1 = createPlayer('p1', 'rose');
+    const p2 = createPlayer('p2', 'sky');
+    const p3 = createPlayer('p3', 'amber');
+    const p4 = createPlayer('p4', 'violet');
+
+    act(() => {
+      useGameStore.setState((state) => ({
+        ...state,
+        players: { p1, p2, p3, p4 },
+        playerOrder: ['p1', 'p2', 'p3', 'p4'],
+        myPlayerId: 'p2',
+      }));
+    });
+
+    let result: ProbeValue | null = null;
+    render(<Probe onValue={(v) => { result = v; }} />);
+
+    await waitFor(() => {
+      expect(result).not.toBeNull();
+      const bl = result?.slots.find((s) => s.position === 'bottom-left');
+      const br = result?.slots.find((s) => s.position === 'bottom-right');
+      const tl = result?.slots.find((s) => s.position === 'top-left');
+      const tr = result?.slots.find((s) => s.position === 'top-right');
+
+      expect(bl?.player?.id).toBe('p2');
+      expect(bl?.color).toBe('sky');
+      expect(br?.player?.id).toBe('p1');
+      expect(br?.color).toBe('rose');
+      expect(tl?.player?.id).toBe('p3');
+      expect(tl?.color).toBe('amber');
+      expect(tr?.player?.id).toBe('p4');
+      expect(tr?.color).toBe('violet');
+    });
+  });
+
+  it('assigns fallback colors per shared order (not per viewer seat)', async () => {
+    const p1 = createPlayer('p1');
+    const p2 = createPlayer('p2');
+    const p3 = createPlayer('p3');
+    const p4 = createPlayer('p4');
+
+    act(() => {
+      useGameStore.setState((state) => ({
+        ...state,
+        players: { p1, p2, p3, p4 },
+        playerOrder: ['p1', 'p2', 'p3', 'p4'],
+        myPlayerId: 'p2',
+      }));
+    });
+
+    let result: ProbeValue | null = null;
+    render(<Probe onValue={(v) => { result = v; }} />);
+
+    await waitFor(() => {
+      expect(result).not.toBeNull();
+      const bl = result?.slots.find((s) => s.position === 'bottom-left');
+      expect(bl?.player?.id).toBe('p2');
+      // p2 is second in shared order -> violet, even though it's bottom-left for this viewer.
+      expect(bl?.color).toBe('violet');
     });
   });
 });
