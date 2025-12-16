@@ -223,9 +223,9 @@ const CardInner: React.FC<CardProps> = ({
 
   const handleClick = React.useCallback(
     (e: React.MouseEvent) => {
-      if (zoneType !== ZONE.BATTLEFIELD || isDragging) return;
-      // Removed controller check to allow locking any card
-      // if (card.controllerId !== myPlayerId) return;
+      // Allow locking in Battlefield AND Hand (if it's my hand)
+      const allowedInHand = zoneType === ZONE.HAND && card.ownerId === myPlayerId;
+      if ((zoneType !== ZONE.BATTLEFIELD && !allowedInHand) || isDragging) return;
 
       const rect = e.currentTarget.getBoundingClientRect();
       toggleLock(card, rect);

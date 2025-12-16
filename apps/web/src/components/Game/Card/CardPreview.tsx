@@ -50,6 +50,14 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   const displayToughness = getDisplayToughness(currentCard);
   const flipRotation = getFlipRotation(currentCard);
 
+  // Local face override for previewing DFCs
+  const [overrideFaceIndex, setOverrideFaceIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Reset override if the card ID changes (new card shown)
+    setOverrideFaceIndex(null);
+  }, [card.id]);
+
   useEffect(() => {
     const calculatePosition = () => {
       const calculatedHeight = width * 1.4;
@@ -106,6 +114,25 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   // Don't render until positioned to avoid jump
   if (!isPositioned) return null;
 
+  const effectiveFaceIndex = overrideFaceIndex ?? currentCard.currentFaceIndex ?? 0;
+
+  // Construct the card to show (forcing the face index)
+  const previewCard = { ...currentCard, currentFaceIndex: effectiveFaceIndex };
+
+  const hasMultipleFaces = (currentCard.scryfall?.card_faces?.length ?? 0) > 1;
+
+  const handleFlip = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextIndex = effectiveFaceIndex === 0 ? 1 : 0;
+    setOverrideFaceIndex(nextIndex);
+  };
+
+  const isController = currentCard.controllerId === myPlayerId;
+  const isHand = currentCard.zoneId.includes('hand');
+
+  // If in hand, we hide ancillary things
+  const showAncillary = !isHand;
+
   return (
     <div
       className={cn(
@@ -122,28 +149,52 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       onContextMenu={(e) => e.preventDefault()}
     >
       {locked && onClose && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="absolute -top-10 -right-10 p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors border border-zinc-700 shadow-lg"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="absolute -top-10 -right-16 flex items-center gap-2">
+          {hasMultipleFaces && (
+            <button
+              onClick={handleFlip}
+              className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors border border-zinc-700 shadow-lg"
+              title="Preview transform/flip"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors border border-zinc-700 shadow-lg"
+            title="Close preview"
           >
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-          </svg>
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
       )}
 
       {/* Token Label */}
@@ -154,24 +205,31 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       )}
 
       <CardFace
-        card={currentCard}
-        countersClassName="top-4 -right-2"
+        card={previewCard}
+        countersClassName={showAncillary ? "top-4 -right-2" : "hidden"}
         imageClassName="object-cover"
         imageTransform={flipRotation ? `rotate(${flipRotation}deg)` : undefined}
         preferArtCrop={false}
-        interactive={locked}
+        interactive={showAncillary && locked && isController}
         hidePT={true} // Always hide internal P/T, we render external always
-        showCounterLabels={true}
+        showCounterLabels={showAncillary} // Hide counters if in hand (via masking or empty)
+        // Actually CardFace doesn't reject counters if showCounterLabels=false, it just hides the labels.
+        // We probably want to hide them entirely. CardFace renders counters map.
+        // We can pass a filtered card or check logic inside CardFace, but let's see props.
+        // CardFace doesn't have a check to HIDE counters completely.
+        // But if showCounters=false isn't a prop..
+        // Let's modify CardFace usage below.
+
         showNameLabel={false}
         customTextPosition="sidebar"
         customTextNode={
-          currentCard.customText ? (
+          showAncillary && currentCard.customText ? (
             <div
               className={cn(
                 "bg-zinc-900/90 backdrop-blur-sm p-2 rounded-lg border border-zinc-700 shadow-xl min-w-[120px] max-w-[200px] mt-2",
                 locked &&
-                  currentCard.controllerId === myPlayerId &&
-                  "cursor-text hover:border-indigo-500/50 transition-colors"
+                currentCard.controllerId === myPlayerId &&
+                "cursor-text hover:border-indigo-500/50 transition-colors"
               )}
               onClick={(e) => {
                 if (!locked || currentCard.controllerId !== myPlayerId) return;
@@ -185,7 +243,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       />
 
       {/* External Power/Toughness (Always rendered, but buttons only accessible when locked) */}
-      {showPT && (
+      {showAncillary && showPT && (
         <div className="absolute bottom-0 left-full ml-4 bg-zinc-900 px-3 py-2 rounded-lg border border-zinc-700 shadow-xl z-50 flex items-center gap-3 min-w-max">
           {/* Power */}
           {/* Power */}
@@ -197,7 +255,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
                   parseInt(currentCard.basePower || "0")
                   ? "text-green-500"
                   : parseInt(displayPower || "0") <
-                      parseInt(currentCard.basePower || "0")
+                    parseInt(currentCard.basePower || "0")
                     ? "text-red-500"
                     : "text-white"
               )}
@@ -206,26 +264,28 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
             </span>
 
             {/* Overlay Controls */}
-            <div className="absolute inset-0 flex items-center justify-between opacity-0 group-hover/pt:opacity-100 transition-opacity z-10">
-              <button
-                className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-l text-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleUpdatePT("power", -1);
-                }}
-              >
-                -
-              </button>
-              <button
-                className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-r text-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleUpdatePT("power", 1);
-                }}
-              >
-                +
-              </button>
-            </div>
+            {isController && (
+              <div className="absolute inset-0 flex items-center justify-between opacity-0 group-hover/pt:opacity-100 transition-opacity z-10">
+                <button
+                  className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-l text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUpdatePT("power", -1);
+                  }}
+                >
+                  -
+                </button>
+                <button
+                  className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-r text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUpdatePT("power", 1);
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            )}
           </div>
 
           <span className="text-zinc-600 font-bold text-xl">/</span>
@@ -239,7 +299,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
                   parseInt(currentCard.baseToughness || "0")
                   ? "text-green-500"
                   : parseInt(displayToughness || "0") <
-                      parseInt(currentCard.baseToughness || "0")
+                    parseInt(currentCard.baseToughness || "0")
                     ? "text-red-500"
                     : "text-white"
               )}
@@ -248,26 +308,28 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
             </span>
 
             {/* Overlay Controls */}
-            <div className="absolute inset-0 flex items-center justify-between opacity-0 group-hover/pt:opacity-100 transition-opacity z-10">
-              <button
-                className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-l text-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleUpdatePT("toughness", -1);
-                }}
-              >
-                -
-              </button>
-              <button
-                className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-r text-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleUpdatePT("toughness", 1);
-                }}
-              >
-                +
-              </button>
-            </div>
+            {isController && (
+              <div className="absolute inset-0 flex items-center justify-between opacity-0 group-hover/pt:opacity-100 transition-opacity z-10">
+                <button
+                  className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-l text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUpdatePT("toughness", -1);
+                  }}
+                >
+                  -
+                </button>
+                <button
+                  className="h-full w-1/2 flex items-center justify-center bg-zinc-900/80 hover:bg-zinc-800/90 text-white font-bold rounded-r text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUpdatePT("toughness", 1);
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

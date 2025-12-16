@@ -1,6 +1,7 @@
 import type { Card, Counter, Player, Zone } from "../types";
 import { enforceZoneCounterRules } from "../lib/counters";
 import { clampNormalizedPosition, migratePositionToNormalized } from "../lib/positions";
+import { MAX_CARDS, MAX_CARDS_PER_ZONE } from "../lib/limits";
 
 // Flag to prevent feedback loops: Yjs -> Zustand -> Yjs
 let applyingRemoteUpdate = false;
@@ -22,8 +23,6 @@ export function withApplyingRemoteUpdate<T>(fn: () => T): T {
 // 4-player Commander = 400 base cards + tokens, so 800 gives headroom
 const MAX_PLAYERS = 8;
 const MAX_ZONES = MAX_PLAYERS * 10; // 80 zones
-const MAX_CARDS = 800;
-const MAX_CARDS_PER_ZONE = 300;
 const MAX_COUNTERS = 24;
 const MAX_NAME_LENGTH = 120;
 

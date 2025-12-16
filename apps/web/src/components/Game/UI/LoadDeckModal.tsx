@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../ui/dialog';
 import { Button } from '../../ui/button';
 import { toast } from 'sonner';
-import { parseDeckList, fetchScryfallCards, createCardFromImport, validateImportResult } from '../../../utils/deckImport';
+import { parseDeckList, fetchScryfallCards, createCardFromImport, validateDeckListLimits, validateImportResult } from '../../../utils/deckImport';
 import { useGameStore } from '../../../store/gameStore';
 import { ZONE } from '../../../constants/zones';
 import { getZoneByType } from '../../../lib/gameSelectors';
@@ -43,6 +43,11 @@ export const LoadDeckModal: React.FC<LoadDeckModalProps> = ({ isOpen, onClose, p
             const parsedDeck = parseDeckList(importText);
             if (parsedDeck.length === 0) {
                 throw new Error("No valid cards found in the list.");
+            }
+
+            const sizeValidation = validateDeckListLimits(parsedDeck);
+            if (!sizeValidation.ok) {
+                throw new Error(sizeValidation.error);
             }
 
             const fetchResult = await fetchScryfallCards(parsedDeck);

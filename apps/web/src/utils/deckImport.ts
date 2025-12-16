@@ -3,6 +3,7 @@ import { Card, PlayerId, ZoneId } from "../types";
 import { ScryfallCard, ScryfallIdentifier } from "../types/scryfall";
 import { toScryfallCardLite } from "../types/scryfallLite";
 import { cacheCards } from "../services/scryfallCache";
+import { MAX_CARDS_PER_ZONE } from "../lib/limits";
 
 export interface ParsedCard {
   quantity: number;
@@ -17,6 +18,40 @@ export interface FetchScryfallResult {
   missing: ParsedCard[];
   warnings: string[];
 }
+
+export const getRequestedCounts = (parsedDeck: ParsedCard[]) => {
+  const counts = {
+    total: 0,
+    commander: 0,
+    library: 0,
+  };
+
+  parsedDeck.forEach((card) => {
+    const qty = typeof card.quantity === "number" ? Math.max(0, card.quantity) : 0;
+    counts.total += qty;
+    if (card.section === "commander") counts.commander += qty;
+    else counts.library += qty; // main + sideboard both end up in the library zone today
+  });
+
+  return counts;
+};
+
+export const validateDeckListLimits = (
+  parsedDeck: ParsedCard[],
+  opts?: { maxLibraryCards?: number }
+): { ok: true } | { ok: false; error: string } => {
+  const { library } = getRequestedCounts(parsedDeck);
+  const maxLibraryCards = opts?.maxLibraryCards ?? MAX_CARDS_PER_ZONE;
+
+  if (library > maxLibraryCards) {
+    return {
+      ok: false,
+      error: `Deck too large: ${library} cards would be added to your library, but the current limit is ${maxLibraryCards}.`,
+    };
+  }
+
+  return { ok: true };
+};
 
 type ScryfallCollectionResponse = {
   data: ScryfallCard[];

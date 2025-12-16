@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchScryfallCards, formatMissingCards, parseDeckList, ParsedCard, validateImportResult } from './deckImport';
+import { fetchScryfallCards, formatMissingCards, parseDeckList, ParsedCard, validateDeckListLimits, validateImportResult } from './deckImport';
 import { Card, ScryfallCard } from '../types';
 
 const baseScryfallCard: ScryfallCard = {
@@ -142,6 +142,32 @@ describe('parseDeckList', () => {
             { quantity: 1, name: 'Dispel', set: '', collectorNumber: '', section: 'sideboard' },
         ]);
     });
+});
+
+describe('validateDeckListLimits', () => {
+  it('rejects imports that exceed the library zone limit', () => {
+    const parsed: ParsedCard[] = [
+      { quantity: 301, name: 'Mountain', set: '', collectorNumber: '', section: 'main' },
+    ];
+
+    const result = validateDeckListLimits(parsed, { maxLibraryCards: 300 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/Deck too large/);
+      expect(result.error).toMatch(/301/);
+      expect(result.error).toMatch(/300/);
+    }
+  });
+
+  it('allows imports within the library zone limit (commander excluded)', () => {
+    const parsed: ParsedCard[] = [
+      { quantity: 300, name: 'Mountain', set: '', collectorNumber: '', section: 'main' },
+      { quantity: 1, name: "Atraxa, Praetors' Voice", set: '', collectorNumber: '', section: 'commander' },
+    ];
+
+    const result = validateDeckListLimits(parsed, { maxLibraryCards: 300 });
+    expect(result.ok).toBe(true);
+  });
 });
 
 describe('fetchScryfallCards', () => {
