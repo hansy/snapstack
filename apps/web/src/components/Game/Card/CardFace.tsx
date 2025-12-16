@@ -53,22 +53,39 @@ const CardFaceInner: React.FC<CardFaceProps> = ({
   // Memoize display values
   const displayImageUrl = React.useMemo(
     () => getDisplayImageUrl(card, { preferArtCrop }),
-    [card.imageUrl, card.scryfall?.image_uris, card.currentFaceIndex, preferArtCrop]
+    [
+      card.imageUrl,
+      card.scryfall?.image_uris,
+      card.currentFaceIndex,
+      preferArtCrop,
+    ]
   );
-  const displayName = React.useMemo(() => getDisplayName(card), [card.name, card.scryfall?.card_faces, card.currentFaceIndex]);
+  const displayName = React.useMemo(
+    () => getDisplayName(card),
+    [card.name, card.scryfall?.card_faces, card.currentFaceIndex]
+  );
   const showPT =
     shouldShowPowerToughness(card) &&
     card.zoneId.includes("battlefield") &&
     !hidePT;
-  const displayPower = React.useMemo(() => getDisplayPower(card), [card.power, card.scryfall?.card_faces, card.currentFaceIndex]);
-  const displayToughness = React.useMemo(() => getDisplayToughness(card), [card.toughness, card.scryfall?.card_faces, card.currentFaceIndex]);
+  const displayPower = React.useMemo(
+    () => getDisplayPower(card),
+    [card.power, card.scryfall?.card_faces, card.currentFaceIndex]
+  );
+  const displayToughness = React.useMemo(
+    () => getDisplayToughness(card),
+    [card.toughness, card.scryfall?.card_faces, card.currentFaceIndex]
+  );
 
-  const handleUpdatePT = React.useCallback((type: "power" | "toughness", delta: number) => {
-    const faceStat = getCurrentFace(card)?.[type];
-    const currentVal = parseInt((card as any)[type] ?? faceStat ?? "0");
-    if (isNaN(currentVal)) return;
-    updateCard(card.id, { [type]: (currentVal + delta).toString() });
-  }, [card, updateCard]);
+  const handleUpdatePT = React.useCallback(
+    (type: "power" | "toughness", delta: number) => {
+      const faceStat = getCurrentFace(card)?.[type];
+      const currentVal = parseInt((card as any)[type] ?? faceStat ?? "0");
+      if (isNaN(currentVal)) return;
+      updateCard(card.id, { [type]: (currentVal + delta).toString() });
+    },
+    [card, updateCard]
+  );
 
   return (
     <>
@@ -190,13 +207,15 @@ const CardFaceInner: React.FC<CardFaceProps> = ({
 
       {/* Name Label - Only show on battlefield and face up */}
       {showNameLabel && card.zoneId.includes("battlefield") && !faceDown && (
-        <div
-          className={cn(
-            "absolute left-1/2 bottom-full -translate-x-1/2 bg-zinc-900/90 text-zinc-100 text-md px-1.5 py-0.5 rounded-sm border border-zinc-700 shadow-sm z-10 leading-tight whitespace-normal break-words pointer-events-none text-center w-fit max-w-[160%]",
-            rotateLabel && "rotate-180"
-          )}
-        >
-          {displayName}
+        <div className="absolute left-1/2 bottom-full w-[160%] -translate-x-1/2 flex justify-center z-10 pointer-events-none">
+          <div
+            className={cn(
+              "bg-zinc-900/90 text-zinc-100 text-md px-1.5 py-0.5 rounded-sm border border-zinc-700 shadow-sm leading-tight text-center inline-block w-fit max-w-full break-words text-ellipsis",
+              rotateLabel && "rotate-180"
+            )}
+          >
+            {displayName}
+          </div>
         </div>
       )}
 
