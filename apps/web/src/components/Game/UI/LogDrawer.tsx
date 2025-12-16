@@ -34,17 +34,6 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({ isOpen, onClose, playerCol
         }
     }, [entries, isOpen]);
 
-    // Close on escape key
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && isOpen) {
-                onClose();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, onClose]);
-
     return (
         <>
             {/* Backdrop - click to close */}

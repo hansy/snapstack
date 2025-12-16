@@ -16,7 +16,7 @@ import { getDisplayName } from '../lib/cardDisplay';
 // Centralizes context menu state/handlers for cards and zones so UI components can stay lean.
 export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: ZoneId, count?: number) => void) => {
     const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; items: ContextMenuItem[]; title?: string } | null>(null);
-    const [countPrompt, setCountPrompt] = React.useState<{ title: string; message: string; onSubmit: (count: number) => void } | null>(null);
+    const [countPrompt, setCountPrompt] = React.useState<{ title: string; message: string; onSubmit: (count: number) => void; initialValue?: number } | null>(null);
     const [textPrompt, setTextPrompt] = React.useState<{ title: string; message?: string; initialValue?: string; onSubmit: (value: string) => void } | null>(null);
     const zones = useGameStore((state) => state.zones);
     const players = useGameStore((state) => state.players);
@@ -184,8 +184,10 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
         handleBattlefieldContextMenu,
         closeContextMenu,
         countPrompt,
+        openCountPrompt: (opts: { title: string; message: string; onSubmit: (count: number) => void; initialValue?: number }) => setCountPrompt(opts),
         closeCountPrompt: () => setCountPrompt(null),
         textPrompt,
+        openTextPrompt: (opts: { title: string; message?: string; initialValue?: string; onSubmit: (value: string) => void }) => setTextPrompt(opts),
         closeTextPrompt: () => setTextPrompt(null),
     };
 };

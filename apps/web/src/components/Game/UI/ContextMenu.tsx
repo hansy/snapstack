@@ -79,18 +79,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, referenceElement
         };
     }, [onClose, isSubmenu]);
 
-    useEffect(() => {
-        const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && !isSubmenu) {
-                onClose();
-            }
-        };
-        document.addEventListener('keydown', handleEscape);
-        return () => {
-            document.removeEventListener('keydown', handleEscape);
-        };
-    }, [onClose, isSubmenu]);
-
     const handleMouseEnter = (index: number, e: React.MouseEvent<HTMLButtonElement>) => {
         const item = items[index];
         if (item.type === 'action' && item.submenu) {
