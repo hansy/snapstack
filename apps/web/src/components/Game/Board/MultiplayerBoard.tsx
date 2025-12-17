@@ -23,7 +23,7 @@ import { useMultiplayerSync } from '../../../hooks/useMultiplayerSync';
 import { useNavigate } from '@tanstack/react-router';
 import { computePlayerColors, resolveOrderedPlayerIds } from '../../../lib/playerColors';
 import { OpponentLibraryRevealsModal } from '../UI/OpponentLibraryRevealsModal';
-import { getPlayerZones } from '../../../lib/gameSelectors';
+import { useGameShortcuts } from '../../../hooks/useGameShortcuts';
 
 
 
@@ -93,213 +93,32 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     const [isLogOpen, setIsLogOpen] = useState(false);
     const [revealedLibraryZoneId, setRevealedLibraryZoneId] = useState<string | null>(null);
 
-    const isTypingTarget = React.useCallback((target: EventTarget | null) => {
-        const el = target as HTMLElement | null;
-        if (!el) return false;
-        const tag = el.tagName?.toLowerCase();
-        if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
-        return Boolean(el.isContentEditable);
-    }, []);
-
-    const closeTopmostUi = React.useCallback(() => {
-        if (contextMenu) {
-            closeContextMenu();
-            return true;
-        }
-        if (countPrompt) {
-            closeCountPrompt();
-            return true;
-        }
-        if (textPrompt) {
-            closeTextPrompt();
-            return true;
-        }
-        if (activeModal) {
-            setActiveModal(null);
-            return true;
-        }
-        if (isTokenModalOpen) {
-            setIsTokenModalOpen(false);
-            return true;
-        }
-        if (isLoadDeckModalOpen) {
-            setIsLoadDeckModalOpen(false);
-            return true;
-        }
-        if (zoneViewerState.isOpen) {
-            setZoneViewerState((prev) => ({ ...prev, isOpen: false }));
-            return true;
-        }
-        if (revealedLibraryZoneId) {
-            setRevealedLibraryZoneId(null);
-            return true;
-        }
-        if (isLogOpen) {
-            setIsLogOpen(false);
-            return true;
-        }
-        return false;
-    }, [
-        contextMenu,
-        closeContextMenu,
-        countPrompt,
-        closeCountPrompt,
-        textPrompt,
-        closeTextPrompt,
-        activeModal,
-        setActiveModal,
-        isTokenModalOpen,
-        isLoadDeckModalOpen,
-        zoneViewerState.isOpen,
-        revealedLibraryZoneId,
-        isLogOpen,
-    ]);
-
-    React.useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.defaultPrevented) return;
-            if (e.repeat) return;
-            if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-            const normalizedKey = e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase();
-
-            if (normalizedKey === 'escape') {
-                const closed = closeTopmostUi();
-                if (closed) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-                return;
-            }
-
-            if (isTypingTarget(e.target)) return;
-
-            const uiBlocksShortcuts =
-                Boolean(contextMenu) ||
-                Boolean(countPrompt) ||
-                Boolean(textPrompt) ||
-                Boolean(activeModal) ||
-                isTokenModalOpen ||
-                isLoadDeckModalOpen ||
-                zoneViewerState.isOpen ||
-                Boolean(revealedLibraryZoneId);
-
-            if (uiBlocksShortcuts) return;
-
-            const myZones = getPlayerZones(zones, myPlayerId);
-            const me = players?.[myPlayerId];
-            const hasDeckLoaded = Boolean(me?.deckLoaded);
-
-            const drawOne = () => useGameStore.getState().drawCard(myPlayerId, myPlayerId);
-            const shuffle = () => useGameStore.getState().shuffleLibrary(myPlayerId, myPlayerId);
-            const resetDeck = () => useGameStore.getState().resetDeck(myPlayerId, myPlayerId);
-            const unloadDeck = () => useGameStore.getState().unloadDeck(myPlayerId, myPlayerId);
-            const untapAll = () => useGameStore.getState().untapAll(myPlayerId);
-
-            const handle = (fn: () => void) => {
-                e.preventDefault();
-                e.stopPropagation();
-                fn();
-            };
-
-            if (normalizedKey === 'l') return handle(() => setIsLogOpen((prev) => !prev));
-
-            if (!hasDeckLoaded) {
-                // Non-deck actions still allowed (log).
-                return;
-            }
-
-            if (normalizedKey === 't') return handle(() => setIsTokenModalOpen(true));
-            if (normalizedKey === 'u' && !e.shiftKey) return handle(untapAll);
-            if (normalizedKey === 'd') return handle(drawOne);
-            if (normalizedKey === 's' && e.shiftKey) return handle(shuffle);
-
-            if (normalizedKey === 'g') {
-                const graveyard = myZones.graveyard;
-                if (!graveyard) return;
-                return handle(() => handleViewZone(graveyard.id));
-            }
-
-            if (normalizedKey === 'e') {
-                const exile = myZones.exile;
-                if (!exile) return;
-                return handle(() => handleViewZone(exile.id));
-            }
-
-            if (normalizedKey === 'v') {
-                const library = myZones.library;
-                if (!library) return;
-                return handle(() => {
-                    openCountPrompt({
-                        title: 'View Top',
-                        message: 'How many cards from top?',
-                        initialValue: 1,
-                        onSubmit: (count) => handleViewZone(library.id, count),
-                    });
-                });
-            }
-
-            if (normalizedKey === 'm') {
-                const library = myZones.library;
-                if (!library) return;
-                return handle(() => {
-                    openCountPrompt({
-                        title: 'Mulligan',
-                        message: 'Shuffle library and draw new cards. How many cards to draw?',
-                        initialValue: 7,
-                        onSubmit: (count) => {
-                            shuffle();
-                            for (let i = 0; i < count; i++) drawOne();
-                        },
-                    });
-                });
-            }
-
-            if (normalizedKey === 'r' && e.shiftKey) {
-                return handle(() => {
-                    const ok = window.confirm('Reset deck? This will return all owned cards to your library and reshuffle.');
-                    if (!ok) return;
-                    resetDeck();
-                });
-            }
-
-            if (normalizedKey === 'u' && e.shiftKey) {
-                return handle(() => {
-                    const ok = window.confirm('Unload deck? This removes your deck from the game state.');
-                    if (!ok) return;
-                    unloadDeck();
-                });
-            }
-
-            if (normalizedKey === 'q' && e.shiftKey) {
-                return handle(() => {
-                    const ok = window.confirm('Leave room?');
-                    if (!ok) return;
-                    handleLeave();
-                });
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown, true);
-        return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }, [
+    useGameShortcuts({
         myPlayerId,
         zones,
         players,
-        handleLeave,
-        handleViewZone,
+        contextMenuOpen: Boolean(contextMenu),
+        closeContextMenu,
+        countPromptOpen: Boolean(countPrompt),
+        closeCountPrompt,
+        textPromptOpen: Boolean(textPrompt),
+        closeTextPrompt,
+        activeModalOpen: Boolean(activeModal),
+        closeActiveModal: () => setActiveModal(null),
+        tokenModalOpen: isTokenModalOpen,
+        setTokenModalOpen: setIsTokenModalOpen,
+        loadDeckModalOpen: isLoadDeckModalOpen,
+        setLoadDeckModalOpen: setIsLoadDeckModalOpen,
+        zoneViewerOpen: zoneViewerState.isOpen,
+        closeZoneViewer: () => setZoneViewerState((prev) => ({ ...prev, isOpen: false })),
+        opponentRevealsOpen: Boolean(revealedLibraryZoneId),
+        closeOpponentReveals: () => setRevealedLibraryZoneId(null),
+        logOpen: isLogOpen,
+        setLogOpen: setIsLogOpen,
         openCountPrompt,
-        contextMenu,
-        countPrompt,
-        textPrompt,
-        activeModal,
-        isTokenModalOpen,
-        isLoadDeckModalOpen,
-        zoneViewerState.isOpen,
-        revealedLibraryZoneId,
-        closeTopmostUi,
-        isTypingTarget,
-    ]);
+        handleViewZone,
+        handleLeave,
+    });
 
     const getGridClass = () => {
         switch (layoutMode) {

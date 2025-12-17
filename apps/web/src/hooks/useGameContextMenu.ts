@@ -158,7 +158,8 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
             shuffleLibrary: (playerId) => useGameStore.getState().shuffleLibrary(playerId, myPlayerId),
             resetDeck: (playerId) => useGameStore.getState().resetDeck(playerId, myPlayerId),
             unloadDeck: (playerId) => useGameStore.getState().unloadDeck(playerId, myPlayerId),
-            openCountPrompt: ({ title, message, onSubmit }) => setCountPrompt({ title, message, onSubmit }),
+            openCountPrompt: ({ title, message, onSubmit, initialValue }) =>
+                setCountPrompt({ title, message, onSubmit, initialValue }),
         });
         if (items.length > 0) {
             handleContextMenu(e, items);
