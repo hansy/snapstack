@@ -32,6 +32,7 @@ interface SeatProps {
   onZoneContextMenu?: (e: React.MouseEvent, zoneId: ZoneId) => void;
   onBattlefieldContextMenu?: (e: React.MouseEvent) => void;
   onLoadDeck?: () => void;
+  onEditUsername?: () => void;
   opponentColors: Record<string, string>;
   onViewZone?: (zoneId: ZoneId, count?: number) => void;
   onDrawCard?: (playerId: string) => void;
@@ -52,6 +53,7 @@ const SeatInner: React.FC<SeatProps> = ({
   onZoneContextMenu,
   onBattlefieldContextMenu,
   onLoadDeck,
+  onEditUsername,
   opponentColors,
   onViewZone,
   onDrawCard,
@@ -175,6 +177,7 @@ const SeatInner: React.FC<SeatProps> = ({
               className="origin-center"
               opponentColors={opponentColors}
               isRight={isRight}
+              onEditUsername={isMe ? onEditUsername : undefined}
             />
           </div>
 

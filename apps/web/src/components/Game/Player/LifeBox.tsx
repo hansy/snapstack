@@ -10,6 +10,7 @@ interface LifeBoxProps {
   className?: string;
   opponentColors: Record<string, string>; // Map of playerId -> color
   isRight?: boolean;
+  onEditUsername?: () => void;
 }
 
 const LifeBoxInner: React.FC<LifeBoxProps> = ({
@@ -18,155 +19,186 @@ const LifeBoxInner: React.FC<LifeBoxProps> = ({
   className,
   opponentColors,
   isRight,
+  onEditUsername,
 }) => {
   const updatePlayer = useGameStore((state) => state.updatePlayer);
   const canEditLife = isMe === true;
   const canEditCommanderDamage = isMe === true;
 
-  const handleLifeChange = React.useCallback((amount: number) => {
-    updatePlayer(player.id, { life: player.life + amount });
-  }, [updatePlayer, player.id, player.life]);
+  const handleLifeChange = React.useCallback(
+    (amount: number) => {
+      updatePlayer(player.id, { life: player.life + amount });
+    },
+    [updatePlayer, player.id, player.life]
+  );
 
-  const handleCommanderDamageChange = React.useCallback((sourceId: string, amount: number) => {
-    const currentDamage = player.commanderDamage[sourceId] || 0;
-    const newDamage = Math.max(0, currentDamage + amount);
+  const handleCommanderDamageChange = React.useCallback(
+    (sourceId: string, amount: number) => {
+      const currentDamage = player.commanderDamage[sourceId] || 0;
+      const newDamage = Math.max(0, currentDamage + amount);
 
-    // Logic: +1 Commander Damage -> -1 Life
-    // Logic: -1 Commander Damage -> +1 Life
-    // Only apply life change if damage actually changed
-    if (newDamage !== currentDamage) {
-      const lifeChange = -(newDamage - currentDamage);
+      // Logic: +1 Commander Damage -> -1 Life
+      // Logic: -1 Commander Damage -> +1 Life
+      // Only apply life change if damage actually changed
+      if (newDamage !== currentDamage) {
+        const lifeChange = -(newDamage - currentDamage);
 
-      updatePlayer(player.id, {
-        life: player.life + lifeChange,
-        commanderDamage: {
-          ...player.commanderDamage,
-          [sourceId]: newDamage,
-        },
-      });
-    }
-  }, [updatePlayer, player.id, player.life, player.commanderDamage]);
+        updatePlayer(player.id, {
+          life: player.life + lifeChange,
+          commanderDamage: {
+            ...player.commanderDamage,
+            [sourceId]: newDamage,
+          },
+        });
+      }
+    },
+    [updatePlayer, player.id, player.life, player.commanderDamage]
+  );
 
   return (
     <div
       className={cn(
-        "w-32 h-24 flex flex-col items-center justify-center p-2 bg-zinc-800/30 rounded-lg border-2 border-zinc-700 shadow-lg backdrop-blur-sm group relative",
+        "w-32 h-24 flex flex-col items-center justify-center p-2 bg-zinc-800/30 rounded-lg border-2 border-zinc-700 shadow-lg backdrop-blur-sm relative",
         isMe && "border-indigo-500/50 ring-1 ring-indigo-500/20",
         className
       )}
     >
       {/* Player Name Label */}
-      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-md font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full z-10 shadow-sm">
-        {player.name || (isMe ? 'Me' : '')}
-      </div>
-      {/* Main Life Counter */}
-      <div className="flex items-center gap-1">
-        {canEditLife ? (
-          <button
-            onClick={() => handleLifeChange(-1)}
-            disabled={player.life <= 0}
-            className={cn(
-              "w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
-              player.life <= 0
-                ? "opacity-50 cursor-not-allowed text-zinc-500"
-                : "hover:bg-red-900/50"
-            )}
-          >
-            <Minus size={16} />
-          </button>
+      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+        {isMe && onEditUsername ? (
+          <div className="relative group/name">
+            <button
+              type="button"
+              onClick={onEditUsername}
+              className={cn(
+                "bg-zinc-900 px-2 text-md font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full shadow-sm",
+                "cursor-pointer hover:text-zinc-200 hover:border-zinc-500 transition-colors"
+              )}
+            >
+              {player.name || "Me"}
+            </button>
+            <div className="absolute left-1/2 bottom-full -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-950 text-md text-zinc-300 rounded border border-zinc-800 opacity-0 group-hover/name:opacity-100 pointer-events-none whitespace-nowrap transition-opacity">
+              Click to edit username
+            </div>
+          </div>
         ) : (
-          <div className="w-8 h-8" />
-        )}
-
-        <div className="text-4xl font-bold font-mono text-center leading-none">
-          {player.life}
-        </div>
-
-        {canEditLife ? (
-          <button
-            onClick={() => handleLifeChange(1)}
-            className="w-8 h-8 rounded-full bg-zinc-700 hover:bg-green-900/50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-          >
-            <Plus size={16} />
-          </button>
-        ) : (
-          <div className="w-8 h-8" />
+          <div className="bg-zinc-900 px-2 text-md font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full shadow-sm">
+            {player.name || (isMe ? "Me" : "")}
+          </div>
         )}
       </div>
-
-      {/* Commander Damage Drawer */}
-      {Object.keys(opponentColors).length > 1 && (
-        <div
-          className={cn(
-            "absolute top-1/2 -translate-y-1/2 h-auto py-4 px-4 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl backdrop-blur-sm",
-            "flex flex-col gap-3 transition-all duration-200 ease-in-out",
-            "opacity-0 invisible group-hover:opacity-100 group-hover:visible",
-            // Position based on seat side
-            isRight
-              ? "right-full mr-4 origin-right"
-              : "left-full ml-4 origin-left"
+      <div className="group w-full flex flex-col items-center justify-center">
+        {/* Main Life Counter */}
+        <div className="flex items-center gap-1">
+          {canEditLife ? (
+            <button
+              onClick={() => handleLifeChange(-1)}
+              disabled={player.life <= 0}
+              className={cn(
+                "w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
+                player.life <= 0
+                  ? "opacity-50 cursor-not-allowed text-zinc-500"
+                  : "hover:bg-red-900/50"
+              )}
+            >
+              <Minus size={16} />
+            </button>
+          ) : (
+            <div className="w-8 h-8" />
           )}
-        >
-          {/* Label straddling top border */}
-          <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-xs font-bold text-zinc-500 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full z-10 -top-2.5 shadow-sm">
-            CMDR DMG
+
+          <div className="text-4xl font-bold font-mono text-center leading-none">
+            {player.life}
           </div>
 
-          {Object.entries(opponentColors).map(([opponentId, color]) => {
-            // Don't show own commander damage tracking (usually)
-            if (opponentId === player.id) return null;
+          {canEditLife ? (
+            <button
+              onClick={() => handleLifeChange(1)}
+              className="w-8 h-8 rounded-full bg-zinc-700 hover:bg-green-900/50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+            >
+              <Plus size={16} />
+            </button>
+          ) : (
+            <div className="w-8 h-8" />
+          )}
+        </div>
 
-            const damage = player.commanderDamage[opponentId] || 0;
+        {/* Commander Damage Drawer */}
+        {Object.keys(opponentColors).length > 1 && (
+          <div
+            className={cn(
+              "absolute top-1/2 -translate-y-1/2 h-auto py-4 px-4 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl backdrop-blur-sm",
+              "flex flex-col gap-3 transition-all duration-200 ease-in-out",
+              "opacity-0 invisible group-hover:opacity-100 group-hover:visible",
+              // Position based on seat side
+              isRight
+                ? "right-full mr-4 origin-right"
+                : "left-full ml-4 origin-left"
+            )}
+          >
+            {/* Label straddling top border */}
+            <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-xs font-bold text-zinc-500 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full z-10 -top-2.5 shadow-sm">
+              CMDR DMG
+            </div>
 
-            return (
-              <div
-                key={opponentId}
-                className="flex items-center justify-center gap-4 group/cmd"
-              >
-                {canEditCommanderDamage ? (
-                  <button
-                    onClick={() => handleCommanderDamageChange(opponentId, -1)}
-                    disabled={damage <= 0}
+            {Object.entries(opponentColors).map(([opponentId, color]) => {
+              // Don't show own commander damage tracking (usually)
+              if (opponentId === player.id) return null;
+
+              const damage = player.commanderDamage[opponentId] || 0;
+
+              return (
+                <div
+                  key={opponentId}
+                  className="flex items-center justify-center gap-4 group/cmd"
+                >
+                  {canEditCommanderDamage ? (
+                    <button
+                      onClick={() =>
+                        handleCommanderDamageChange(opponentId, -1)
+                      }
+                      disabled={damage <= 0}
+                      className={cn(
+                        "w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 transition-colors",
+                        damage <= 0
+                          ? "opacity-50 text-zinc-600"
+                          : "hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200"
+                      )}
+                    >
+                      <Minus size={14} />
+                    </button>
+                  ) : (
+                    <div className="w-8 h-8" />
+                  )}
+
+                  <span
                     className={cn(
-                      "w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 transition-colors",
-                      damage <= 0
-                        ? "opacity-50 text-zinc-600"
-                        : "hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200"
+                      "text-xl font-mono font-bold w-8 text-center",
+                      color === "rose" && "text-rose-500/70",
+                      color === "violet" && "text-violet-500/70",
+                      color === "sky" && "text-sky-500/70",
+                      color === "amber" && "text-amber-500/70"
                     )}
                   >
-                    <Minus size={14} />
-                  </button>
-                ) : (
-                  <div className="w-8 h-8" />
-                )}
+                    {damage}
+                  </span>
 
-                <span
-                  className={cn(
-                    "text-xl font-mono font-bold w-8 text-center",
-                    color === "rose" && "text-rose-500/70",
-                    color === "violet" && "text-violet-500/70",
-                    color === "sky" && "text-sky-500/70",
-                    color === "amber" && "text-amber-500/70"
+                  {canEditCommanderDamage ? (
+                    <button
+                      onClick={() => handleCommanderDamageChange(opponentId, 1)}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  ) : (
+                    <div className="w-8 h-8" />
                   )}
-                >
-                  {damage}
-                </span>
-
-                {canEditCommanderDamage ? (
-                  <button
-                    onClick={() => handleCommanderDamageChange(opponentId, 1)}
-                    className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
-                  >
-                    <Plus size={14} />
-                  </button>
-                ) : (
-                  <div className="w-8 h-8" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

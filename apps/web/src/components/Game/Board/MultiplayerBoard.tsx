@@ -25,6 +25,8 @@ import { computePlayerColors, resolveOrderedPlayerIds } from '../../../lib/playe
 import { OpponentLibraryRevealsModal } from '../UI/OpponentLibraryRevealsModal';
 import { useGameShortcuts } from '../../../hooks/useGameShortcuts';
 import { ShortcutsDrawer } from '../UI/ShortcutsDrawer';
+import { EditUsernameDialog } from '../../Username/EditUsernameDialog';
+import { useClientPrefsStore } from '../../../store/clientPrefsStore';
 
 
 
@@ -93,7 +95,9 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
     const [isLogOpen, setIsLogOpen] = useState(false);
     const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+    const [isEditUsernameOpen, setIsEditUsernameOpen] = useState(false);
     const [revealedLibraryZoneId, setRevealedLibraryZoneId] = useState<string | null>(null);
+    const preferredUsername = useClientPrefsStore((state) => state.username);
 
     useGameShortcuts({
         myPlayerId,
@@ -267,6 +271,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                                         onZoneContextMenu={handleZoneContextMenu}
                                         onBattlefieldContextMenu={(e) => handleBattlefieldContextMenu(e, () => setIsTokenModalOpen(true))}
                                         onLoadDeck={() => setIsLoadDeckModalOpen(true)}
+                                        onEditUsername={slot.player.id === myPlayerId ? () => setIsEditUsernameOpen(true) : undefined}
                                         opponentColors={playerColors}
                                         scale={scale}
                                         battlefieldScale={battlefieldViewScale[slot.player.id] ?? 1}
@@ -343,6 +348,16 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                 <ShortcutsDrawer
                     isOpen={isShortcutsOpen}
                     onClose={() => setIsShortcutsOpen(false)}
+                />
+                <EditUsernameDialog
+                    open={isEditUsernameOpen}
+                    onClose={() => setIsEditUsernameOpen(false)}
+                    initialValue={players[myPlayerId]?.name ?? preferredUsername ?? ''}
+                    onSubmit={(username) => {
+                        useClientPrefsStore.getState().setUsername(username);
+                        useGameStore.getState().updatePlayer(myPlayerId, { name: username }, myPlayerId);
+                        setIsEditUsernameOpen(false);
+                    }}
                 />
                 <DragMonitor />
                 <DragOverlay dropAnimation={null}>
