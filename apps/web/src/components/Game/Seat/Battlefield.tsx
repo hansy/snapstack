@@ -182,7 +182,7 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
 
             {/* Placeholder Text */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5">
-                <span className="text-4xl font-bold uppercase tracking-widest">{isMe ? 'Me' : player.name}</span>
+                <span className="text-4xl font-bold uppercase tracking-widest">{player.name || (isMe ? 'Me' : '')}</span>
             </div>
 
             {/* Zoom Edge Indicators */}

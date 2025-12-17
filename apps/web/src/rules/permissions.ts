@@ -150,16 +150,28 @@ export function canCreateToken(
 }
 
 /**
- * Player updates that touch life/commander damage are self-service only.
+ * Player updates are self-service only.
  */
 export function canUpdatePlayer(
   ctx: ActorContext,
   player: Player,
   updates: Partial<Player>
 ): PermissionResult {
-  const isLifeChange = updates.life !== undefined || updates.commanderDamage !== undefined;
-  if (!isLifeChange) return { allowed: true };
-
   const isSelf = ctx.actorId === player.id;
-  return isSelf ? { allowed: true } : { allowed: false, reason: "Cannot change another player's life total" };
+  if (isSelf) return { allowed: true };
+
+  const isLifeChange =
+    updates.life !== undefined || updates.commanderDamage !== undefined;
+  if (isLifeChange) {
+    return {
+      allowed: false,
+      reason: "Cannot change another player's life total",
+    };
+  }
+
+  if (updates.name !== undefined) {
+    return { allowed: false, reason: "Cannot change another player's name" };
+  }
+
+  return { allowed: false, reason: "Cannot update another player" };
 }

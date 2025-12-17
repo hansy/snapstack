@@ -59,4 +59,18 @@ describe('gameStore updatePlayer permissions', () => {
 
     expect(useGameStore.getState().players.opponent.life).toBe(40);
   });
+
+  it('blocks changing another player name', () => {
+    useGameStore.setState((state) => ({
+      ...state,
+      players: {
+        me: { id: 'me', name: 'Me', life: 40, counters: [], commanderDamage: {}, commanderTax: 0 },
+        opponent: { id: 'opponent', name: 'Opponent', life: 40, counters: [], commanderDamage: {}, commanderTax: 0 },
+      },
+    }));
+
+    useGameStore.getState().updatePlayer('opponent', { name: 'Hacked' }, 'me');
+
+    expect(useGameStore.getState().players.opponent.name).toBe('Opponent');
+  });
 });

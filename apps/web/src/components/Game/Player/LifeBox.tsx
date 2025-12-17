@@ -57,7 +57,7 @@ const LifeBoxInner: React.FC<LifeBoxProps> = ({
     >
       {/* Player Name Label */}
       <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-md font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full z-10 shadow-sm">
-        {isMe ? 'Me' : player.name}
+        {player.name || (isMe ? 'Me' : '')}
       </div>
       {/* Main Life Counter */}
       <div className="flex items-center gap-1">

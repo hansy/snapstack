@@ -153,7 +153,11 @@ const LogPartRenderer: React.FC<{
 }> = ({ part, selfPlayerId, entry, logContext }) => {
     switch (part.kind) {
         case 'player':
-            return <span className="font-semibold text-zinc-100">{part.playerId && part.playerId === selfPlayerId ? 'Me' : part.text}</span>;
+            if (part.playerId && part.playerId === selfPlayerId) {
+                const selfName = selfPlayerId ? logContext.players[selfPlayerId]?.name : undefined;
+                return <span className="font-semibold text-zinc-100">{selfName || part.text}</span>;
+            }
+            return <span className="font-semibold text-zinc-100">{part.text}</span>;
         case 'card':
             if (part.cardId) {
                 const fromZone = entry.payload?.fromZoneId ? logContext.zones[entry.payload.fromZoneId] : entry.payload?.zoneId ? logContext.zones[entry.payload.zoneId] : undefined;

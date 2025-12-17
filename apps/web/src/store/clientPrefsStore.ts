@@ -24,7 +24,7 @@ const createSafeStorage = (): Storage => {
 };
 
 const STORAGE_KEY = "mtg:client-prefs";
-const MAX_USERNAME_LENGTH = 12;
+export const USERNAME_MAX_LENGTH = 12;
 
 const ADJECTIVES = [
   "Arcane",
@@ -107,11 +107,13 @@ const normalizeUsername = (input: string | null | undefined): string | null => {
   const collapsed = input.replace(/\s+/g, " ").trim();
   if (!collapsed) return null;
   const capped =
-    collapsed.length > MAX_USERNAME_LENGTH
-      ? collapsed.slice(0, MAX_USERNAME_LENGTH).trim()
+    collapsed.length > USERNAME_MAX_LENGTH
+      ? collapsed.slice(0, USERNAME_MAX_LENGTH).trim()
       : collapsed;
   return capped.length ? capped : null;
 };
+
+export const normalizeUsernameInput = normalizeUsername;
 
 const takeAlpha = (value: string, maxLen: number) => {
   const alpha = value.replace(/[^a-z]/gi, "");
@@ -125,10 +127,16 @@ const generateRandomUsername = () => {
   return `${adjective}${creature}${suffix}`;
 };
 
+export const createSuggestedUsername = () => {
+  return normalizeUsername(generateRandomUsername()) ?? "Player";
+};
+
 type ClientPrefsState = {
+  hasHydrated: boolean;
   username: string | null;
   lastImportedDeckText: string | null;
 
+  setHasHydrated: (next: boolean) => void;
   setUsername: (next: string | null) => void;
   ensureUsername: () => string;
   clearUsername: () => void;
@@ -140,9 +148,11 @@ type ClientPrefsState = {
 export const useClientPrefsStore = create<ClientPrefsState>()(
   persist(
     (set, get) => ({
+      hasHydrated: false,
       username: null,
       lastImportedDeckText: null,
 
+      setHasHydrated: (next) => set({ hasHydrated: next }),
       setUsername: (next) => {
         set({ username: normalizeUsername(next) });
       },
@@ -183,7 +193,14 @@ export const useClientPrefsStore = create<ClientPrefsState>()(
             : null,
         };
       },
+      partialize: (state) => ({
+        username: state.username,
+        lastImportedDeckText: state.lastImportedDeckText,
+      }),
       storage: createJSONStorage(createSafeStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

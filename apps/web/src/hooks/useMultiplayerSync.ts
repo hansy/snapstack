@@ -36,7 +36,7 @@ import {
   computePlayerColors,
   resolveOrderedPlayerIds,
 } from "../lib/playerColors";
-import { useClientPrefsStore } from "../store/clientPrefsStore";
+import { normalizeUsernameInput, useClientPrefsStore } from "../store/clientPrefsStore";
 
 export type SyncStatus = "connecting" | "connected";
 
@@ -165,8 +165,10 @@ export function useMultiplayerSync(sessionId: string) {
     const ensureLocalPlayerInitialized = () => {
       const snapshot = sharedSnapshot(sharedMaps as any);
       const playerId = ensuredPlayerId;
-      const desiredName = useClientPrefsStore.getState().ensureUsername();
       const defaultName = `Player ${playerId.slice(0, 4).toUpperCase()}`;
+      const desiredName =
+        normalizeUsernameInput(useClientPrefsStore.getState().username) ??
+        defaultName;
 
       const playerExists = Boolean(snapshot.players[playerId]);
       const hasZoneOfType = (type: string) =>
