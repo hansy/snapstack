@@ -12,6 +12,7 @@ import { getCard as getCachedCard } from '../services/scryfallCache';
 import { toScryfallCardLite } from '../types/scryfallLite';
 import { clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_X, GRID_STEP_Y, migratePositionToNormalized } from '../lib/positions';
 import { getDisplayName } from '../lib/cardDisplay';
+import { getShortcutLabel } from '../shortcuts/gameShortcuts';
 
 // Centralizes context menu state/handlers for cards and zones so UI components can stay lean.
 export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: ZoneId, count?: number) => void) => {
@@ -174,6 +175,7 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
                 type: 'action',
                 label: 'Create Token',
                 onSelect: onCreateToken,
+                shortcut: getShortcutLabel('ui.openTokenModal'),
             }
         ]);
     };

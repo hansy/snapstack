@@ -168,6 +168,46 @@ describe("useGameShortcuts", () => {
     expect(openCountPrompt.mock.calls[0][0].initialValue).toBe(1);
   });
 
+  it("invokes openCountPrompt with initialValue=1 on Shift+D", () => {
+    const openCountPrompt = vi.fn();
+    const args: UseGameShortcutsArgs = {
+      myPlayerId: "me" as any,
+      zones: {
+        "lib-me": createZone("lib-me", "me", ZONE.LIBRARY),
+        "hand-me": createZone("hand-me", "me", ZONE.HAND),
+      } as any,
+      players: { me: createPlayer("me", true) } as any,
+      contextMenuOpen: false,
+      closeContextMenu: vi.fn(),
+      countPromptOpen: false,
+      closeCountPrompt: vi.fn(),
+      textPromptOpen: false,
+      closeTextPrompt: vi.fn(),
+      activeModalOpen: false,
+      closeActiveModal: vi.fn(),
+      tokenModalOpen: false,
+      setTokenModalOpen: vi.fn(),
+      loadDeckModalOpen: false,
+      setLoadDeckModalOpen: vi.fn(),
+      zoneViewerOpen: false,
+      closeZoneViewer: vi.fn(),
+      opponentRevealsOpen: false,
+      closeOpponentReveals: vi.fn(),
+      logOpen: false,
+      setLogOpen: vi.fn(),
+      openCountPrompt,
+      handleViewZone: vi.fn(),
+      handleLeave: vi.fn(),
+    };
+
+    render(<Probe args={args} />);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "d", shiftKey: true, bubbles: true }));
+    expect(openCountPrompt).toHaveBeenCalledTimes(1);
+    expect(openCountPrompt.mock.calls[0][0].title).toBe("Draw X");
+    expect(openCountPrompt.mock.calls[0][0].initialValue).toBe(1);
+  });
+
   it("does not prevent default for a matched shortcut that becomes a no-op", () => {
     const openCountPrompt = vi.fn();
     const args: UseGameShortcutsArgs = {

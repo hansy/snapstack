@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCw, Plus, ScrollText, Share2, LogOut, Wifi, Loader2 } from 'lucide-react';
+import { RefreshCw, Plus, ScrollText, Share2, LogOut, Wifi, Loader2, Keyboard } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useGameStore } from '../../../store/gameStore';
 
@@ -33,15 +33,17 @@ interface SidenavProps {
     onToggleLog?: () => void;
     onCopyLink?: () => void;
     onLeaveGame?: () => void;
+    onOpenShortcuts?: () => void;
     syncStatus?: SyncStatus;
     peerCount?: number;
 }
 
-export const Sidenav: React.FC<SidenavProps> = ({ 
-    onCreateToken, 
-    onToggleLog, 
-    onCopyLink, 
+export const Sidenav: React.FC<SidenavProps> = ({
+    onCreateToken,
+    onToggleLog,
+    onCopyLink,
     onLeaveGame,
+    onOpenShortcuts,
     syncStatus = 'connecting',
     peerCount = 1,
 }) => {
@@ -127,6 +129,17 @@ export const Sidenav: React.FC<SidenavProps> = ({
                                     </div>
 
                                     <div className="border-t border-zinc-800 my-1" />
+
+                                    <button
+                                        onClick={() => {
+                                            onOpenShortcuts?.();
+                                            setIsMenuOpen(false);
+                                        }}
+                                        className="flex items-center gap-3 p-2 rounded hover:bg-zinc-800 text-left text-sm text-zinc-300 hover:text-zinc-100 transition-colors"
+                                    >
+                                        <Keyboard size={16} />
+                                        Keyboard Shortcuts
+                                    </button>
 
                                     <button
                                         onClick={onLeaveGame}

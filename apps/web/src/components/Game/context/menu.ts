@@ -21,6 +21,7 @@ import {
   getTransformVerb,
   isTransformableCard,
 } from "../../../lib/cardDisplay";
+import { getShortcutLabel } from "../../../shortcuts/gameShortcuts";
 
 /**
  * Get related parts from a card. This requires full Scryfall data.
@@ -44,6 +45,7 @@ export interface ContextMenuAction {
   danger?: boolean;
   submenu?: ContextMenuItem[];
   disabledReason?: string;
+  shortcut?: string;
 }
 
 export interface ContextMenuSeparator {
@@ -114,7 +116,7 @@ export const buildZoneMoveActions = (
         items.push({
           type: "action",
           label: "Reveal to...",
-          onSelect: () => {},
+          onSelect: () => { },
           submenu: playerItems,
         });
       }
@@ -269,7 +271,7 @@ export const buildCardActions = ({
       items.push({
         type: "action",
         label: "Reveal to...",
-        onSelect: () => {},
+        onSelect: () => { },
         submenu: playerItems,
       });
     }
@@ -355,7 +357,7 @@ export const buildCardActions = ({
         items.push({
           type: "action",
           label: "Create related",
-          onSelect: () => {},
+          onSelect: () => { },
           submenu: relatedItems,
         });
       }
@@ -409,7 +411,7 @@ export const buildCardActions = ({
       items.push({
         type: "action",
         label: "Add counter",
-        onSelect: () => {}, // Submenu parent
+        onSelect: () => { }, // Submenu parent
         submenu: addCounterItems,
       });
     }
@@ -427,7 +429,7 @@ export const buildCardActions = ({
       items.push({
         type: "action",
         label: "Remove counter",
-        onSelect: () => {}, // Submenu parent
+        onSelect: () => { }, // Submenu parent
         submenu: removeCounterItems,
       });
     }
@@ -550,6 +552,7 @@ export const buildZoneViewActions = ({
         type: "action",
         label: "Draw 1",
         onSelect: () => drawCard(myPlayerId),
+        shortcut: getShortcutLabel("game.drawOne"),
       });
       drawItems.push({
         type: "action",
@@ -567,11 +570,12 @@ export const buildZoneViewActions = ({
           });
         },
         disabledReason: openCountPrompt ? undefined : "Prompt unavailable",
+        shortcut: getShortcutLabel("game.drawX"),
       });
       items.push({
         type: "action",
         label: "Draw ...",
-        onSelect: () => {},
+        onSelect: () => { },
         submenu: drawItems,
       });
 
@@ -595,11 +599,12 @@ export const buildZoneViewActions = ({
             });
           },
           disabledReason: openCountPrompt ? undefined : "Prompt unavailable",
+          shortcut: getShortcutLabel("zone.viewLibraryTop"),
         });
         items.push({
           type: "action",
           label: "View ...",
-          onSelect: () => {},
+          onSelect: () => { },
           submenu: viewItems,
         });
       }
@@ -608,18 +613,40 @@ export const buildZoneViewActions = ({
         type: "action",
         label: "Shuffle",
         onSelect: () => shuffleLibrary(myPlayerId),
+        shortcut: getShortcutLabel("game.shuffleLibrary"),
+      });
+      items.push({
+        type: "action",
+        label: "Mulligan",
+        onSelect: () => {
+          if (!openCountPrompt) return;
+          openCountPrompt({
+            title: "Mulligan",
+            message:
+              "Shuffle library and draw new cards. How many cards to draw?",
+            initialValue: 7,
+            onSubmit: (count) => {
+              shuffleLibrary(myPlayerId);
+              for (let i = 0; i < count; i++) drawCard(myPlayerId);
+            },
+          });
+        },
+        disabledReason: openCountPrompt ? undefined : "Prompt unavailable",
+        shortcut: getShortcutLabel("game.mulligan"),
       });
       items.push({ type: "separator" });
       items.push({
         type: "action",
         label: "Reset",
         onSelect: () => resetDeck(myPlayerId),
+        shortcut: getShortcutLabel("deck.reset"),
       });
       items.push({
         type: "action",
         label: "Unload",
         onSelect: () => unloadDeck(myPlayerId),
         danger: true,
+        shortcut: getShortcutLabel("deck.unload"),
       });
     }
   } else if (zone.type === ZONE.GRAVEYARD || zone.type === ZONE.EXILE) {
@@ -629,6 +656,14 @@ export const buildZoneViewActions = ({
         type: "action",
         label: "View All",
         onSelect: () => onViewZone(zone.id),
+        shortcut:
+          zone.ownerId === myPlayerId
+            ? zone.type === ZONE.GRAVEYARD
+              ? getShortcutLabel("zone.viewGraveyard")
+              : zone.type === ZONE.EXILE
+                ? getShortcutLabel("zone.viewExile")
+                : undefined
+            : undefined,
       });
   }
 

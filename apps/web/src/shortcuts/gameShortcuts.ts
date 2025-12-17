@@ -1,9 +1,11 @@
 export type GameShortcutId =
   | "ui.closeTopmost"
+  | "ui.toggleShortcuts"
   | "ui.toggleLog"
   | "ui.openTokenModal"
   | "game.untapAll"
   | "game.drawOne"
+  | "game.drawX"
   | "game.shuffleLibrary"
   | "zone.viewGraveyard"
   | "zone.viewExile"
@@ -40,6 +42,13 @@ export const GAME_SHORTCUTS: GameShortcutDefinition[] = [
     requiresDeckLoaded: false,
   },
   {
+    id: "ui.toggleShortcuts",
+    binding: { key: "/" },
+    title: "Show Shortcuts",
+    description: "Toggles the keyboard shortcuts drawer.",
+    requiresDeckLoaded: false,
+  },
+  {
     id: "ui.toggleLog",
     binding: { key: "l" },
     title: "Toggle Log",
@@ -65,6 +74,13 @@ export const GAME_SHORTCUTS: GameShortcutDefinition[] = [
     binding: { key: "d" },
     title: "Draw 1",
     description: "Draws one card.",
+    requiresDeckLoaded: true,
+  },
+  {
+    id: "game.drawX",
+    binding: { key: "d", shift: true },
+    title: "Draw X",
+    description: "Prompts for a number (default 1) and draws that many cards.",
     requiresDeckLoaded: true,
   },
   {
@@ -125,3 +141,7 @@ export const GAME_SHORTCUTS: GameShortcutDefinition[] = [
   },
 ];
 
+export const getShortcutLabel = (id: GameShortcutId): string | undefined => {
+  const shortcut = GAME_SHORTCUTS.find((s) => s.id === id);
+  return shortcut ? formatShortcutBinding(shortcut.binding) : undefined;
+};

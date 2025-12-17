@@ -34,6 +34,8 @@ export type UseGameShortcutsArgs = {
   closeOpponentReveals: () => void;
   logOpen: boolean;
   setLogOpen: (open: boolean) => void;
+  shortcutsOpen: boolean;
+  setShortcutsOpen: (open: boolean) => void;
   openCountPrompt: (opts: CountPromptOptions) => void;
   handleViewZone: (zoneId: ZoneId, count?: number) => void;
   handleLeave: () => void;
@@ -85,6 +87,8 @@ export const useGameShortcuts = (args: UseGameShortcutsArgs) => {
         closeOpponentReveals,
         logOpen,
         setLogOpen,
+        shortcutsOpen,
+        setShortcutsOpen,
         openCountPrompt,
         handleViewZone,
         handleLeave,
@@ -124,6 +128,10 @@ export const useGameShortcuts = (args: UseGameShortcutsArgs) => {
         }
         if (opponentRevealsOpen) {
           closeOpponentReveals();
+          return true;
+        }
+        if (shortcutsOpen) {
+          setShortcutsOpen(false);
           return true;
         }
         if (logOpen) {
@@ -169,15 +177,13 @@ export const useGameShortcuts = (args: UseGameShortcutsArgs) => {
       const unloadDeck = () => useGameStore.getState().unloadDeck(myPlayerId, myPlayerId);
       const untapAll = () => useGameStore.getState().untapAll(myPlayerId);
 
-      const handle = (fn: () => void) => {
-        consume();
-        fn();
-      };
-
       if (shortcut.requiresDeckLoaded && !hasDeckLoaded) return;
 
       const run = (id: GameShortcutId): boolean => {
         switch (id) {
+          case "ui.toggleShortcuts":
+            setShortcutsOpen(!shortcutsOpen);
+            return true;
           case "ui.toggleLog":
             setLogOpen(!logOpen);
             return true;
@@ -189,6 +195,16 @@ export const useGameShortcuts = (args: UseGameShortcutsArgs) => {
             return true;
           case "game.drawOne":
             drawOne();
+            return true;
+          case "game.drawX":
+            openCountPrompt({
+              title: "Draw X",
+              message: "How many cards to draw?",
+              initialValue: 1,
+              onSubmit: (count) => {
+                for (let i = 0; i < count; i++) drawOne();
+              },
+            });
             return true;
           case "game.shuffleLibrary":
             shuffle();

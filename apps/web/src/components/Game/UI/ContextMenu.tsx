@@ -137,7 +137,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, referenceElement
                                 title={item.disabledReason}
                                 disabled={isDisabled}
                             >
-                                <span>{item.label}</span>
+                                <span className="flex-1 mr-2">{item.label}</span>
+                                {item.shortcut && (
+                                    <span className="mr-2 text-[10px] font-medium font-mono text-zinc-500 bg-zinc-950/40 px-1.5 py-0.5 rounded shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] border-b border-white/5 mx-2 min-w-[20px] text-center">
+                                        {item.shortcut}
+                                    </span>
+                                )}
                                 {item.submenu && <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300" />}
                             </button>
 

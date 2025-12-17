@@ -24,6 +24,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { computePlayerColors, resolveOrderedPlayerIds } from '../../../lib/playerColors';
 import { OpponentLibraryRevealsModal } from '../UI/OpponentLibraryRevealsModal';
 import { useGameShortcuts } from '../../../hooks/useGameShortcuts';
+import { ShortcutsDrawer } from '../UI/ShortcutsDrawer';
 
 
 
@@ -91,6 +92,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
     const [isLoadDeckModalOpen, setIsLoadDeckModalOpen] = useState(false);
     const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
     const [isLogOpen, setIsLogOpen] = useState(false);
+    const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
     const [revealedLibraryZoneId, setRevealedLibraryZoneId] = useState<string | null>(null);
 
     useGameShortcuts({
@@ -115,6 +117,8 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
         closeOpponentReveals: () => setRevealedLibraryZoneId(null),
         logOpen: isLogOpen,
         setLogOpen: setIsLogOpen,
+        shortcutsOpen: isShortcutsOpen,
+        setShortcutsOpen: setIsShortcutsOpen,
         openCountPrompt,
         handleViewZone,
         handleLeave,
@@ -240,6 +244,7 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                         onToggleLog={() => setIsLogOpen(!isLogOpen)}
                         onCopyLink={handleCopyLink}
                         onLeaveGame={handleLeave}
+                        onOpenShortcuts={() => setIsShortcutsOpen(true)}
                         syncStatus={syncStatus}
                         peerCount={peers}
                     />
@@ -334,6 +339,10 @@ export const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ sessionId })
                     isOpen={Boolean(revealedLibraryZoneId)}
                     onClose={() => setRevealedLibraryZoneId(null)}
                     zoneId={revealedLibraryZoneId}
+                />
+                <ShortcutsDrawer
+                    isOpen={isShortcutsOpen}
+                    onClose={() => setIsShortcutsOpen(false)}
                 />
                 <DragMonitor />
                 <DragOverlay dropAnimation={null}>
