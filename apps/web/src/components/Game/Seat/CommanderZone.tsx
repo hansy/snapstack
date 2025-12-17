@@ -24,6 +24,13 @@ export const CommanderZone: React.FC<CommanderZoneProps> = ({
   scale = 1,
   color,
 }) => {
+  const myPlayerId = useGameStore((state) => state.myPlayerId);
+  const commanderTax = useGameStore(
+    (state) => state.players[zone.ownerId]?.commanderTax || 0
+  );
+  const updateCommanderTax = useGameStore((state) => state.updateCommanderTax);
+  const isOwner = myPlayerId === zone.ownerId;
+
   return (
     <div
       className={cn(
@@ -59,26 +66,21 @@ export const CommanderZone: React.FC<CommanderZoneProps> = ({
             className={cn(
               "flex items-center bg-transparent rounded-full transition-all p-1 gap-1 border border-transparent",
               // Only show hover effects if it's my zone
-              useGameStore.getState().myPlayerId === zone.ownerId &&
+              isOwner &&
                 "hover:bg-zinc-900/90 hover:border-zinc-700/50 hover:backdrop-blur-sm"
             )}
           >
             {/* Decrement Button (Hidden until hover, only for owner) */}
-            {useGameStore.getState().myPlayerId === zone.ownerId && (
+            {isOwner && (
               <button
                 className={cn(
                   "w-10 h-10 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-full text-white text-base border border-zinc-600 opacity-0 group-hover/tax:opacity-100 transition-opacity pointer-events-none group-hover/tax:pointer-events-auto",
-                  (useGameStore.getState().players[zone.ownerId]
-                    ?.commanderTax || 0) <= 0 &&
-                    "opacity-0 cursor-not-allowed pointer-events-none"
+                  commanderTax <= 0 && "opacity-0 cursor-not-allowed pointer-events-none"
                 )}
-                disabled={
-                  (useGameStore.getState().players[zone.ownerId]
-                    ?.commanderTax || 0) <= 0
-                }
+                disabled={commanderTax <= 0}
                 onClick={(e) => {
                   e.stopPropagation();
-                  useGameStore.getState().updateCommanderTax(zone.ownerId, -2);
+                  updateCommanderTax(zone.ownerId, -2);
                 }}
               >
                 -2
@@ -87,18 +89,16 @@ export const CommanderZone: React.FC<CommanderZoneProps> = ({
 
             {/* Counter Value */}
             <div className="bg-zinc-900 border-2 border-zinc-600 rounded-full w-10 h-10 flex items-center justify-center text-base font-bold text-zinc-200 shadow-lg z-10">
-              {useGameStore(
-                (state) => state.players[zone.ownerId]?.commanderTax || 0
-              )}
+              {commanderTax}
             </div>
 
             {/* Increment Button (Hidden until hover, only for owner) */}
-            {useGameStore.getState().myPlayerId === zone.ownerId && (
+            {isOwner && (
               <button
                 className="w-10 h-10 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 rounded-full text-white text-base border border-zinc-600 opacity-0 group-hover/tax:opacity-100 transition-opacity pointer-events-none group-hover/tax:pointer-events-auto"
                 onClick={(e) => {
                   e.stopPropagation();
-                  useGameStore.getState().updateCommanderTax(zone.ownerId, 2);
+                  updateCommanderTax(zone.ownerId, 2);
                 }}
               >
                 +2

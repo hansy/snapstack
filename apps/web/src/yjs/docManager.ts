@@ -5,10 +5,9 @@
  * keyed by sessionId. The docs survive React's StrictMode unmount/remount cycle.
  */
 
-import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { Awareness } from 'y-protocols/awareness';
-import type { YDocHandles } from './yDoc';
+import { createGameYDoc, type YDocHandles } from './yDoc';
 import type { SharedMaps } from './yMutations';
 
 interface SessionState {
@@ -39,19 +38,7 @@ export function acquireSession(sessionId: string): YDocHandles {
   let session = sessions.get(sessionId);
   
   if (!session) {
-    const doc = new Y.Doc();
-    const handles: YDocHandles = {
-      doc,
-      players: doc.getMap('players'),
-      playerOrder: doc.getArray('playerOrder'),
-      zones: doc.getMap('zones'),
-      cards: doc.getMap('cards'),
-      zoneCardOrders: doc.getMap('zoneCardOrders'),
-      globalCounters: doc.getMap('globalCounters'),
-      battlefieldViewScale: doc.getMap('battlefieldViewScale'),
-      logs: doc.getArray('logs'),
-      meta: doc.getMap('meta'),
-    };
+    const handles = createGameYDoc();
     
     session = {
       handles,

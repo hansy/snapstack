@@ -36,11 +36,15 @@ const pendingFetches = new Map<string, Promise<ScryfallCard | null>>();
 
 let db: IDBDatabase | null = null;
 let dbInitPromise: Promise<IDBDatabase> | null = null;
+const hasIndexedDB = typeof indexedDB !== "undefined";
 
 /**
  * Initialize the IndexedDB database
  */
 const initDB = (): Promise<IDBDatabase> => {
+  if (!hasIndexedDB) {
+    return Promise.reject(new Error("IndexedDB is not available"));
+  }
   if (db) return Promise.resolve(db);
   if (dbInitPromise) return dbInitPromise;
 
@@ -96,6 +100,7 @@ const addToMemoryCache = (id: string, card: ScryfallCard) => {
  * Get a card from IndexedDB
  */
 const getFromDB = async (scryfallId: string): Promise<ScryfallCard | null> => {
+  if (!hasIndexedDB) return null;
   try {
     const database = await initDB();
     return new Promise((resolve) => {
@@ -135,6 +140,7 @@ const getFromDB = async (scryfallId: string): Promise<ScryfallCard | null> => {
  * Store a card in IndexedDB
  */
 const storeInDB = async (card: ScryfallCard): Promise<void> => {
+  if (!hasIndexedDB) return;
   try {
     const database = await initDB();
     return new Promise((resolve, reject) => {
@@ -163,6 +169,7 @@ const storeInDB = async (card: ScryfallCard): Promise<void> => {
  * Delete a card from IndexedDB
  */
 const deleteFromDB = async (scryfallId: string): Promise<void> => {
+  if (!hasIndexedDB) return;
   try {
     const database = await initDB();
     return new Promise((resolve) => {
@@ -344,6 +351,7 @@ export const cacheCards = async (cards: ScryfallCard[]): Promise<void> => {
  * Clear expired entries from the cache
  */
 export const cleanupExpired = async (): Promise<number> => {
+  if (!hasIndexedDB) return 0;
   try {
     const database = await initDB();
     const cutoff = Date.now() - CACHE_EXPIRY_MS;
@@ -380,6 +388,7 @@ export const clearCache = async (): Promise<void> => {
   memoryCache.clear();
   memoryCacheOrder.length = 0;
 
+  if (!hasIndexedDB) return;
   try {
     const database = await initDB();
     return new Promise((resolve) => {
@@ -401,6 +410,9 @@ export const getCacheStats = async (): Promise<{
   memoryCount: number;
   dbCount: number;
 }> => {
+  if (!hasIndexedDB) {
+    return { memoryCount: memoryCache.size, dbCount: 0 };
+  }
   let dbCount = 0;
 
   try {
@@ -421,4 +433,3 @@ export const getCacheStats = async (): Promise<{
     dbCount,
   };
 };
-

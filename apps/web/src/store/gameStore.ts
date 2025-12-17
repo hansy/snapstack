@@ -13,28 +13,11 @@ import { destroySession, getSessionHandles, runWithSharedDoc } from '../yjs/docM
 import { isApplyingRemoteUpdate } from '../yjs/sync';
 import { addCounterToCard as yAddCounterToCard, duplicateCard as yDuplicateCard, moveCard as yMoveCard, patchCard as yPatchCard, patchPlayer as yPatchPlayer, removeCard as yRemoveCard, removeCounterFromCard as yRemoveCounterFromCard, removePlayer as yRemovePlayer, reorderZoneCards as yReorderZoneCards, resetDeck as yResetDeck, setBattlefieldViewScale as ySetBattlefieldViewScale, sharedSnapshot, transformCard as yTransformCard, unloadDeck as yUnloadDeck, upsertCard as yUpsertCard, upsertPlayer as yUpsertPlayer, upsertZone as yUpsertZone, SharedMaps } from '../yjs/yMutations';
 import { bumpPosition, clampNormalizedPosition, findAvailablePositionNormalized, GRID_STEP_Y, migratePositionToNormalized, positionsRoughlyEqual } from '../lib/positions';
+import { createSafeStorage } from '../lib/safeStorage';
 
 interface GameStore extends GameState {
     // Additional actions or computed properties can go here
 }
-
-const createSafeStorage = (): Storage => {
-    if (typeof window === 'undefined' || !window?.localStorage) {
-        const store = new Map<string, string>();
-        return {
-            getItem: (key: string) => store.get(key) ?? null,
-            setItem: (key: string, value: string) => { store.set(key, value); },
-            removeItem: (key: string) => { store.delete(key); },
-            clear: () => store.clear(),
-            key: (index: number) => Array.from(store.keys())[index] ?? null,
-            get length() {
-                return store.size;
-            },
-        } as Storage;
-    }
-
-    return window.localStorage;
-};
 
 const resolveControllerAfterMove = (card: Card, fromZone: Zone, toZone: Zone): string => {
     if (toZone.type === ZONE.BATTLEFIELD) {

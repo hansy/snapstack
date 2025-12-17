@@ -1,27 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-
-const createSafeStorage = (): Storage => {
-  if (typeof window === "undefined" || !window?.localStorage) {
-    const store = new Map<string, string>();
-    return {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => {
-        store.set(key, value);
-      },
-      removeItem: (key: string) => {
-        store.delete(key);
-      },
-      clear: () => store.clear(),
-      key: (index: number) => Array.from(store.keys())[index] ?? null,
-      get length() {
-        return store.size;
-      },
-    } as Storage;
-  }
-
-  return window.localStorage;
-};
+import { createSafeStorage } from "../lib/safeStorage";
 
 const STORAGE_KEY = "mtg:client-prefs";
 export const USERNAME_MAX_LENGTH = 12;

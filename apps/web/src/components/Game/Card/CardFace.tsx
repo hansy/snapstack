@@ -52,6 +52,7 @@ const CardFaceInner: React.FC<CardFaceProps> = ({
   );
   const updateCard = useGameStore((state) => state.updateCard);
   const globalCounters = useGameStore((state) => state.globalCounters);
+  const myPlayerId = useGameStore((state) => state.myPlayerId);
 
   // Memoize display values
   const displayImageUrl = React.useMemo(
@@ -313,7 +314,7 @@ const CardFaceInner: React.FC<CardFaceProps> = ({
 
       {/* Reveal Eye Icon - Only visible to owner */}
       {!hideRevealIcon &&
-        card.ownerId === useGameStore.getState().myPlayerId && // Check ownership directly
+        card.ownerId === myPlayerId &&
         (card.revealedToAll || (card.revealedTo && card.revealedTo.length > 0)) && (
           <div
             className="absolute top-1 left-1 z-20 bg-zinc-900/90 rounded-full p-1 border border-zinc-700 shadow-md group/eye"
