@@ -1,14 +1,14 @@
-import type { Card } from "../../../types";
-import type { CardPatch } from "../../../yjs/yMutations";
+import type { Card } from "@/types";
+import type { CardPatch } from "@/yjs/yMutations";
 
-import { getCardFaces, getCurrentFaceIndex, syncCardStatsToFace } from "../../../lib/cardDisplay";
+import { getCardFaces, getCurrentFaceIndex, syncCardStatsToFace } from "@/lib/cardDisplay";
 import {
   bumpPosition,
   clampNormalizedPosition,
   findAvailablePositionNormalized,
   migratePositionToNormalized,
-} from "../../../lib/positions";
-import { MAX_REVEALED_TO } from "../../../lib/limits";
+} from "@/lib/positions";
+import { MAX_REVEALED_TO } from "@/lib/limits";
 
 export const normalizeCardForAdd = (card: Card): Card => {
   const faces = getCardFaces(card);

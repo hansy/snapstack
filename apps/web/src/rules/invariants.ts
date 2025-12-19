@@ -1,4 +1,4 @@
-import { GameState } from '../types';
+import { GameState } from '@/types';
 
 // Basic integrity checks: ownership present, zone references consistent.
 export function validateState(state: GameState) {

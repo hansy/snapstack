@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { Card as CardType } from "../../../types";
+import { Card as CardType } from "@/types";
 
-import { cn } from "../../../lib/utils";
-import { ZONE } from "../../../constants/zones";
-import { useGameStore } from "../../../store/gameStore";
-import { getNextCardStatUpdate } from "../../../lib/cardPT";
-import { computeCardPreviewPosition } from "../../../lib/cardPreviewPosition";
+import { cn } from "@/lib/utils";
+import { ZONE } from "@/constants/zones";
+import { useGameStore } from "@/store/gameStore";
+import { getNextCardStatUpdate } from "@/lib/cardPT";
+import { computeCardPreviewPosition } from "@/lib/cardPreviewPosition";
 import {
   getDisplayPower,
   getDisplayToughness,
   getFlipRotation,
   shouldShowPowerToughness,
-} from "../../../lib/cardDisplay";
+} from "@/lib/cardDisplay";
 import { CardPreviewView } from "./CardPreviewView";
 
 interface CardPreviewProps {

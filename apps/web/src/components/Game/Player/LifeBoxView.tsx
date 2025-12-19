@@ -1,9 +1,9 @@
 import React from "react";
 import { Minus, Plus } from "lucide-react";
 
-import { cn } from "../../../lib/utils";
+import { cn } from "@/lib/utils";
 
-import type { LifeBoxController } from "./useLifeBoxController";
+import type { LifeBoxController } from "@/hooks/game/player/useLifeBoxController";
 
 export const LifeBoxView: React.FC<LifeBoxController> = ({
   player,

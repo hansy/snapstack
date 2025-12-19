@@ -1,4 +1,4 @@
-import { Card, Zone } from '../types';
+import { Card, Zone } from '@/types';
 
 // Generic allow/deny result for permission checks.
 export type PermissionResult =

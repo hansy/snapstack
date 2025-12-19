@@ -1,4 +1,4 @@
-import type { Card, Player, Zone } from '../../types';
+import type { Card, Player, Zone } from '@/types';
 
 import type { SharedMaps } from './shared';
 import { readCard } from './cards';

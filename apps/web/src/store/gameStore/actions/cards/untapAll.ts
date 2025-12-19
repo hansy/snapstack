@@ -1,7 +1,7 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { emitLog } from "../../../../logging/logStore";
-import { patchCard as yPatchCard, sharedSnapshot } from "../../../../yjs/yMutations";
+import { emitLog } from "@/logging/logStore";
+import { patchCard as yPatchCard, sharedSnapshot } from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createUntapAll =

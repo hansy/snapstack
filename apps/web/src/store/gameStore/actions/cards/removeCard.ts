@@ -1,8 +1,8 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { logPermission } from "../../../../rules/logger";
-import { emitLog } from "../../../../logging/logStore";
-import { removeCard as yRemoveCard } from "../../../../yjs/yMutations";
+import { logPermission } from "@/rules/logger";
+import { emitLog } from "@/logging/logStore";
+import { removeCard as yRemoveCard } from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createRemoveCard =

@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-import type { GameState } from '../types';
-import type { SharedMaps } from '../yjs/yMutations';
+import type { GameState } from '@/types';
+import type { SharedMaps } from '@/yjs/yMutations';
 
-import { createSafeStorage } from '../lib/safeStorage';
-import { runWithSharedDoc } from '../yjs/docManager';
-import { isApplyingRemoteUpdate } from '../yjs/sync';
+import { createSafeStorage } from '@/lib/safeStorage';
+import { runWithSharedDoc } from '@/yjs/docManager';
+import { isApplyingRemoteUpdate } from '@/yjs/sync';
 
 import { createCardActions } from './gameStore/actions/cards';
 import { createCounterActions } from './gameStore/actions/counters';

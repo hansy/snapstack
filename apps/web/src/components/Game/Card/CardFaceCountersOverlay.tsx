@@ -1,8 +1,8 @@
 import React from "react";
 
-import { cn } from "../../../lib/utils";
+import { cn } from "@/lib/utils";
 
-import type { CardFaceCounterModel } from "./cardFaceModel";
+import type { CardFaceCounterModel } from "@/models/game/card/cardFaceModel";
 
 export const CardFaceCountersOverlay: React.FC<{
   counters: CardFaceCounterModel[];

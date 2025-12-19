@@ -1,9 +1,9 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { canTapCard } from "../../../../rules/permissions";
-import { logPermission } from "../../../../rules/logger";
-import { emitLog } from "../../../../logging/logStore";
-import { patchCard as yPatchCard } from "../../../../yjs/yMutations";
+import { canTapCard } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
+import { emitLog } from "@/logging/logStore";
+import { patchCard as yPatchCard } from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createTapCard =

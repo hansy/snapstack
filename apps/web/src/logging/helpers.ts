@@ -1,5 +1,5 @@
-import { ZONE_LABEL } from '../constants/zones';
-import { Card, CardId, PlayerId, Zone } from '../types';
+import { ZONE_LABEL } from '@/constants/zones';
+import { Card, CardId, PlayerId, Zone } from '@/types';
 import { LogContext, LogMessagePart } from './types';
 
 const HIDDEN_ZONE_TYPES: Zone['type'][] = ['library', 'hand'];

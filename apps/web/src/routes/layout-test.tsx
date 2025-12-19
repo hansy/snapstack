@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { MultiplayerBoard } from '../components/Game/Board/MultiplayerBoard';
-import { useGameStore } from '../store/gameStore';
+import { MultiplayerBoard } from '@/components/game/board/MultiplayerBoard';
+import { useGameStore } from '@/store/gameStore';
 import { useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { ZONE } from '../constants/zones';
+import { ZONE } from '@/constants/zones';
 
 export const Route = createFileRoute('/layout-test')({
   component: LayoutTest,

@@ -1,7 +1,7 @@
 import React from "react";
 
 import { LifeBoxView } from "./LifeBoxView";
-import { useLifeBoxController, type LifeBoxControllerInput } from "./useLifeBoxController";
+import { useLifeBoxController, type LifeBoxControllerInput } from "@/hooks/game/player/useLifeBoxController";
 
 export type LifeBoxProps = LifeBoxControllerInput;
 

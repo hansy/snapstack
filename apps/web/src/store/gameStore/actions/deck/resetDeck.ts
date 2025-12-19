@@ -1,13 +1,13 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { getZoneByType } from "../../../../lib/gameSelectors";
-import { ZONE } from "../../../../constants/zones";
-import { canViewZone } from "../../../../rules/permissions";
-import { logPermission } from "../../../../rules/logger";
-import { resetCardToFrontFace } from "../../../../lib/cardDisplay";
-import { enforceZoneCounterRules } from "../../../../lib/counters";
-import { emitLog } from "../../../../logging/logStore";
-import { resetDeck as yResetDeck } from "../../../../yjs/yMutations";
+import { getZoneByType } from "@/lib/gameSelectors";
+import { ZONE } from "@/constants/zones";
+import { canViewZone } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
+import { resetCardToFrontFace } from "@/lib/cardDisplay";
+import { enforceZoneCounterRules } from "@/lib/counters";
+import { emitLog } from "@/logging/logStore";
+import { resetDeck as yResetDeck } from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createResetDeck =

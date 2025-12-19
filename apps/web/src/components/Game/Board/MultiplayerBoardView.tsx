@@ -1,24 +1,24 @@
 import React from "react";
 import { DndContext, DragOverlay, getClientRect, pointerWithin } from "@dnd-kit/core";
 
-import { ZONE } from "../../../constants/zones";
-import { CardView } from "../Card/Card";
-import { CardPreviewProvider } from "../Card/CardPreviewProvider";
-import { Seat } from "../Seat/Seat";
-import { ContextMenu } from "../UI/ContextMenu";
-import { AddCounterModal } from "../UI/AddCounterModal";
-import { LoadDeckModal } from "../UI/LoadDeckModal";
-import { LogDrawer } from "../UI/LogDrawer";
-import { NumberPromptDialog } from "../UI/NumberPromptDialog";
-import { OpponentLibraryRevealsModal } from "../UI/OpponentLibraryRevealsModal";
-import { ShortcutsDrawer } from "../UI/ShortcutsDrawer";
-import { Sidenav } from "../UI/Sidenav";
-import { TextPromptDialog } from "../UI/TextPromptDialog";
-import { TokenCreationModal } from "../UI/TokenCreationModal";
-import { ZoneViewerModal } from "../UI/ZoneViewerModal";
-import { EditUsernameDialog } from "../../Username/EditUsernameDialog";
+import { ZONE } from "@/constants/zones";
+import { CardView } from "../card/Card";
+import { CardPreviewProvider } from "../card/CardPreviewProvider";
+import { Seat } from "../seat/Seat";
+import { ContextMenu } from "../context-menu/ContextMenu";
+import { AddCounterModal } from "../add-counter/AddCounterModal";
+import { LoadDeckModal } from "../load-deck/LoadDeckModal";
+import { LogDrawer } from "../log-drawer/LogDrawer";
+import { NumberPromptDialog } from "../prompts/NumberPromptDialog";
+import { OpponentLibraryRevealsModal } from "../opponent-library-reveals/OpponentLibraryRevealsModal";
+import { ShortcutsDrawer } from "../shortcuts/ShortcutsDrawer";
+import { Sidenav } from "../sidenav/Sidenav";
+import { TextPromptDialog } from "../prompts/TextPromptDialog";
+import { TokenCreationModal } from "../token-creation/TokenCreationModal";
+import { ZoneViewerModal } from "../zone-viewer/ZoneViewerModal";
+import { EditUsernameDialog } from "../../username/EditUsernameDialog";
 
-import type { MultiplayerBoardController } from "./useMultiplayerBoardController";
+import type { MultiplayerBoardController } from "@/hooks/game/board/useMultiplayerBoardController";
 
 export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
   zones,
@@ -236,4 +236,3 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
     </CardPreviewProvider>
   );
 };
-

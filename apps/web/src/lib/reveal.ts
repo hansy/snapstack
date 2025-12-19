@@ -1,5 +1,5 @@
-import type { Card, PlayerId, ZoneType } from "../types";
-import { ZONE } from "../constants/zones";
+import type { Card, PlayerId, ZoneType } from "@/types";
+import { ZONE } from "@/constants/zones";
 
 export const isHiddenZoneType = (zoneType: ZoneType | undefined) => {
   return zoneType === ZONE.HAND || zoneType === ZONE.LIBRARY;

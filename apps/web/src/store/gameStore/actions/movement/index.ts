@@ -1,4 +1,4 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
 import type { Deps, GetState, SetState } from "./types";
 import { createMoveCard } from "./moveCard";

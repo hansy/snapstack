@@ -1,9 +1,9 @@
-import { enforceZoneCounterRules } from "../../../lib/counters";
-import { MAX_REVEALED_TO } from "../../../lib/limits";
+import { enforceZoneCounterRules } from "@/lib/counters";
+import { MAX_REVEALED_TO } from "@/lib/limits";
 import {
   clampNormalizedPosition,
   migratePositionToNormalized,
-} from "../../../lib/positions";
+} from "@/lib/positions";
 
 import { MAX_CUSTOM_TEXT_LENGTH } from "../../sanitizeLimits";
 

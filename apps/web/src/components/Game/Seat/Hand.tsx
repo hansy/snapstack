@@ -1,10 +1,10 @@
 import React from "react";
-import { cn } from "../../../lib/utils";
-import { Zone as ZoneType, Card as CardType } from "../../../types";
-import { Card } from "../Card/Card";
-import { Zone } from "../Zone/Zone";
+import { cn } from "@/lib/utils";
+import { Zone as ZoneType, Card as CardType } from "@/types";
+import { Card } from "../card/Card";
+import { Zone } from "../zone/Zone";
 import { ZONE_LABEL } from "@/constants/zones";
-import { shouldRenderFaceDown } from "../../../lib/reveal";
+import { shouldRenderFaceDown } from "@/lib/reveal";
 import {
   SortableContext,
   useSortable,

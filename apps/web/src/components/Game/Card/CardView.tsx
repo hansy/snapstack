@@ -1,6 +1,6 @@
 import React from "react";
-import { cn } from "../../../lib/utils";
-import { CARD_HEIGHT_CLASS, CARD_ASPECT_CLASS } from "../../../lib/constants";
+import { cn } from "@/lib/utils";
+import { CARD_HEIGHT_CLASS, CARD_ASPECT_CLASS } from "@/lib/constants";
 
 import type { CardViewProps } from "./types";
 import { CardFace } from "./CardFace";

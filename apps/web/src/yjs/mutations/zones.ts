@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 
-import type { Zone } from '../../types';
+import type { Zone } from '@/types';
 
 import type { SharedMaps } from './shared';
 import { ensureChildMap, ensureZoneOrder, readValue, syncOrder } from './shared';

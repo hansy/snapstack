@@ -1,6 +1,6 @@
-import type { Zone } from "../../types";
+import type { Zone } from "@/types";
 
-import { MAX_CARDS_PER_ZONE } from "../../lib/limits";
+import { MAX_CARDS_PER_ZONE } from "@/lib/limits";
 
 export const sanitizeZone = (value: any): Zone | null => {
   if (!value || typeof value.id !== "string" || typeof value.ownerId !== "string") return null;

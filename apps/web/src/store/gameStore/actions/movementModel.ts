@@ -1,8 +1,8 @@
-import type { Card, Zone } from "../../../types";
-import type { CardPatch } from "../../../yjs/yMutations";
+import type { Card, Zone } from "@/types";
+import type { CardPatch } from "@/yjs/yMutations";
 
-import { ZONE } from "../../../constants/zones";
-import { clampNormalizedPosition, migratePositionToNormalized } from "../../../lib/positions";
+import { ZONE } from "@/constants/zones";
+import { clampNormalizedPosition, migratePositionToNormalized } from "@/lib/positions";
 
 export const resolveControllerAfterMove = (card: Card, fromZone: Zone, toZone: Zone): string => {
   if (toZone.type === ZONE.BATTLEFIELD) {

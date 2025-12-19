@@ -1,5 +1,5 @@
-import { Card, Zone } from '../types';
-import { ZONE } from '../constants/zones';
+import { Card, Zone } from '@/types';
+import { ZONE } from '@/constants/zones';
 
 export interface DragPosition {
     x: number;

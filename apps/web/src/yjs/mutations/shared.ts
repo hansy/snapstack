@@ -1,8 +1,8 @@
 import * as Y from 'yjs';
 
-import type { Counter } from '../../types';
-import type { ScryfallCardFaceLite, ScryfallCardLite } from '../../types/scryfallLite';
-import { isFullScryfallCard, toScryfallCardLite } from '../../types/scryfallLite';
+import type { Counter } from '@/types';
+import type { ScryfallCardFaceLite, ScryfallCardLite } from '@/types/scryfallLite';
+import { isFullScryfallCard, toScryfallCardLite } from '@/types/scryfallLite';
 import {
   MAX_COUNTERS,
   MAX_COUNTER_COLOR_LENGTH,

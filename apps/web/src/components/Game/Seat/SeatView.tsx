@@ -2,17 +2,17 @@ import React from 'react';
 import { Eye, Plus } from 'lucide-react';
 
 import { Button } from '../../ui/button';
-import { ZONE, ZONE_LABEL } from '../../../constants/zones';
-import { cn } from '../../../lib/utils';
-import type { Card as CardType, Player, ZoneId } from '../../../types';
+import { ZONE, ZONE_LABEL } from '@/constants/zones';
+import { cn } from '@/lib/utils';
+import type { Card as CardType, Player, ZoneId } from '@/types';
 
-import { LifeBox } from '../Player/LifeBox';
+import { LifeBox } from '../player/LifeBox';
 import { Battlefield } from './Battlefield';
 import { BottomBar } from './BottomBar';
 import { CommanderZone } from './CommanderZone';
 import { Hand } from './Hand';
 import { SideZone } from './SideZone';
-import type { SeatModel } from './seatModel';
+import type { SeatModel } from '@/models/game/seat/seatModel';
 
 interface SeatViewProps {
   player: Player;

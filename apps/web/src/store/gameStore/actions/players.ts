@@ -1,13 +1,13 @@
 import type { StoreApi } from "zustand";
 
-import type { GameState } from "../../../types";
-import type { SharedMaps } from "../../../yjs/yMutations";
+import type { GameState } from "@/types";
+import type { SharedMaps } from "@/yjs/yMutations";
 
-import { canUpdatePlayer } from "../../../rules/permissions";
-import { logPermission } from "../../../rules/logger";
-import { emitLog } from "../../../logging/logStore";
-import { patchPlayer as yPatchPlayer, upsertPlayer as yUpsertPlayer } from "../../../yjs/yMutations";
-import type { LogContext } from "../../../logging/types";
+import { canUpdatePlayer } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
+import { emitLog } from "@/logging/logStore";
+import { patchPlayer as yPatchPlayer, upsertPlayer as yUpsertPlayer } from "@/yjs/yMutations";
+import type { LogContext } from "@/logging/types";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];

@@ -1,9 +1,9 @@
 import type { StoreApi } from "zustand";
 
-import type { GameState } from "../../../types";
-import type { SharedMaps } from "../../../yjs/yMutations";
+import type { GameState } from "@/types";
+import type { SharedMaps } from "@/yjs/yMutations";
 
-import { setBattlefieldViewScale as ySetBattlefieldViewScale } from "../../../yjs/yMutations";
+import { setBattlefieldViewScale as ySetBattlefieldViewScale } from "@/yjs/yMutations";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];

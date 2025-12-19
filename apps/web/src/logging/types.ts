@@ -1,4 +1,4 @@
-import { Card, CardId, Player, PlayerId, Zone, ZoneId } from '../types';
+import { Card, CardId, Player, PlayerId, Zone, ZoneId } from '@/types';
 
 export type LogEventId =
   | 'player.life'

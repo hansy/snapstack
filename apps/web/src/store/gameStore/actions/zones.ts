@@ -1,10 +1,10 @@
 import type { StoreApi } from "zustand";
 
-import type { GameState, Zone } from "../../../types";
-import type { SharedMaps } from "../../../yjs/yMutations";
+import type { GameState, Zone } from "@/types";
+import type { SharedMaps } from "@/yjs/yMutations";
 
-import { logPermission } from "../../../rules/logger";
-import { reorderZoneCards as yReorderZoneCards, upsertZone as yUpsertZone } from "../../../yjs/yMutations";
+import { logPermission } from "@/rules/logger";
+import { reorderZoneCards as yReorderZoneCards, upsertZone as yUpsertZone } from "@/yjs/yMutations";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];

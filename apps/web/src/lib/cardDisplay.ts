@@ -1,5 +1,5 @@
-import { Card } from "../types";
-import { ScryfallCardFaceLite } from "../types/scryfallLite";
+import { Card } from "@/types";
+import { ScryfallCardFaceLite } from "@/types/scryfallLite";
 
 const TRANSFORM_LAYOUTS = new Set([
   "transform",

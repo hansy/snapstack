@@ -1,11 +1,11 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
 import { v4 as uuidv4 } from "uuid";
 
-import { canModifyCardState } from "../../../../rules/permissions";
-import { logPermission } from "../../../../rules/logger";
-import { emitLog } from "../../../../logging/logStore";
-import { duplicateCard as yDuplicateCard } from "../../../../yjs/yMutations";
+import { canModifyCardState } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
+import { emitLog } from "@/logging/logStore";
+import { duplicateCard as yDuplicateCard } from "@/yjs/yMutations";
 import {
   buildDuplicateTokenCard,
   computeDuplicateTokenPosition,

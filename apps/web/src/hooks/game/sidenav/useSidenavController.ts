@@ -1,0 +1,59 @@
+import * as React from "react";
+
+import { useGameStore } from "@/store/gameStore";
+
+export type SyncStatus = "connecting" | "connected";
+
+export type SidenavControllerInput = {
+  onCreateToken?: () => void;
+  onToggleLog?: () => void;
+  onCopyLink?: () => void;
+  onLeaveGame?: () => void;
+  onOpenShortcuts?: () => void;
+  syncStatus?: SyncStatus;
+  peerCount?: number;
+};
+
+export const useSidenavController = ({
+  onCreateToken,
+  onToggleLog,
+  onCopyLink,
+  onLeaveGame,
+  onOpenShortcuts,
+  syncStatus = "connecting",
+  peerCount = 1,
+}: SidenavControllerInput) => {
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+
+  const myPlayerId = useGameStore((state) => state.myPlayerId);
+  const untapAll = useGameStore((state) => state.untapAll);
+
+  const handleUntapAll = React.useCallback(() => {
+    untapAll(myPlayerId);
+  }, [myPlayerId, untapAll]);
+
+  const openMenu = React.useCallback(() => setIsMenuOpen(true), []);
+  const closeMenu = React.useCallback(() => setIsMenuOpen(false), []);
+
+  const handleOpenShortcuts = React.useCallback(() => {
+    onOpenShortcuts?.();
+    setIsMenuOpen(false);
+  }, [onOpenShortcuts]);
+
+  return {
+    onCreateToken,
+    onToggleLog,
+    onCopyLink,
+    onLeaveGame,
+    syncStatus,
+    peerCount,
+    isMenuOpen,
+    openMenu,
+    closeMenu,
+    handleUntapAll,
+    handleOpenShortcuts,
+  };
+};
+
+export type SidenavController = ReturnType<typeof useSidenavController>;
+

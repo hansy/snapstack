@@ -1,5 +1,5 @@
 import { buildPlayerPart } from "../helpers";
-import type { LogEventDefinition, LogEventId } from "../types";
+import type { LogEventDefinition, LogEventId } from "@/logging/types";
 
 import { DEFAULT_AGGREGATE_WINDOW_MS } from "./constants";
 

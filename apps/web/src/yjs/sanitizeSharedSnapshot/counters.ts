@@ -1,4 +1,4 @@
-import type { Counter } from "../../types";
+import type { Counter } from "@/types";
 
 import { MAX_COUNTERS } from "../sanitizeLimits";
 import { clampNumber } from "./utils";

@@ -1,4 +1,4 @@
-import type { Zone, ZoneId } from "../../../types";
+import type { Zone, ZoneId } from "@/types";
 
 export type CardPlacement = "top" | "bottom";
 

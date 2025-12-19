@@ -1,4 +1,4 @@
-import { createSuggestedUsername, useClientPrefsStore } from '../../store/clientPrefsStore';
+import { createSuggestedUsername, useClientPrefsStore } from '@/store/clientPrefsStore';
 import { UsernameForm } from './UsernameForm';
 
 export function UsernamePromptScreen() {

@@ -1,7 +1,7 @@
 import React from "react";
 import { Eye } from "lucide-react";
 
-import type { CardFaceRevealModel } from "./cardFaceModel";
+import type { CardFaceRevealModel } from "@/models/game/card/cardFaceModel";
 
 export const CardFaceRevealBadge: React.FC<{ reveal: CardFaceRevealModel | null }> = ({
   reveal,

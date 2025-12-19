@@ -1,6 +1,6 @@
 import type { FC } from 'react';
 
-import { useMultiplayerBoardController } from './useMultiplayerBoardController';
+import { useMultiplayerBoardController } from "@/hooks/game/board/useMultiplayerBoardController";
 import { MultiplayerBoardView } from './MultiplayerBoardView';
 
 interface MultiplayerBoardProps {

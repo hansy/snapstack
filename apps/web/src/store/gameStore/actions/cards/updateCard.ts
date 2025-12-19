@@ -1,11 +1,11 @@
-import type { Card, GameState } from "../../../../types";
+import type { Card, GameState } from "@/types";
 
-import { ZONE } from "../../../../constants/zones";
-import { canModifyCardState } from "../../../../rules/permissions";
-import { logPermission } from "../../../../rules/logger";
-import { emitLog } from "../../../../logging/logStore";
-import { enforceZoneCounterRules } from "../../../../lib/counters";
-import { patchCard as yPatchCard } from "../../../../yjs/yMutations";
+import { ZONE } from "@/constants/zones";
+import { canModifyCardState } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
+import { emitLog } from "@/logging/logStore";
+import { enforceZoneCounterRules } from "@/lib/counters";
+import { patchCard as yPatchCard } from "@/yjs/yMutations";
 import { buildUpdateCardPatch } from "../cardsModel";
 import type { Deps, GetState, SetState } from "./types";
 

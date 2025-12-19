@@ -1,5 +1,5 @@
-import { Card, CardId, PlayerId, Zone, ZoneId, ZoneType } from '../types';
-import { ZONE } from '../constants/zones';
+import { Card, CardId, PlayerId, Zone, ZoneId, ZoneType } from '@/types';
+import { ZONE } from '@/constants/zones';
 
 // Returns the first zone for a player that matches a given type.
 const LEGACY_COMMAND = 'command' as const;

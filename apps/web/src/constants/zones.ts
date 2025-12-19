@@ -1,4 +1,4 @@
-import { ZoneType } from '../types';
+import { ZoneType } from '@/types';
 
 export const ZONE = {
   LIBRARY: 'library',

@@ -1,11 +1,11 @@
 import React from "react";
-import { Card as CardType } from "../../../types";
-import { useGameStore } from "../../../store/gameStore";
+import { Card as CardType } from "@/types";
+import { useGameStore } from "@/store/gameStore";
 
-import { getNextCardStatUpdate } from "../../../lib/cardPT";
+import { getNextCardStatUpdate } from "@/lib/cardPT";
 
 import { CardFaceView } from "./CardFaceView";
-import { createCardFaceModel } from "./cardFaceModel";
+import { createCardFaceModel } from "@/models/game/card/cardFaceModel";
 
 interface CardFaceProps {
   card: CardType;

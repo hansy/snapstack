@@ -1,9 +1,9 @@
 import React from "react";
-import { Card as CardType, Zone as ZoneType, ZoneId } from "../../../types";
-import { Zone } from "../Zone/Zone";
-import { Card } from "../Card/Card";
-import { cn } from "../../../lib/utils";
-import { ZONE_SIDEWAYS_CLASSES } from "../../../lib/constants";
+import { Card as CardType, Zone as ZoneType, ZoneId } from "@/types";
+import { Zone } from "../zone/Zone";
+import { Card } from "../card/Card";
+import { cn } from "@/lib/utils";
+import { ZONE_SIDEWAYS_CLASSES } from "@/lib/constants";
 
 interface SideZoneProps {
   zone: ZoneType;

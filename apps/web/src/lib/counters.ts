@@ -1,5 +1,5 @@
-import { ZONE } from "../constants/zones";
-import { Counter, Zone } from "../types";
+import { ZONE } from "@/constants/zones";
+import { Counter, Zone } from "@/types";
 
 // Shared color presets so counters stay consistent across UI surfaces.
 export const PRESET_COUNTERS: Array<{ type: string; color: string }> = [

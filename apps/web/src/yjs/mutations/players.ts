@@ -1,4 +1,4 @@
-import type { Player } from '../../types';
+import type { Player } from '@/types';
 
 import { MAX_PLAYER_COLOR_LENGTH, MAX_PLAYER_NAME_LENGTH } from '../sanitizeLimits';
 

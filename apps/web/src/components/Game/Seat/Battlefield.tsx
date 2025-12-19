@@ -1,12 +1,12 @@
 import React from 'react';
-import { cn } from '../../../lib/utils';
-import { Zone as ZoneType, Card as CardType, Player } from '../../../types';
-import { Card } from '../Card/Card';
-import { Zone } from '../Zone/Zone';
-import { useDragStore } from '../../../store/dragStore';
-import { useGameStore } from '../../../store/gameStore';
-import { computeBattlefieldCardLayout } from './battlefieldModel';
-import { useElementSize } from '../../../hooks/useElementSize';
+import { cn } from '@/lib/utils';
+import { Zone as ZoneType, Card as CardType, Player } from '@/types';
+import { Card } from '../card/Card';
+import { Zone } from '../zone/Zone';
+import { useDragStore } from '@/store/dragStore';
+import { useGameStore } from '@/store/gameStore';
+import { computeBattlefieldCardLayout } from '@/models/game/seat/battlefieldModel';
+import { useElementSize } from "@/hooks/shared/useElementSize";
 
 interface BattlefieldProps {
     zone: ZoneType;

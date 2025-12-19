@@ -1,8 +1,8 @@
 import React from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { cn } from '../../lib/utils';
-import { normalizeUsernameInput, USERNAME_MAX_LENGTH } from '../../store/clientPrefsStore';
+import { cn } from '@/lib/utils';
+import { normalizeUsernameInput, USERNAME_MAX_LENGTH } from '@/store/clientPrefsStore';
 
 type UsernameFormProps = {
   initialValue: string;

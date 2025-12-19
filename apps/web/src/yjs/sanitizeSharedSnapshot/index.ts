@@ -1,7 +1,7 @@
-import type { Card, Player, Zone } from "../../types";
+import type { Card, Player, Zone } from "@/types";
 
-import { enforceZoneCounterRules } from "../../lib/counters";
-import { MAX_CARDS, MAX_CARDS_PER_ZONE } from "../../lib/limits";
+import { enforceZoneCounterRules } from "@/lib/counters";
+import { MAX_CARDS, MAX_CARDS_PER_ZONE } from "@/lib/limits";
 import { MAX_PLAYERS, MAX_ZONES } from "../sanitizeLimits";
 
 import { sanitizeCard } from "./card";

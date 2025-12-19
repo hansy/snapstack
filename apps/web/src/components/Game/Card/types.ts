@@ -1,5 +1,5 @@
 import type React from "react";
-import type { Card as CardType } from "../../../types";
+import type { Card as CardType } from "@/types";
 
 export interface CardProps {
   card: CardType;

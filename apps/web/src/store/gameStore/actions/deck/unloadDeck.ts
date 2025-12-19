@@ -1,11 +1,11 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { getZoneByType } from "../../../../lib/gameSelectors";
-import { ZONE } from "../../../../constants/zones";
-import { canViewZone } from "../../../../rules/permissions";
-import { logPermission } from "../../../../rules/logger";
-import { emitLog } from "../../../../logging/logStore";
-import { unloadDeck as yUnloadDeck } from "../../../../yjs/yMutations";
+import { getZoneByType } from "@/lib/gameSelectors";
+import { ZONE } from "@/constants/zones";
+import { canViewZone } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
+import { emitLog } from "@/logging/logStore";
+import { unloadDeck as yUnloadDeck } from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createUnloadDeck =

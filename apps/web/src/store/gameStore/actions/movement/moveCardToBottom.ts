@@ -1,18 +1,18 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { ZONE } from "../../../../constants/zones";
-import { canMoveCard } from "../../../../rules/permissions";
-import { logPermission } from "../../../../rules/logger";
-import { emitLog } from "../../../../logging/logStore";
-import { enforceZoneCounterRules } from "../../../../lib/counters";
-import { resetCardToFrontFace } from "../../../../lib/cardDisplay";
+import { ZONE } from "@/constants/zones";
+import { canMoveCard } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
+import { emitLog } from "@/logging/logStore";
+import { enforceZoneCounterRules } from "@/lib/counters";
+import { resetCardToFrontFace } from "@/lib/cardDisplay";
 import {
   moveCard as yMoveCard,
   patchCard as yPatchCard,
   removeCard as yRemoveCard,
   reorderZoneCards as yReorderZoneCards,
   sharedSnapshot,
-} from "../../../../yjs/yMutations";
+} from "@/yjs/yMutations";
 import {
   computeRevealPatchAfterMove,
   resolveControllerAfterMove,

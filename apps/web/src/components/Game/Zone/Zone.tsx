@@ -1,12 +1,12 @@
 import React from 'react';
 import { useDroppable, useDndContext } from '@dnd-kit/core';
-import { Zone as ZoneType } from '../../../types';
-import { cn } from '../../../lib/utils';
-import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from '../../../lib/constants';
-import { useDragStore } from '../../../store/dragStore';
+import { Zone as ZoneType } from '@/types';
+import { cn } from '@/lib/utils';
+import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from '@/lib/constants';
+import { useDragStore } from '@/store/dragStore';
 
-import { useGameStore } from '../../../store/gameStore';
-import { canMoveCard } from '../../../rules/permissions';
+import { useGameStore } from '@/store/gameStore';
+import { canMoveCard } from '@/rules/permissions';
 
 interface ZoneProps {
     zone: ZoneType;

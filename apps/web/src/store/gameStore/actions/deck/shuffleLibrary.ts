@@ -1,15 +1,15 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { getZoneByType } from "../../../../lib/gameSelectors";
-import { ZONE } from "../../../../constants/zones";
-import { canViewZone } from "../../../../rules/permissions";
-import { logPermission } from "../../../../rules/logger";
-import { emitLog } from "../../../../logging/logStore";
+import { getZoneByType } from "@/lib/gameSelectors";
+import { ZONE } from "@/constants/zones";
+import { canViewZone } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
+import { emitLog } from "@/logging/logStore";
 import {
   patchCard as yPatchCard,
   reorderZoneCards as yReorderZoneCards,
   sharedSnapshot,
-} from "../../../../yjs/yMutations";
+} from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createShuffleLibrary =

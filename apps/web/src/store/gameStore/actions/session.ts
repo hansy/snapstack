@@ -1,11 +1,11 @@
 import type { StoreApi } from "zustand";
 import { v4 as uuidv4 } from "uuid";
 
-import type { GameState } from "../../../types";
+import type { GameState } from "@/types";
 
-import { clearLogs } from "../../../logging/logStore";
-import { destroySession, getSessionHandles } from "../../../yjs/docManager";
-import { removePlayer as yRemovePlayer, type SharedMaps } from "../../../yjs/yMutations";
+import { clearLogs } from "@/logging/logStore";
+import { destroySession, getSessionHandles } from "@/yjs/docManager";
+import { removePlayer as yRemovePlayer, type SharedMaps } from "@/yjs/yMutations";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];

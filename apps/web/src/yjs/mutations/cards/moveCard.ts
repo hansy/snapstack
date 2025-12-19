@@ -1,11 +1,11 @@
-import { enforceZoneCounterRules } from "../../../lib/counters";
-import { computeBattlefieldCollisionPatches } from "../../../lib/battlefieldCollision";
+import { enforceZoneCounterRules } from "@/lib/counters";
+import { computeBattlefieldCollisionPatches } from "@/lib/battlefieldCollision";
 import {
   clampNormalizedPosition,
   migratePositionToNormalized,
-} from "../../../lib/positions";
-import { resetCardToFrontFace } from "../../../lib/cardDisplay";
-import { ZONE } from "../../../constants/zones";
+} from "@/lib/positions";
+import { resetCardToFrontFace } from "@/lib/cardDisplay";
+import { ZONE } from "@/constants/zones";
 
 import type { SharedMaps } from "../shared";
 import { ensureZoneOrder, removeFromOrder } from "../shared";

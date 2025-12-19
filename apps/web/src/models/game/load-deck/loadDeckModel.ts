@@ -1,0 +1,95 @@
+import type { Card, PlayerId, Zone, ZoneId } from "@/types";
+
+import { ZONE } from "@/constants/zones";
+import { getZoneByType } from "@/lib/gameSelectors";
+import type { FetchScryfallResult, ParsedCard } from "@/services/deck-import/deckImport";
+
+export interface ProviderLike {
+  wsconnected?: boolean;
+  synced?: boolean;
+}
+
+export const isMultiplayerProviderReady = (params: {
+  handles: unknown;
+  provider: ProviderLike | null;
+}): boolean => {
+  return Boolean(
+    params.handles && params.provider && (params.provider.wsconnected || params.provider.synced)
+  );
+};
+
+export const resolveDeckZoneIds = (params: {
+  zones: Record<ZoneId, Zone>;
+  playerId: PlayerId;
+}): { libraryZoneId: ZoneId; commanderZoneId: ZoneId } => {
+  const libraryZone = getZoneByType(params.zones, params.playerId, ZONE.LIBRARY);
+  const commanderZone = getZoneByType(params.zones, params.playerId, ZONE.COMMANDER);
+
+  return {
+    libraryZoneId: (libraryZone?.id ?? `${params.playerId}-${ZONE.LIBRARY}`) as ZoneId,
+    commanderZoneId: (commanderZone?.id ?? `${params.playerId}-${ZONE.COMMANDER}`) as ZoneId,
+  };
+};
+
+export const chunkArray = <T,>(items: T[], chunkSize: number): T[][] => {
+  if (chunkSize <= 0) return [items];
+  if (items.length === 0) return [];
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+  return chunks;
+};
+
+export type DeckImportCardData = Partial<Card> & { section: string };
+
+export type DeckImportCardPlan = {
+  cardData: DeckImportCardData;
+  zoneId: ZoneId;
+};
+
+export const planDeckImport = async (params: {
+  importText: string;
+  playerId: PlayerId;
+  zones: Record<ZoneId, Zone>;
+  parseDeckList: (text: string) => ParsedCard[];
+  validateDeckListLimits: (parsedDeck: ParsedCard[]) => { ok: true } | { ok: false; error: string };
+  fetchScryfallCards: (parsedDeck: ParsedCard[]) => Promise<FetchScryfallResult>;
+  validateImportResult: (
+    parsedDeck: ParsedCard[],
+    fetchResult: FetchScryfallResult
+  ) => { ok: true; warnings: string[] } | { ok: false; error: string };
+  chunkSize?: number;
+}): Promise<{ chunks: DeckImportCardPlan[][]; warnings: string[] }> => {
+  const parsedDeck = params.parseDeckList(params.importText);
+  if (parsedDeck.length === 0) {
+    throw new Error("No valid cards found in the list.");
+  }
+
+  const sizeValidation = params.validateDeckListLimits(parsedDeck);
+  if (!sizeValidation.ok) {
+    throw new Error(sizeValidation.error);
+  }
+
+  const fetchResult = await params.fetchScryfallCards(parsedDeck);
+  const validation = params.validateImportResult(parsedDeck, fetchResult);
+  if (!validation.ok) {
+    throw new Error(validation.error);
+  }
+
+  const { libraryZoneId, commanderZoneId } = resolveDeckZoneIds({
+    zones: params.zones,
+    playerId: params.playerId,
+  });
+
+  const planned: DeckImportCardPlan[] = fetchResult.cards.map((cardData) => {
+    const zoneId = cardData.section === "commander" ? commanderZoneId : libraryZoneId;
+    const withFaceDown =
+      zoneId === libraryZoneId ? ({ ...cardData, faceDown: true } as DeckImportCardData) : cardData;
+    return { cardData: withFaceDown, zoneId };
+  });
+
+  const chunks = chunkArray(planned, params.chunkSize ?? 20);
+  return { chunks, warnings: validation.warnings };
+};
+

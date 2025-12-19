@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { MultiplayerBoard } from '../components/Game/Board/MultiplayerBoard';
-import { UsernamePromptScreen } from '../components/Username/UsernamePromptScreen';
-import { useClientPrefsStore } from '../store/clientPrefsStore';
+import { MultiplayerBoard } from '@/components/game/board/MultiplayerBoard';
+import { UsernamePromptScreen } from '@/components/username/UsernamePromptScreen';
+import { useClientPrefsStore } from '@/store/clientPrefsStore';
 
 export const Route = createFileRoute('/game/$sessionId')({
   component: GameRoute,

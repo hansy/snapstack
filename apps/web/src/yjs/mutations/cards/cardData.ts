@@ -1,11 +1,11 @@
 import * as Y from "yjs";
 
-import type { Card } from "../../../types";
-import { MAX_REVEALED_TO } from "../../../lib/limits";
+import type { Card } from "@/types";
+import { MAX_REVEALED_TO } from "@/lib/limits";
 import {
   clampNormalizedPosition,
   migratePositionToNormalized,
-} from "../../../lib/positions";
+} from "@/lib/positions";
 
 import {
   MAX_CUSTOM_TEXT_LENGTH,

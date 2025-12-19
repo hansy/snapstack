@@ -1,4 +1,4 @@
-import type { Card } from "../types";
+import type { Card } from "@/types";
 
 import { getCurrentFace } from "./cardDisplay";
 

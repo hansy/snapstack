@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { createSafeStorage } from "../lib/safeStorage";
+import { createSafeStorage } from "@/lib/safeStorage";
 
 const STORAGE_KEY = "mtg:client-prefs";
 export const USERNAME_MAX_LENGTH = 12;

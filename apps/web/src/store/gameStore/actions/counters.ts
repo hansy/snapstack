@@ -1,22 +1,22 @@
 import type { StoreApi } from "zustand";
 
-import type { GameState } from "../../../types";
-import type { SharedMaps } from "../../../yjs/yMutations";
-import type { LogContext } from "../../../logging/types";
+import type { GameState } from "@/types";
+import type { SharedMaps } from "@/yjs/yMutations";
+import type { LogContext } from "@/logging/types";
 
-import { canModifyCardState } from "../../../rules/permissions";
-import { logPermission } from "../../../rules/logger";
+import { canModifyCardState } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
 import {
   decrementCounter,
   isBattlefieldZone,
   mergeCounters,
   resolveCounterColor,
-} from "../../../lib/counters";
-import { emitLog } from "../../../logging/logStore";
+} from "@/lib/counters";
+import { emitLog } from "@/logging/logStore";
 import {
   addCounterToCard as yAddCounterToCard,
   removeCounterFromCard as yRemoveCounterFromCard,
-} from "../../../yjs/yMutations";
+} from "@/yjs/yMutations";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];

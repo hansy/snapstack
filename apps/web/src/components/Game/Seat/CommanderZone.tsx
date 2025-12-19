@@ -1,12 +1,12 @@
 import React from "react";
 
-import type { Zone as ZoneType, Card as CardType, ZoneId } from "../../../types";
+import type { Zone as ZoneType, Card as CardType, ZoneId } from "@/types";
 
 import { CommanderZoneView } from "./CommanderZoneView";
 import {
   useCommanderZoneController,
   type CommanderZoneControllerInput,
-} from "./useCommanderZoneController";
+} from "@/hooks/game/seat/useCommanderZoneController";
 
 export interface CommanderZoneProps {
   zone: ZoneType;

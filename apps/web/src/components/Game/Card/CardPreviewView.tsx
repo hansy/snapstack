@@ -1,9 +1,9 @@
 import React from "react";
 import { Eye } from "lucide-react";
 
-import type { Card as CardType } from "../../../types";
-import { CARD_ASPECT_CLASS } from "../../../lib/constants";
-import { cn } from "../../../lib/utils";
+import type { Card as CardType } from "@/types";
+import { CARD_ASPECT_CLASS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 import { CardFace } from "./CardFace";
 

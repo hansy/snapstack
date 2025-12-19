@@ -1,4 +1,4 @@
-import { clampNormalizedPosition, migratePositionToNormalized } from "../../lib/positions";
+import { clampNormalizedPosition, migratePositionToNormalized } from "@/lib/positions";
 
 export const clampNumber = (
   value: unknown,

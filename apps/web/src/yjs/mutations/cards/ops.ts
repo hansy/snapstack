@@ -1,18 +1,18 @@
-import type { Card } from "../../../types";
-import { enforceZoneCounterRules, mergeCounters } from "../../../lib/counters";
+import type { Card } from "@/types";
+import { enforceZoneCounterRules, mergeCounters } from "@/lib/counters";
 import {
   bumpPosition,
   clampNormalizedPosition,
   findAvailablePositionNormalized,
   migratePositionToNormalized,
-} from "../../../lib/positions";
+} from "@/lib/positions";
 import {
   getCardFaces,
   getCurrentFaceIndex,
   isTransformableCard,
   syncCardStatsToFace,
-} from "../../../lib/cardDisplay";
-import { ZONE } from "../../../constants/zones";
+} from "@/lib/cardDisplay";
+import { ZONE } from "@/constants/zones";
 
 import type { SharedMaps } from "../shared";
 import { ensureZoneOrder, removeFromOrder } from "../shared";

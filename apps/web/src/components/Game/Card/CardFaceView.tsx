@@ -1,7 +1,7 @@
 import React from "react";
 
-import type { CardFaceCounterModel, CardFaceModel } from "./cardFaceModel";
-import type { CardStatKey } from "../../../lib/cardPT";
+import type { CardFaceCounterModel, CardFaceModel } from "@/models/game/card/cardFaceModel";
+import type { CardStatKey } from "@/lib/cardPT";
 
 import { CardFaceArtwork } from "./CardFaceArtwork";
 import { CardFaceCountersOverlay } from "./CardFaceCountersOverlay";
@@ -22,7 +22,9 @@ interface CardFaceViewProps {
   customTextNode?: React.ReactNode;
   customTextPosition?: "sidebar" | "bottom-left" | "center";
   onPTDelta?: (type: CardStatKey, delta: number) => void;
-  onIncrementCounter?: (counter: Pick<CardFaceCounterModel, "type" | "color">) => void;
+  onIncrementCounter?: (
+    counter: Pick<CardFaceCounterModel, "type" | "color">
+  ) => void;
   onDecrementCounter?: (counterType: string) => void;
 }
 

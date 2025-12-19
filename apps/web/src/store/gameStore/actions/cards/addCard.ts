@@ -1,7 +1,7 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { enforceZoneCounterRules } from "../../../../lib/counters";
-import { upsertCard as yUpsertCard } from "../../../../yjs/yMutations";
+import { enforceZoneCounterRules } from "@/lib/counters";
+import { upsertCard as yUpsertCard } from "@/yjs/yMutations";
 import { normalizeCardForAdd } from "../cardsModel";
 import type { Deps, GetState, SetState } from "./types";
 

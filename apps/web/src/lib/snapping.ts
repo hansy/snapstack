@@ -1,5 +1,5 @@
 import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from './constants';
-import { Card, CardId } from '../types';
+import { Card, CardId } from '@/types';
 
 export const SNAP_GRID_SIZE = 30;
 export const SNAP_THRESHOLD = 0.5;

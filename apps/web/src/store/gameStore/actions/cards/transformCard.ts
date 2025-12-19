@@ -1,11 +1,11 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { ZONE } from "../../../../constants/zones";
-import { canModifyCardState } from "../../../../rules/permissions";
-import { logPermission } from "../../../../rules/logger";
-import { emitLog } from "../../../../logging/logStore";
-import { isTransformableCard, syncCardStatsToFace } from "../../../../lib/cardDisplay";
-import { transformCard as yTransformCard } from "../../../../yjs/yMutations";
+import { ZONE } from "@/constants/zones";
+import { canModifyCardState } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
+import { emitLog } from "@/logging/logStore";
+import { isTransformableCard, syncCardStatsToFace } from "@/lib/cardDisplay";
+import { transformCard as yTransformCard } from "@/yjs/yMutations";
 import { computeTransformTargetIndex } from "../cardsModel";
 import type { Deps, GetState, SetState } from "./types";
 

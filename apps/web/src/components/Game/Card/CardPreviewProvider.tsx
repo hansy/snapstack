@@ -1,6 +1,6 @@
 import React from "react";
-import { Card as CardType } from "../../../types";
-import { useDragStore } from "../../../store/dragStore";
+import { Card as CardType } from "@/types";
+import { useDragStore } from "@/store/dragStore";
 import { CardPreview } from "./CardPreview";
 
 type PreviewState = {

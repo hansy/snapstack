@@ -1,7 +1,7 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { ZONE } from "../../../../constants/zones";
-import { patchCard as yPatchCard } from "../../../../yjs/yMutations";
+import { ZONE } from "@/constants/zones";
+import { patchCard as yPatchCard } from "@/yjs/yMutations";
 import { buildRevealPatch } from "../cardsModel";
 import type { Deps, GetState, SetState } from "./types";
 

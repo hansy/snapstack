@@ -1,10 +1,10 @@
-import type { GameState } from "../../../../types";
+import type { GameState } from "@/types";
 
-import { getZoneByType } from "../../../../lib/gameSelectors";
-import { ZONE } from "../../../../constants/zones";
-import { canMoveCard } from "../../../../rules/permissions";
-import { logPermission } from "../../../../rules/logger";
-import { emitLog } from "../../../../logging/logStore";
+import { getZoneByType } from "@/lib/gameSelectors";
+import { ZONE } from "@/constants/zones";
+import { canMoveCard } from "@/rules/permissions";
+import { logPermission } from "@/rules/logger";
+import { emitLog } from "@/logging/logStore";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createDrawCard =

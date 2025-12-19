@@ -1,6 +1,6 @@
-import type { Card, Zone } from "../../types";
+import type { Card, Zone } from "@/types";
 
-import { MAX_REVEALED_TO } from "../../lib/limits";
+import { MAX_REVEALED_TO } from "@/lib/limits";
 
 import { MAX_NAME_LENGTH } from "../sanitizeLimits";
 

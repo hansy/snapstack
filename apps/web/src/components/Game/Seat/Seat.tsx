@@ -1,8 +1,8 @@
 import React from 'react';
 
-import type { Card as CardType, Player, Zone as ZoneType, ZoneId } from '../../../types';
+import type { Card as CardType, Player, Zone as ZoneType, ZoneId } from '@/types';
 
-import { createSeatModel, type SeatPosition } from './seatModel';
+import { createSeatModel, type SeatPosition } from '@/models/game/seat/seatModel';
 import { SeatView } from './SeatView';
 
 export interface SeatProps {

@@ -1,4 +1,4 @@
-import type { Player } from "../../types";
+import type { Player } from "@/types";
 
 import { MAX_NAME_LENGTH } from "../sanitizeLimits";
 
