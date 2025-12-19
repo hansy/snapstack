@@ -5,7 +5,7 @@ import {
   Loader2,
   LogOut,
   Plus,
-  RefreshCw,
+  CornerUpLeft,
   ScrollText,
   Share2,
   Wifi,
@@ -22,7 +22,12 @@ interface NavIconProps {
   className?: string;
 }
 
-const NavIcon: React.FC<NavIconProps> = ({ icon, label, onClick, className }) => (
+const NavIcon: React.FC<NavIconProps> = ({
+  icon,
+  label,
+  onClick,
+  className,
+}) => (
   <button
     type="button"
     aria-label={label}
@@ -57,7 +62,7 @@ export const SidenavView: React.FC<SidenavController> = ({
     <>
       <div className="fixed left-0 top-0 h-full w-12 flex flex-col items-center py-4 bg-zinc-950 border-r border-zinc-800 z-[60]">
         <NavIcon
-          icon={<RefreshCw size={20} />}
+          icon={<CornerUpLeft size={20} />}
           label="Untap All"
           onClick={handleUntapAll}
           className="hover:text-blue-400"
@@ -94,7 +99,11 @@ export const SidenavView: React.FC<SidenavController> = ({
             className="hover:text-indigo-400"
           />
 
-          <div className="relative" onMouseEnter={openMenu} onMouseLeave={closeMenu}>
+          <div
+            className="relative"
+            onMouseEnter={openMenu}
+            onMouseLeave={closeMenu}
+          >
             <button
               type="button"
               aria-label="Open menu"
@@ -117,13 +126,17 @@ export const SidenavView: React.FC<SidenavController> = ({
                         <span className="text-zinc-300">
                           Connected
                           <span className="text-zinc-500 ml-1">
-                            ({peerCount} {peerCount === 1 ? "player" : "players"})
+                            ({peerCount}{" "}
+                            {peerCount === 1 ? "player" : "players"})
                           </span>
                         </span>
                       </>
                     ) : (
                       <>
-                        <Loader2 size={16} className="text-amber-400 animate-spin" />
+                        <Loader2
+                          size={16}
+                          className="text-amber-400 animate-spin"
+                        />
                         <span className="text-amber-400">Connecting...</span>
                       </>
                     )}
