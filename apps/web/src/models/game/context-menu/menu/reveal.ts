@@ -63,9 +63,8 @@ export const buildRevealMenu = (opts: {
 
   return {
     type: "action",
-    label: "Reveal",
+    label: "Reveal to ...",
     onSelect: () => {},
     submenu: revealItems,
   };
 };
-
