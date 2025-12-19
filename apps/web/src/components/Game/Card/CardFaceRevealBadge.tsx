@@ -1,6 +1,8 @@
 import React from "react";
 import { Eye } from "lucide-react";
 
+import { Tooltip } from "@/components/ui/tooltip";
+
 import type { CardFaceRevealModel } from "@/models/game/card/cardFaceModel";
 
 export const CardFaceRevealBadge: React.FC<{ reveal: CardFaceRevealModel | null }> = ({
@@ -9,26 +11,26 @@ export const CardFaceRevealBadge: React.FC<{ reveal: CardFaceRevealModel | null 
   if (!reveal) return null;
 
   return (
-    <div
-      className="absolute top-1 left-1 z-20 bg-zinc-900/90 rounded-full p-1 border border-zinc-700 shadow-md group/eye"
-      title={reveal.title}
+    <Tooltip
+      placement="right"
+      content={
+        <div className="flex flex-col gap-1">
+          <div className="font-bold border-b border-zinc-700 pb-1">Revealed to:</div>
+          {reveal.toAll ? (
+            <div>Everyone</div>
+          ) : (
+            <div className="flex flex-col gap-0.5">
+              {reveal.playerNames.map((name, idx) => (
+                <div key={`${idx}-${name}`}>{name}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      }
     >
-      <Eye size={14} className="text-white" />
-
-      {/* Tooltip for hover */}
-      <div className="absolute left-0 top-full mt-1 hidden group-hover/eye:block bg-zinc-900 text-xs text-white p-2 rounded border border-zinc-700 whitespace-nowrap z-50 shadow-xl">
-        <div className="font-bold mb-1">Revealed to:</div>
-        {reveal.toAll ? (
-          <div>Everyone</div>
-        ) : (
-          <div className="flex flex-col gap-0.5">
-            {reveal.playerNames.map((name, idx) => (
-              <div key={`${idx}-${name}`}>{name}</div>
-            ))}
-          </div>
-        )}
+      <div className="absolute top-1 left-1 z-20 bg-zinc-900/90 rounded-full p-1 border border-zinc-700 shadow-md">
+        <Eye size={14} className="text-white" />
       </div>
-    </div>
+    </Tooltip>
   );
 };
-

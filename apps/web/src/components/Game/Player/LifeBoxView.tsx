@@ -1,6 +1,7 @@
 import React from "react";
 import { Minus, Plus } from "lucide-react";
 
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import type { LifeBoxController } from "@/hooks/game/player/useLifeBoxController";
@@ -29,7 +30,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
       {/* Player Name Label */}
       <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
         {isMe && onEditUsername ? (
-          <div className="relative group/name">
+          <Tooltip content="Click to edit username" placement="top">
             <button
               type="button"
               onClick={onEditUsername}
@@ -40,10 +41,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
             >
               {player.name || "Me"}
             </button>
-            <div className="absolute left-1/2 bottom-full -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-950 text-md text-zinc-300 rounded border border-zinc-800 opacity-0 group-hover/name:opacity-100 pointer-events-none whitespace-nowrap transition-opacity">
-              Click to edit username
-            </div>
-          </div>
+          </Tooltip>
         ) : (
           <div className="bg-zinc-900 px-2 text-md font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full shadow-sm">
             {player.name || (isMe ? "Me" : "")}
@@ -165,4 +163,3 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
     </div>
   );
 };
-

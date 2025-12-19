@@ -2,6 +2,7 @@ import React from "react";
 import { Eye } from "lucide-react";
 
 import type { Card as CardType } from "@/types";
+import { Tooltip } from "@/components/ui/tooltip";
 import { CARD_ASPECT_CLASS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -68,36 +69,59 @@ export const CardPreviewView: React.FC<CardPreviewViewProps> = ({
         <div className="absolute -top-10 -right-16 flex items-center gap-2">
           {/* Revealed Icon - Only visible to controller */}
           {showControllerRevealIcon && (
-            <div
-              className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors border border-zinc-700 shadow-lg relative group/preview-eye cursor-help"
-              title={
-                controllerRevealToAll
-                  ? "Revealed to everyone"
-                  : "Revealed to specific players"
+            <Tooltip
+              placement="left"
+              content={
+                <div className="flex flex-col gap-1 min-w-[140px]">
+                  <div className="font-bold border-b border-zinc-700 pb-1">
+                    Revealed to:
+                  </div>
+                  {controllerRevealToAll ? (
+                    <div>Everyone</div>
+                  ) : (
+                    <div className="flex flex-col gap-0.5">
+                      {controllerRevealNames.map((name, idx) => (
+                        <div key={`${idx}-${name}`}>{name}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               }
             >
-              <Eye size={16} strokeWidth={2} />
-              <div className="absolute right-0 bottom-full mb-2 hidden group-hover/preview-eye:block bg-zinc-900 text-xs text-white p-2 rounded border border-zinc-700 whitespace-nowrap z-50 shadow-xl min-w-[100px]">
-                <div className="font-bold mb-1 border-b border-zinc-700 pb-1">
-                  Revealed to:
-                </div>
-                {controllerRevealToAll ? (
-                  <div>Everyone</div>
-                ) : (
-                  <div className="flex flex-col gap-0.5">
-                    {controllerRevealNames.map((name, idx) => (
-                      <div key={`${idx}-${name}`}>{name}</div>
-                    ))}
-                  </div>
-                )}
+              <div className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors border border-zinc-700 shadow-lg cursor-help">
+                <Eye size={16} strokeWidth={2} />
               </div>
-            </div>
+            </Tooltip>
           )}
           {hasMultipleFaces && (
+            <Tooltip content="Preview transform/flip" placement="left">
+              <button
+                onClick={onFlip}
+                className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors border border-zinc-700 shadow-lg"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38" />
+                </svg>
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip content="Close preview" placement="left">
             <button
-              onClick={onFlip}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
               className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors border border-zinc-700 shadow-lg"
-              title="Preview transform/flip"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -106,37 +130,15 @@ export const CardPreviewView: React.FC<CardPreviewViewProps> = ({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38" />
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
               </svg>
             </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="p-2 bg-zinc-900 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors border border-zinc-700 shadow-lg"
-            title="Close preview"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
+          </Tooltip>
         </div>
       )}
 
@@ -255,4 +257,3 @@ export const CardPreviewView: React.FC<CardPreviewViewProps> = ({
     </div>
   );
 };
-
