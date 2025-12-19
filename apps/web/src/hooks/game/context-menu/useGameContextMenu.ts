@@ -16,7 +16,11 @@ import { createRelatedCardHandler } from "./createRelatedCard";
 import { useContextMenuState } from "./useContextMenuState";
 
 // Centralizes context menu state/handlers for cards and zones so UI components can stay lean.
-export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: ZoneId, count?: number) => void) => {
+export const useGameContextMenu = (
+    myPlayerId: string,
+    onViewZone?: (zoneId: ZoneId, count?: number) => void,
+    onRollDice?: () => void
+) => {
     const {
         contextMenu,
         openContextMenu,
@@ -96,18 +100,32 @@ export const useGameContextMenu = (myPlayerId: string, onViewZone?: (zoneId: Zon
         }
     }, [myPlayerId, onViewZone, openContextMenu, openCountPrompt, seatHasDeckLoaded]);
 
-    const handleBattlefieldContextMenu = React.useCallback((e: React.MouseEvent, onCreateToken: () => void) => {
-        if (!seatHasDeckLoaded(myPlayerId)) return;
+    const handleBattlefieldContextMenu = React.useCallback(
+        (e: React.MouseEvent, actions: { onCreateToken: () => void; onOpenDiceRoller?: () => void }) => {
+            if (!seatHasDeckLoaded(myPlayerId)) return;
+            const onDiceRoll = actions.onOpenDiceRoller ?? onRollDice;
 
-        openContextMenu(e, [
-            {
-                type: 'action',
-                label: 'Create Token',
-                onSelect: onCreateToken,
-                shortcut: getShortcutLabel('ui.openTokenModal'),
+            const items = [
+                {
+                    type: 'action' as const,
+                    label: 'Roll Dice',
+                    onSelect: onDiceRoll,
+                    shortcut: getShortcutLabel('ui.openDiceRoller'),
+                },
+                {
+                    type: 'action' as const,
+                    label: 'Create Token',
+                    onSelect: actions.onCreateToken,
+                    shortcut: getShortcutLabel('ui.openTokenModal'),
+                },
+            ].filter((item) => typeof item.onSelect === 'function');
+
+            if (items.length > 0) {
+                openContextMenu(e, items);
             }
-        ]);
-    }, [myPlayerId, openContextMenu, seatHasDeckLoaded]);
+        },
+        [myPlayerId, openContextMenu, seatHasDeckLoaded]
+    );
 
     return {
         contextMenu,

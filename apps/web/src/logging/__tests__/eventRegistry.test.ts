@@ -8,6 +8,7 @@ import { logEventRegistry } from "../eventRegistry";
 const EVENT_IDS = [
   "player.life",
   "player.commanderTax",
+  "dice.roll",
   "card.draw",
   "library.shuffle",
   "deck.reset",
@@ -57,6 +58,21 @@ const makeCard = (id: string, name: string, zoneId: string, ownerId: string): Ca
 describe("logEventRegistry", () => {
   it("exports definitions for all log event ids", () => {
     expect(Object.keys(logEventRegistry).sort()).toEqual([...EVENT_IDS].sort());
+  });
+
+  it("formats dice roll results", () => {
+    const ctx: LogContext = {
+      players: { p1: makePlayer("p1", "Alice") },
+      cards: {},
+      zones: {},
+    };
+
+    const parts = logEventRegistry["dice.roll"].format(
+      { actorId: "p1", count: 2, sides: 6, results: [3, 5] },
+      ctx
+    );
+
+    expect(parts.map((p) => p.text).join("")).toBe("Alice rolled 2 6-sided dice: [3, 5]");
   });
 
   it("formats life changes with signed delta", () => {

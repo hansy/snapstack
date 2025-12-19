@@ -18,7 +18,7 @@
     },
     {
       "tag": "v2",
-      "new_classes": ["WebRTCSignaling"]
+      "new_sqlite_classes": ["WebRTCSignaling"]
     },
     {
       "tag": "v3",

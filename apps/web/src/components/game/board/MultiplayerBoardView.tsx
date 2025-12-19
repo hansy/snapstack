@@ -1,12 +1,18 @@
 import React from "react";
-import { DndContext, DragOverlay, getClientRect, pointerWithin } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragOverlay,
+  getClientRect,
+  pointerWithin,
+} from "@dnd-kit/core";
 
 import { ZONE } from "@/constants/zones";
-import { CardView } from "../card/Card";
+import { CardView } from "../card/CardView";
 import { CardPreviewProvider } from "../card/CardPreviewProvider";
 import { Seat } from "../seat/Seat";
 import { ContextMenu } from "../context-menu/ContextMenu";
 import { AddCounterModal } from "../add-counter/AddCounterModal";
+import { DiceRollDialog } from "../dice/DiceRollDialog";
 import { LoadDeckModal } from "../load-deck/LoadDeckModal";
 import { LogDrawer } from "../log-drawer/LogDrawer";
 import { NumberPromptDialog } from "../prompts/NumberPromptDialog";
@@ -16,7 +22,7 @@ import { Sidenav } from "../sidenav/Sidenav";
 import { TextPromptDialog } from "../prompts/TextPromptDialog";
 import { TokenCreationModal } from "../token-creation/TokenCreationModal";
 import { ZoneViewerModal } from "../zone-viewer/ZoneViewerModal";
-import { EditUsernameDialog } from "../../username/EditUsernameDialog";
+import { EditUsernameDialog } from "@/components/username/EditUsernameDialog";
 
 import type { MultiplayerBoardController } from "@/hooks/game/board/useMultiplayerBoardController";
 
@@ -45,6 +51,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
   handleCardContextMenu,
   handleZoneContextMenu,
   handleBattlefieldContextMenu,
+  handleOpenDiceRoller,
   closeContextMenu,
   countPrompt,
   closeCountPrompt,
@@ -54,6 +61,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
   setIsLoadDeckModalOpen,
   isTokenModalOpen,
   setIsTokenModalOpen,
+  isDiceRollerOpen,
+  setIsDiceRollerOpen,
   isLogOpen,
   setIsLogOpen,
   isShortcutsOpen,
@@ -67,6 +76,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
   preferredUsername,
   handleUsernameSubmit,
   handleDrawCard,
+  handleRollDice,
   handleCopyLink,
   handleLeave,
 }) => {
@@ -89,6 +99,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
         >
           <Sidenav
             onCreateToken={() => setIsTokenModalOpen(true)}
+            onOpenDiceRoller={handleOpenDiceRoller}
             onToggleLog={() => setIsLogOpen(!isLogOpen)}
             onCopyLink={handleCopyLink}
             onLeaveGame={handleLeave}
@@ -112,7 +123,10 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
                     onCardContextMenu={handleCardContextMenu}
                     onZoneContextMenu={handleZoneContextMenu}
                     onBattlefieldContextMenu={(e) =>
-                      handleBattlefieldContextMenu(e, () => setIsTokenModalOpen(true))
+                      handleBattlefieldContextMenu(e, {
+                        onCreateToken: () => setIsTokenModalOpen(true),
+                        onOpenDiceRoller: handleOpenDiceRoller,
+                      })
                     }
                     onLoadDeck={() => setIsLoadDeckModalOpen(true)}
                     onEditUsername={
@@ -125,7 +139,9 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
                     battlefieldScale={battlefieldViewScale[slot.player.id] ?? 1}
                     onViewZone={handleViewZone}
                     onDrawCard={handleDrawCard}
-                    onOpponentLibraryReveals={(zoneId) => setRevealedLibraryZoneId(zoneId)}
+                    onOpponentLibraryReveals={(zoneId) =>
+                      setRevealedLibraryZoneId(zoneId)
+                    }
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
@@ -167,6 +183,11 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
           onClose={() => setIsLoadDeckModalOpen(false)}
           playerId={myPlayerId}
         />
+        <DiceRollDialog
+          open={isDiceRollerOpen}
+          onClose={() => setIsDiceRollerOpen(false)}
+          onRoll={handleRollDice}
+        />
         <TokenCreationModal
           isOpen={isTokenModalOpen}
           onClose={() => setIsTokenModalOpen(false)}
@@ -179,7 +200,9 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
         />
         <ZoneViewerModal
           isOpen={zoneViewerState.isOpen}
-          onClose={() => setZoneViewerState((prev) => ({ ...prev, isOpen: false }))}
+          onClose={() =>
+            setZoneViewerState((prev) => ({ ...prev, isOpen: false }))
+          }
           zoneId={zoneViewerState.zoneId}
           count={zoneViewerState.count}
         />

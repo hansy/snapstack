@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Dice5,
   Keyboard,
   Loader2,
   LogOut,
@@ -40,6 +41,7 @@ const NavIcon: React.FC<NavIconProps> = ({ icon, label, onClick, className }) =>
 
 export const SidenavView: React.FC<SidenavController> = ({
   onCreateToken,
+  onOpenDiceRoller,
   onToggleLog,
   onCopyLink,
   onLeaveGame,
@@ -66,6 +68,13 @@ export const SidenavView: React.FC<SidenavController> = ({
           label="Create Token"
           onClick={onCreateToken}
           className="hover:text-emerald-400"
+        />
+
+        <NavIcon
+          icon={<Dice5 size={20} />}
+          label="Roll Dice"
+          onClick={onOpenDiceRoller}
+          className="hover:text-indigo-400"
         />
 
         <NavIcon

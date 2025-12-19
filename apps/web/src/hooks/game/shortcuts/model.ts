@@ -44,6 +44,8 @@ export type CloseTopmostUiArgs = {
   closeActiveModal: () => void;
   tokenModalOpen: boolean;
   setTokenModalOpen: (open: boolean) => void;
+  diceRollerOpen: boolean;
+  setDiceRollerOpen: (open: boolean) => void;
   loadDeckModalOpen: boolean;
   setLoadDeckModalOpen: (open: boolean) => void;
   zoneViewerOpen: boolean;
@@ -77,6 +79,10 @@ export const closeTopmostUi = (args: CloseTopmostUiArgs): boolean => {
     args.setTokenModalOpen(false);
     return true;
   }
+  if (args.diceRollerOpen) {
+    args.setDiceRollerOpen(false);
+    return true;
+  }
   if (args.loadDeckModalOpen) {
     args.setLoadDeckModalOpen(false);
     return true;
@@ -106,6 +112,7 @@ export const areShortcutsBlockedByUi = (args: {
   textPromptOpen: boolean;
   activeModalOpen: boolean;
   tokenModalOpen: boolean;
+  diceRollerOpen: boolean;
   loadDeckModalOpen: boolean;
   zoneViewerOpen: boolean;
   opponentRevealsOpen: boolean;
@@ -116,6 +123,7 @@ export const areShortcutsBlockedByUi = (args: {
     args.textPromptOpen ||
     args.activeModalOpen ||
     args.tokenModalOpen ||
+    args.diceRollerOpen ||
     args.loadDeckModalOpen ||
     args.zoneViewerOpen ||
     args.opponentRevealsOpen
@@ -139,6 +147,8 @@ export const runGameShortcut = (params: {
   logOpen: boolean;
   setLogOpen: (open: boolean) => void;
   setTokenModalOpen: (open: boolean) => void;
+  diceRollerOpen: boolean;
+  setDiceRollerOpen: (open: boolean) => void;
   openCountPrompt: (opts: CountPromptOptions) => void;
   handleViewZone: (zoneId: ZoneId, count?: number) => void;
   handleLeave: () => void;
@@ -176,6 +186,9 @@ export const runGameShortcut = (params: {
       return true;
     case "game.shuffleLibrary":
       params.actions.shuffle();
+      return true;
+    case "ui.openDiceRoller":
+      params.setDiceRollerOpen(true);
       return true;
     case "zone.viewGraveyard": {
       const graveyard = myZones.graveyard;
