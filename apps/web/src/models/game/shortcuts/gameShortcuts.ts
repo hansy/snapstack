@@ -2,6 +2,7 @@ export type GameShortcutId =
   | "ui.closeTopmost"
   | "ui.toggleShortcuts"
   | "ui.toggleLog"
+  | "ui.openDiceRoller"
   | "ui.openTokenModal"
   | "game.untapAll"
   | "game.drawOne"
@@ -54,6 +55,13 @@ export const GAME_SHORTCUTS: GameShortcutDefinition[] = [
     binding: { key: "l" },
     title: "Toggle Log",
     description: "Opens/closes the game log drawer.",
+    requiresDeckLoaded: false,
+  },
+  {
+    id: "ui.openDiceRoller",
+    binding: { key: "l", shift: true },
+    title: "Roll Dice",
+    description: "Opens the dice roller dialog.",
     requiresDeckLoaded: false,
   },
   {

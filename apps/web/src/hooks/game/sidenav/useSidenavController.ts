@@ -6,6 +6,7 @@ export type SyncStatus = "connecting" | "connected";
 
 export type SidenavControllerInput = {
   onCreateToken?: () => void;
+  onOpenDiceRoller?: () => void;
   onToggleLog?: () => void;
   onCopyLink?: () => void;
   onLeaveGame?: () => void;
@@ -16,6 +17,7 @@ export type SidenavControllerInput = {
 
 export const useSidenavController = ({
   onCreateToken,
+  onOpenDiceRoller,
   onToggleLog,
   onCopyLink,
   onLeaveGame,
@@ -42,6 +44,7 @@ export const useSidenavController = ({
 
   return {
     onCreateToken,
+    onOpenDiceRoller,
     onToggleLog,
     onCopyLink,
     onLeaveGame,
@@ -56,4 +59,3 @@ export const useSidenavController = ({
 };
 
 export type SidenavController = ReturnType<typeof useSidenavController>;
-

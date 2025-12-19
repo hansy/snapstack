@@ -85,12 +85,19 @@ describe("useGameContextMenu", () => {
     await waitFor(() => expect(value).not.toBeNull());
 
     act(() => {
-      value!.handleBattlefieldContextMenu(createEvent(), vi.fn());
+      value!.handleBattlefieldContextMenu(createEvent(), {
+        onCreateToken: vi.fn(),
+        onOpenDiceRoller: vi.fn(),
+      });
     });
 
     await waitFor(() => {
       expect(value!.contextMenu).toBeTruthy();
       expect(value!.contextMenu?.items?.[0]).toMatchObject({
+        type: "action",
+        label: "Roll Dice",
+      });
+      expect(value!.contextMenu?.items?.[1]).toMatchObject({
         type: "action",
         label: "Create Token",
       });
@@ -107,7 +114,7 @@ describe("useGameContextMenu", () => {
     // Deck not loaded -> no menu
     resetStore({ players: { me: createPlayer("me", false) } as any });
     act(() => {
-      value!.handleBattlefieldContextMenu(createEvent(), vi.fn());
+      value!.handleBattlefieldContextMenu(createEvent(), { onCreateToken: vi.fn() });
     });
     await waitFor(() => {
       expect(value!.contextMenu).toBeNull();

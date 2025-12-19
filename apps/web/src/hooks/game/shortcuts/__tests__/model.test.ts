@@ -25,6 +25,8 @@ describe("gameShortcuts/model", () => {
       closeActiveModal: vi.fn(),
       tokenModalOpen: false,
       setTokenModalOpen: vi.fn(),
+      diceRollerOpen: false,
+      setDiceRollerOpen: vi.fn(),
       loadDeckModalOpen: false,
       setLoadDeckModalOpen: vi.fn(),
       zoneViewerOpen: false,
@@ -50,6 +52,7 @@ describe("gameShortcuts/model", () => {
         textPromptOpen: false,
         activeModalOpen: false,
         tokenModalOpen: false,
+        diceRollerOpen: false,
         loadDeckModalOpen: false,
         zoneViewerOpen: false,
         opponentRevealsOpen: false,
@@ -63,6 +66,7 @@ describe("gameShortcuts/model", () => {
         textPromptOpen: false,
         activeModalOpen: false,
         tokenModalOpen: false,
+        diceRollerOpen: false,
         loadDeckModalOpen: false,
         zoneViewerOpen: false,
         opponentRevealsOpen: false,
@@ -90,6 +94,8 @@ describe("gameShortcuts/model", () => {
       logOpen: false,
       setLogOpen: vi.fn(),
       setTokenModalOpen: vi.fn(),
+      diceRollerOpen: false,
+      setDiceRollerOpen: vi.fn(),
       openCountPrompt: vi.fn(),
       handleViewZone: vi.fn(),
       handleLeave: vi.fn(),
@@ -113,6 +119,8 @@ describe("gameShortcuts/model", () => {
       logOpen: false,
       setLogOpen: vi.fn(),
       setTokenModalOpen: vi.fn(),
+      diceRollerOpen: false,
+      setDiceRollerOpen: vi.fn(),
       openCountPrompt: vi.fn(),
       handleViewZone: vi.fn(),
       handleLeave: vi.fn(),
@@ -146,4 +154,3 @@ describe("gameShortcuts/model", () => {
     ).toBe(true);
   });
 });
-

@@ -2,21 +2,22 @@ import React from "react";
 import { DndContext, DragOverlay, getClientRect, pointerWithin } from "@dnd-kit/core";
 
 import { ZONE } from "@/constants/zones";
-import { CardView } from "../card/Card";
-import { CardPreviewProvider } from "../card/CardPreviewProvider";
-import { Seat } from "../seat/Seat";
-import { ContextMenu } from "../context-menu/ContextMenu";
-import { AddCounterModal } from "../add-counter/AddCounterModal";
-import { LoadDeckModal } from "../load-deck/LoadDeckModal";
-import { LogDrawer } from "../log-drawer/LogDrawer";
-import { NumberPromptDialog } from "../prompts/NumberPromptDialog";
-import { OpponentLibraryRevealsModal } from "../opponent-library-reveals/OpponentLibraryRevealsModal";
-import { ShortcutsDrawer } from "../shortcuts/ShortcutsDrawer";
-import { Sidenav } from "../sidenav/Sidenav";
-import { TextPromptDialog } from "../prompts/TextPromptDialog";
-import { TokenCreationModal } from "../token-creation/TokenCreationModal";
-import { ZoneViewerModal } from "../zone-viewer/ZoneViewerModal";
-import { EditUsernameDialog } from "../../username/EditUsernameDialog";
+import { CardView } from "@/components/Game/Card/Card";
+import { CardPreviewProvider } from "@/components/Game/Card/CardPreviewProvider";
+import { Seat } from "@/components/Game/Seat/Seat";
+import { ContextMenu } from "@/components/game/context-menu/ContextMenu";
+import { AddCounterModal } from "@/components/game/add-counter/AddCounterModal";
+import { DiceRollDialog } from "@/components/game/dice/DiceRollDialog";
+import { LoadDeckModal } from "@/components/game/load-deck/LoadDeckModal";
+import { LogDrawer } from "@/components/game/log-drawer/LogDrawer";
+import { NumberPromptDialog } from "@/components/game/prompts/NumberPromptDialog";
+import { OpponentLibraryRevealsModal } from "@/components/game/opponent-library-reveals/OpponentLibraryRevealsModal";
+import { ShortcutsDrawer } from "@/components/game/shortcuts/ShortcutsDrawer";
+import { Sidenav } from "@/components/game/sidenav/Sidenav";
+import { TextPromptDialog } from "@/components/game/prompts/TextPromptDialog";
+import { TokenCreationModal } from "@/components/game/token-creation/TokenCreationModal";
+import { ZoneViewerModal } from "@/components/game/zone-viewer/ZoneViewerModal";
+import { EditUsernameDialog } from "@/components/Username/EditUsernameDialog";
 
 import type { MultiplayerBoardController } from "@/hooks/game/board/useMultiplayerBoardController";
 
@@ -45,6 +46,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
   handleCardContextMenu,
   handleZoneContextMenu,
   handleBattlefieldContextMenu,
+  handleOpenDiceRoller,
   closeContextMenu,
   countPrompt,
   closeCountPrompt,
@@ -54,6 +56,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
   setIsLoadDeckModalOpen,
   isTokenModalOpen,
   setIsTokenModalOpen,
+  isDiceRollerOpen,
+  setIsDiceRollerOpen,
   isLogOpen,
   setIsLogOpen,
   isShortcutsOpen,
@@ -67,6 +71,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
   preferredUsername,
   handleUsernameSubmit,
   handleDrawCard,
+  handleRollDice,
   handleCopyLink,
   handleLeave,
 }) => {
@@ -89,6 +94,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
         >
           <Sidenav
             onCreateToken={() => setIsTokenModalOpen(true)}
+            onOpenDiceRoller={handleOpenDiceRoller}
             onToggleLog={() => setIsLogOpen(!isLogOpen)}
             onCopyLink={handleCopyLink}
             onLeaveGame={handleLeave}
@@ -112,7 +118,10 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
                     onCardContextMenu={handleCardContextMenu}
                     onZoneContextMenu={handleZoneContextMenu}
                     onBattlefieldContextMenu={(e) =>
-                      handleBattlefieldContextMenu(e, () => setIsTokenModalOpen(true))
+                      handleBattlefieldContextMenu(e, {
+                        onCreateToken: () => setIsTokenModalOpen(true),
+                        onOpenDiceRoller: handleOpenDiceRoller,
+                      })
                     }
                     onLoadDeck={() => setIsLoadDeckModalOpen(true)}
                     onEditUsername={
@@ -166,6 +175,11 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
           isOpen={isLoadDeckModalOpen}
           onClose={() => setIsLoadDeckModalOpen(false)}
           playerId={myPlayerId}
+        />
+        <DiceRollDialog
+          open={isDiceRollerOpen}
+          onClose={() => setIsDiceRollerOpen(false)}
+          onRoll={handleRollDice}
         />
         <TokenCreationModal
           isOpen={isTokenModalOpen}

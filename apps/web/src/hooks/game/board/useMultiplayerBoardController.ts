@@ -6,6 +6,7 @@ import { useDragStore } from "@/store/dragStore";
 import { useClientPrefsStore } from "@/store/clientPrefsStore";
 import { useGameStore } from "@/store/gameStore";
 import { computePlayerColors, resolveOrderedPlayerIds } from "@/lib/playerColors";
+import { emitLog } from "@/logging/logStore";
 import { useBattlefieldEdgeZoom } from "./useBattlefieldEdgeZoom";
 import { useBoardScale } from "./useBoardScale";
 import { useGameContextMenu } from "../context-menu/useGameContextMenu";
@@ -83,10 +84,11 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     closeCountPrompt,
     textPrompt,
     closeTextPrompt,
-  } = useGameContextMenu(myPlayerId, handleViewZone);
+  } = useGameContextMenu(myPlayerId, handleViewZone, () => setIsDiceRollerOpen(true));
 
   const [isLoadDeckModalOpen, setIsLoadDeckModalOpen] = React.useState(false);
   const [isTokenModalOpen, setIsTokenModalOpen] = React.useState(false);
+  const [isDiceRollerOpen, setIsDiceRollerOpen] = React.useState(false);
   const [isLogOpen, setIsLogOpen] = React.useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = React.useState(false);
   const [isEditUsernameOpen, setIsEditUsernameOpen] = React.useState(false);
@@ -113,6 +115,25 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     [myPlayerId]
   );
 
+  const handleRollDice = React.useCallback(
+    (sides: number, count: number) => {
+      const safeSides = Math.max(1, Math.floor(sides));
+      const safeCount = Math.max(1, Math.floor(count));
+      const results = Array.from({ length: safeCount }, () =>
+        1 + Math.floor(Math.random() * safeSides)
+      );
+      const state = useGameStore.getState();
+      emitLog(
+        "dice.roll",
+        { actorId: myPlayerId, sides: safeSides, count: safeCount, results },
+        { players: state.players, cards: state.cards, zones: state.zones }
+      );
+    },
+    [myPlayerId]
+  );
+
+  const handleOpenDiceRoller = React.useCallback(() => setIsDiceRollerOpen(true), []);
+
   useGameShortcuts({
     myPlayerId,
     zones,
@@ -127,6 +148,8 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     closeActiveModal: () => setActiveModal(null),
     tokenModalOpen: isTokenModalOpen,
     setTokenModalOpen: setIsTokenModalOpen,
+    diceRollerOpen: isDiceRollerOpen,
+    setDiceRollerOpen: setIsDiceRollerOpen,
     loadDeckModalOpen: isLoadDeckModalOpen,
     setLoadDeckModalOpen: setIsLoadDeckModalOpen,
     zoneViewerOpen: zoneViewerState.isOpen,
@@ -180,6 +203,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     handleCardContextMenu,
     handleZoneContextMenu,
     handleBattlefieldContextMenu,
+    handleOpenDiceRoller,
     closeContextMenu,
     countPrompt,
     closeCountPrompt,
@@ -189,6 +213,8 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     setIsLoadDeckModalOpen,
     isTokenModalOpen,
     setIsTokenModalOpen,
+    isDiceRollerOpen,
+    setIsDiceRollerOpen,
     isLogOpen,
     setIsLogOpen,
     isShortcutsOpen,
@@ -202,6 +228,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     preferredUsername,
     handleUsernameSubmit,
     handleDrawCard,
+    handleRollDice,
     handleCopyLink,
     handleLeave,
   };

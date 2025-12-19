@@ -3,6 +3,7 @@ import { Card, CardId, Player, PlayerId, Zone, ZoneId } from '@/types';
 export type LogEventId =
   | 'player.life'
   | 'player.commanderTax'
+  | 'dice.roll'
   | 'card.draw'
   | 'library.shuffle'
   | 'deck.reset'
