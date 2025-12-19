@@ -1,23 +1,28 @@
 import React from "react";
-import { DndContext, DragOverlay, getClientRect, pointerWithin } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragOverlay,
+  getClientRect,
+  pointerWithin,
+} from "@dnd-kit/core";
 
 import { ZONE } from "@/constants/zones";
-import { CardView } from "@/components/Game/Card/Card";
-import { CardPreviewProvider } from "@/components/Game/Card/CardPreviewProvider";
-import { Seat } from "@/components/Game/Seat/Seat";
-import { ContextMenu } from "@/components/game/context-menu/ContextMenu";
-import { AddCounterModal } from "@/components/game/add-counter/AddCounterModal";
-import { DiceRollDialog } from "@/components/game/dice/DiceRollDialog";
-import { LoadDeckModal } from "@/components/game/load-deck/LoadDeckModal";
-import { LogDrawer } from "@/components/game/log-drawer/LogDrawer";
-import { NumberPromptDialog } from "@/components/game/prompts/NumberPromptDialog";
-import { OpponentLibraryRevealsModal } from "@/components/game/opponent-library-reveals/OpponentLibraryRevealsModal";
-import { ShortcutsDrawer } from "@/components/game/shortcuts/ShortcutsDrawer";
-import { Sidenav } from "@/components/game/sidenav/Sidenav";
-import { TextPromptDialog } from "@/components/game/prompts/TextPromptDialog";
-import { TokenCreationModal } from "@/components/game/token-creation/TokenCreationModal";
-import { ZoneViewerModal } from "@/components/game/zone-viewer/ZoneViewerModal";
-import { EditUsernameDialog } from "@/components/Username/EditUsernameDialog";
+import { CardView } from "../card/CardView";
+import { CardPreviewProvider } from "../card/CardPreviewProvider";
+import { Seat } from "../seat/Seat";
+import { ContextMenu } from "../context-menu/ContextMenu";
+import { AddCounterModal } from "../add-counter/AddCounterModal";
+import { DiceRollDialog } from "../dice/DiceRollDialog";
+import { LoadDeckModal } from "../load-deck/LoadDeckModal";
+import { LogDrawer } from "../log-drawer/LogDrawer";
+import { NumberPromptDialog } from "../prompts/NumberPromptDialog";
+import { OpponentLibraryRevealsModal } from "../opponent-library-reveals/OpponentLibraryRevealsModal";
+import { ShortcutsDrawer } from "../shortcuts/ShortcutsDrawer";
+import { Sidenav } from "../sidenav/Sidenav";
+import { TextPromptDialog } from "../prompts/TextPromptDialog";
+import { TokenCreationModal } from "../token-creation/TokenCreationModal";
+import { ZoneViewerModal } from "../zone-viewer/ZoneViewerModal";
+import { EditUsernameDialog } from "@/components/username/EditUsernameDialog";
 
 import type { MultiplayerBoardController } from "@/hooks/game/board/useMultiplayerBoardController";
 
@@ -134,7 +139,9 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
                     battlefieldScale={battlefieldViewScale[slot.player.id] ?? 1}
                     onViewZone={handleViewZone}
                     onDrawCard={handleDrawCard}
-                    onOpponentLibraryReveals={(zoneId) => setRevealedLibraryZoneId(zoneId)}
+                    onOpponentLibraryReveals={(zoneId) =>
+                      setRevealedLibraryZoneId(zoneId)
+                    }
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
@@ -193,7 +200,9 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
         />
         <ZoneViewerModal
           isOpen={zoneViewerState.isOpen}
-          onClose={() => setZoneViewerState((prev) => ({ ...prev, isOpen: false }))}
+          onClose={() =>
+            setZoneViewerState((prev) => ({ ...prev, isOpen: false }))
+          }
           zoneId={zoneViewerState.zoneId}
           count={zoneViewerState.count}
         />

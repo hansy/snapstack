@@ -5,7 +5,10 @@ import { useNavigate } from "@tanstack/react-router";
 import { useDragStore } from "@/store/dragStore";
 import { useClientPrefsStore } from "@/store/clientPrefsStore";
 import { useGameStore } from "@/store/gameStore";
-import { computePlayerColors, resolveOrderedPlayerIds } from "@/lib/playerColors";
+import {
+  computePlayerColors,
+  resolveOrderedPlayerIds,
+} from "@/lib/playerColors";
 import { emitLog } from "@/logging/logStore";
 import { useBattlefieldEdgeZoom } from "./useBattlefieldEdgeZoom";
 import { useBoardScale } from "./useBoardScale";
@@ -35,13 +38,16 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const cards = useGameStore((state) => state.cards);
   const players = useGameStore((state) => state.players);
   const playerOrder = useGameStore((state) => state.playerOrder);
-  const battlefieldViewScale = useGameStore((state) => state.battlefieldViewScale);
+  const battlefieldViewScale = useGameStore(
+    (state) => state.battlefieldViewScale
+  );
   const activeModal = useGameStore((state) => state.activeModal);
   const setActiveModal = useGameStore((state) => state.setActiveModal);
 
   const overCardScale = useDragStore((state) => state.overCardScale);
   const activeCardId = useDragStore((state) => state.activeCardId);
-  const { sensors, handleDragStart, handleDragMove, handleDragEnd } = useGameDnD();
+  const { sensors, handleDragStart, handleDragMove, handleDragEnd } =
+    useGameDnD();
 
   const { slots, layoutMode, myPlayerId } = usePlayerLayout();
   const gridClass = React.useMemo(() => getGridClass(layoutMode), [layoutMode]);
@@ -84,7 +90,9 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     closeCountPrompt,
     textPrompt,
     closeTextPrompt,
-  } = useGameContextMenu(myPlayerId, handleViewZone, () => setIsDiceRollerOpen(true));
+  } = useGameContextMenu(myPlayerId, handleViewZone, () =>
+    setIsDiceRollerOpen(true)
+  );
 
   const [isLoadDeckModalOpen, setIsLoadDeckModalOpen] = React.useState(false);
   const [isTokenModalOpen, setIsTokenModalOpen] = React.useState(false);
@@ -92,17 +100,21 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const [isLogOpen, setIsLogOpen] = React.useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = React.useState(false);
   const [isEditUsernameOpen, setIsEditUsernameOpen] = React.useState(false);
-  const [revealedLibraryZoneId, setRevealedLibraryZoneId] = React.useState<string | null>(
-    null
-  );
+  const [revealedLibraryZoneId, setRevealedLibraryZoneId] = React.useState<
+    string | null
+  >(null);
 
   const preferredUsername = useClientPrefsStore((state) => state.username);
-  const setPreferredUsername = useClientPrefsStore((state) => state.setUsername);
+  const setPreferredUsername = useClientPrefsStore(
+    (state) => state.setUsername
+  );
 
   const handleUsernameSubmit = React.useCallback(
     (username: string) => {
       setPreferredUsername(username);
-      useGameStore.getState().updatePlayer(myPlayerId, { name: username }, myPlayerId);
+      useGameStore
+        .getState()
+        .updatePlayer(myPlayerId, { name: username }, myPlayerId);
       setIsEditUsernameOpen(false);
     },
     [myPlayerId, setPreferredUsername]
@@ -116,11 +128,12 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   );
 
   const handleRollDice = React.useCallback(
-    (sides: number, count: number) => {
-      const safeSides = Math.max(1, Math.floor(sides));
-      const safeCount = Math.max(1, Math.floor(count));
-      const results = Array.from({ length: safeCount }, () =>
-        1 + Math.floor(Math.random() * safeSides)
+    (params: { sides: number; count: number }) => {
+      const safeSides = Math.max(1, Math.floor(params.sides));
+      const safeCount = Math.max(1, Math.floor(params.count));
+      const results = Array.from(
+        { length: safeCount },
+        () => 1 + Math.floor(Math.random() * safeSides)
       );
       const state = useGameStore.getState();
       emitLog(
@@ -132,7 +145,10 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     [myPlayerId]
   );
 
-  const handleOpenDiceRoller = React.useCallback(() => setIsDiceRollerOpen(true), []);
+  const handleOpenDiceRoller = React.useCallback(
+    () => setIsDiceRollerOpen(true),
+    []
+  );
 
   useGameShortcuts({
     myPlayerId,
@@ -153,7 +169,8 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     loadDeckModalOpen: isLoadDeckModalOpen,
     setLoadDeckModalOpen: setIsLoadDeckModalOpen,
     zoneViewerOpen: zoneViewerState.isOpen,
-    closeZoneViewer: () => setZoneViewerState((prev) => ({ ...prev, isOpen: false })),
+    closeZoneViewer: () =>
+      setZoneViewerState((prev) => ({ ...prev, isOpen: false })),
     opponentRevealsOpen: Boolean(revealedLibraryZoneId),
     closeOpponentReveals: () => setRevealedLibraryZoneId(null),
     logOpen: isLogOpen,
@@ -234,4 +251,6 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   };
 };
 
-export type MultiplayerBoardController = ReturnType<typeof useMultiplayerBoardController>;
+export type MultiplayerBoardController = ReturnType<
+  typeof useMultiplayerBoardController
+>;
