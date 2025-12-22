@@ -22,6 +22,7 @@ export const CardFaceArtwork: React.FC<{
         alt={displayName}
         loading="lazy"
         decoding="async"
+        draggable={false}
         className={cn("w-full h-full object-cover rounded pointer-events-none", imageClassName)}
         style={
           imageTransform
@@ -36,4 +37,3 @@ export const CardFaceArtwork: React.FC<{
     <div className="text-md text-center font-medium text-zinc-300 px-2">{displayName}</div>
   );
 };
-

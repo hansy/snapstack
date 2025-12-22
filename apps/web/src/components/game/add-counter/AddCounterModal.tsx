@@ -6,11 +6,10 @@ import { useAddCounterController } from "@/hooks/game/add-counter/useAddCounterC
 export interface AddCounterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  cardId: string;
+  cardIds: string[];
 }
 
 export const AddCounterModal: React.FC<AddCounterModalProps> = (props) => {
   const controller = useAddCounterController(props);
   return <AddCounterModalView {...controller} />;
 };
-

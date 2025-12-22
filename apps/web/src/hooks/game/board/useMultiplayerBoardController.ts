@@ -5,6 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useDragStore } from "@/store/dragStore";
 import { useClientPrefsStore } from "@/store/clientPrefsStore";
 import { useGameStore } from "@/store/gameStore";
+import { useSelectionStore } from "@/store/selectionStore";
 import {
   computePlayerColors,
   resolveOrderedPlayerIds,
@@ -14,9 +15,11 @@ import { useBattlefieldEdgeZoom } from "./useBattlefieldEdgeZoom";
 import { useBoardScale } from "./useBoardScale";
 import { useGameContextMenu } from "../context-menu/useGameContextMenu";
 import { useGameDnD } from "../dnd/useGameDnD";
+import { useSelectionSync } from "../selection/useSelectionSync";
 import { useGameShortcuts } from "../shortcuts/useGameShortcuts";
 import { useMultiplayerSync } from "../multiplayer-sync/useMultiplayerSync";
 import { usePlayerLayout, type LayoutMode } from "../player/usePlayerLayout";
+import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
 
 const getGridClass = (layoutMode: LayoutMode) => {
   switch (layoutMode) {
@@ -46,6 +49,10 @@ export const useMultiplayerBoardController = (sessionId: string) => {
 
   const overCardScale = useDragStore((state) => state.overCardScale);
   const activeCardId = useDragStore((state) => state.activeCardId);
+  const isGroupDragging = useDragStore((state) => state.isGroupDragging);
+  const ghostCards = useDragStore((state) => state.ghostCards);
+  const selectedCardIds = useSelectionStore((state) => state.selectedCardIds);
+  const selectionZoneId = useSelectionStore((state) => state.selectionZoneId);
   const { sensors, handleDragStart, handleDragMove, handleDragEnd } =
     useGameDnD();
 
@@ -194,6 +201,34 @@ export const useMultiplayerBoardController = (sessionId: string) => {
 
   const scale = useBoardScale(layoutMode);
   useBattlefieldEdgeZoom(myPlayerId);
+  useSelectionSync(myPlayerId);
+
+  const groupDragCardIds = React.useMemo(() => {
+    if (!isGroupDragging || !activeCardId) return [];
+    return resolveSelectedCardIds({
+      seedCardId: activeCardId,
+      cardsById: cards,
+      selection: { selectedCardIds, selectionZoneId },
+      minCount: 2,
+      fallbackToSeed: false,
+    });
+  }, [
+    activeCardId,
+    cards,
+    isGroupDragging,
+    selectedCardIds,
+    selectionZoneId,
+  ]);
+
+  const showGroupDragOverlay = React.useMemo(
+    () =>
+      Boolean(
+        isGroupDragging &&
+          (!ghostCards || ghostCards.length < 2) &&
+          groupDragCardIds.length > 0
+      ),
+    [ghostCards, groupDragCardIds.length, isGroupDragging]
+  );
 
   return {
     zones,
@@ -209,6 +244,9 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     setActiveModal,
     overCardScale,
     activeCardId,
+    isGroupDragging,
+    showGroupDragOverlay,
+    groupDragCardIds,
     sensors,
     handleDragStart,
     handleDragMove,

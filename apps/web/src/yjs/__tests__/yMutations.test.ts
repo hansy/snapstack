@@ -180,10 +180,10 @@ describe('moveCard', () => {
     moveCard(maps, 'c1', zone.id, { x: 0.1, y: 0.1 });
 
     const snapshot = sharedSnapshot(maps);
-    expect(snapshot.cards.c1?.position.x).toBeCloseTo(0.1, 6);
-    expect(snapshot.cards.c1?.position.y).toBeCloseTo(0.1, 6);
     expect(snapshot.cards.c2?.position.x).toBeCloseTo(0.1, 6);
-    expect(snapshot.cards.c2?.position.y).toBeCloseTo(0.1 + GRID_STEP_Y, 6);
+    expect(snapshot.cards.c2?.position.y).toBeCloseTo(0.1, 6);
+    expect(snapshot.cards.c1?.position.x).toBeCloseTo(0.1, 6);
+    expect(snapshot.cards.c1?.position.y).toBeCloseTo(0.1 + GRID_STEP_Y, 6);
   });
 });
 

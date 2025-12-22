@@ -17,8 +17,8 @@ describe('gameStore ui actions', () => {
   });
 
   it('setActiveModal stores modal state', () => {
-    useGameStore.getState().setActiveModal({ type: 'ADD_COUNTER', cardId: 'c1' });
-    expect(useGameStore.getState().activeModal).toEqual({ type: 'ADD_COUNTER', cardId: 'c1' });
+    useGameStore.getState().setActiveModal({ type: 'ADD_COUNTER', cardIds: ['c1'] });
+    expect(useGameStore.getState().activeModal).toEqual({ type: 'ADD_COUNTER', cardIds: ['c1'] });
 
     useGameStore.getState().setActiveModal(null);
     expect(useGameStore.getState().activeModal).toBeNull();
@@ -35,4 +35,3 @@ describe('gameStore ui actions', () => {
     expect(useGameStore.getState().battlefieldViewScale.me).toBe(0.8);
   });
 });
-

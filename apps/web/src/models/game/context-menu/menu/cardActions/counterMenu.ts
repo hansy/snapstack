@@ -8,7 +8,7 @@ type BuildCounterMenuItemsParams = {
   cardId: CardId;
   counters: Counter[];
   globalCounters: Record<string, string>;
-  openAddCounterModal: (cardId: CardId) => void;
+  openAddCounterModal: (cardIds: CardId[]) => void;
   addCounter: (
     cardId: CardId,
     counter: { type: string; count: number; color?: string }
@@ -33,7 +33,7 @@ export const buildCounterMenuItems = ({
       type: "action",
       label: "Add counter",
       onSelect: () => {
-        openAddCounterModal(cardId);
+        openAddCounterModal([cardId]);
       },
     });
   } else {
@@ -56,7 +56,7 @@ export const buildCounterMenuItems = ({
       type: "action",
       label: "Create new...",
       onSelect: () => {
-        openAddCounterModal(cardId);
+        openAddCounterModal([cardId]);
       },
     });
 

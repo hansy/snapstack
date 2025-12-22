@@ -11,8 +11,19 @@ import { arrayMove } from "@dnd-kit/sortable";
 
 import { useGameStore } from "@/store/gameStore";
 import { useDragStore } from "@/store/dragStore";
+import { useSelectionStore } from "@/store/selectionStore";
 import type { CardId, ZoneId } from "@/types";
 import { computeDragEndPlan, computeDragMoveUiState } from "./model";
+import { batchSharedMutations } from "@/yjs/docManager";
+import { getEffectiveCardSize } from "@/lib/dndBattlefield";
+import {
+  fromNormalizedPosition,
+  mirrorNormalizedY,
+  snapNormalizedWithZone,
+  toNormalizedPosition,
+} from "@/lib/positions";
+import { ZONE } from "@/constants/zones";
+import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
 
 // Throttle helper for drag move events
 const DRAG_MOVE_THROTTLE_MS = 16; // ~60fps
@@ -20,11 +31,13 @@ const DRAG_MOVE_THROTTLE_MS = 16; // ~60fps
 export const useGameDnD = () => {
   const moveCard = useGameStore((state) => state.moveCard);
   const reorderZoneCards = useGameStore((state) => state.reorderZoneCards);
-  const setGhostCard = useDragStore((state) => state.setGhostCard);
+  const setGhostCards = useDragStore((state) => state.setGhostCards);
   const setActiveCardId = useDragStore((state) => state.setActiveCardId);
+  const setIsGroupDragging = useDragStore((state) => state.setIsGroupDragging);
   const setOverCardScale = useDragStore((state) => state.setOverCardScale);
   const setZoomEdge = useDragStore((state) => state.setZoomEdge);
   const myPlayerId = useGameStore((state) => state.myPlayerId);
+  const clearSelection = useSelectionStore((state) => state.clearSelection);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -36,13 +49,50 @@ export const useGameDnD = () => {
 
   const dragSeq = React.useRef(0);
   const currentDragSeq = React.useRef<number | null>(null);
+  const dragSelectionRef = React.useRef<{
+    activeCardId: CardId;
+    groupCardIds: CardId[];
+    startPositions: Record<CardId, { x: number; y: number }>;
+    startZoneId: ZoneId;
+  } | null>(null);
 
   const handleDragStart = (event: DragStartEvent) => {
     currentDragSeq.current = ++dragSeq.current;
+    dragSelectionRef.current = null;
 
-    setGhostCard(null);
+    setGhostCards(null);
+    setIsGroupDragging(false);
     if (event.active.data.current?.cardId) {
-      setActiveCardId(event.active.data.current.cardId);
+      const cardId = event.active.data.current.cardId as CardId;
+      setActiveCardId(cardId);
+
+      const state = useGameStore.getState();
+      const activeCard = state.cards[cardId];
+      if (!activeCard) return;
+
+      const selectionState = useSelectionStore.getState();
+      const groupIds = resolveSelectedCardIds({
+        seedCardId: cardId,
+        cardsById: state.cards,
+        selection: selectionState,
+        minCount: 2,
+        fallbackToSeed: true,
+      });
+
+      if (groupIds.length > 1) {
+        setIsGroupDragging(true);
+        const startPositions: Record<CardId, { x: number; y: number }> = {};
+        groupIds.forEach((id) => {
+          const card = state.cards[id];
+          if (card) startPositions[id] = card.position;
+        });
+        dragSelectionRef.current = {
+          activeCardId: cardId,
+          groupCardIds: groupIds,
+          startPositions,
+          startZoneId: activeCard.zoneId,
+        };
+      }
     }
   };
 
@@ -69,7 +119,7 @@ export const useGameDnD = () => {
       lastMoveTime.current = now;
       handleDragMoveImpl(event);
     },
-    [myPlayerId, setGhostCard, setOverCardScale, setZoomEdge]
+    [myPlayerId, setGhostCards, setOverCardScale, setZoomEdge]
   );
 
   const handleDragMoveImpl = (event: DragMoveEvent) => {
@@ -101,9 +151,111 @@ export const useGameDnD = () => {
         : null,
     });
 
-    setGhostCard(result.ghostCard);
+    const group = dragSelectionRef.current;
+    const isGroupDragging = Boolean(group && group.groupCardIds.length > 1);
     setOverCardScale(result.overCardScale);
     setZoomEdge(result.zoomEdge);
+
+    if (!isGroupDragging) {
+      if (result.ghostCard && activeCardId) {
+        setGhostCards([
+          {
+            cardId: activeCardId,
+            zoneId: result.ghostCard.zoneId,
+            position: result.ghostCard.position,
+            tapped: result.ghostCard.tapped,
+          },
+        ]);
+      } else {
+        setGhostCards(null);
+      }
+      return;
+    }
+
+    if (
+      !group ||
+      !result.ghostCard ||
+      !over ||
+      over.data.current?.type !== ZONE.BATTLEFIELD
+    ) {
+      setGhostCards(null);
+      return;
+    }
+
+    const targetZone = state.zones[over.id as ZoneId];
+    if (!targetZone) {
+      setGhostCards(null);
+      return;
+    }
+
+    const zoneScale = over.data.current?.scale ?? 1;
+    const zoneWidth = (over.rect.width || 0) / (zoneScale || 1);
+    const zoneHeight = (over.rect.height || 0) / (zoneScale || 1);
+    if (!zoneWidth || !zoneHeight) {
+      setGhostCards(null);
+      return;
+    }
+
+    const mirrorY = Boolean(over.data.current?.mirrorY);
+    const viewScale = over.data.current?.cardScale ?? 1;
+
+    const activeStart = group.startPositions[group.activeCardId];
+    if (!activeStart) {
+      setGhostCards(null);
+      return;
+    }
+
+    const activeGhostView = toNormalizedPosition(
+      result.ghostCard.position,
+      zoneWidth,
+      zoneHeight
+    );
+    const activeGhostCanonical = mirrorY
+      ? mirrorNormalizedY(activeGhostView)
+      : activeGhostView;
+
+    const delta = {
+      x: activeGhostCanonical.x - activeStart.x,
+      y: activeGhostCanonical.y - activeStart.y,
+    };
+
+    const ghostCards = group.groupCardIds
+      .map((id) => {
+        const card = state.cards[id];
+        const startPos = group.startPositions[id];
+        if (!card || !startPos) return null;
+
+        const candidate = {
+          x: startPos.x + delta.x,
+          y: startPos.y + delta.y,
+        };
+        const { cardWidth, cardHeight } = getEffectiveCardSize({
+          viewScale,
+          isTapped: card.tapped,
+        });
+        const snapped = snapNormalizedWithZone(
+          candidate,
+          zoneWidth,
+          zoneHeight,
+          cardWidth,
+          cardHeight
+        );
+        const viewNormalized = mirrorY ? mirrorNormalizedY(snapped) : snapped;
+        const position = fromNormalizedPosition(
+          viewNormalized,
+          zoneWidth,
+          zoneHeight
+        );
+        return {
+          cardId: card.id,
+          zoneId: targetZone.id,
+          position,
+          tapped: card.tapped,
+        };
+      })
+      .filter((value): value is NonNullable<typeof value> => Boolean(value));
+
+    setGhostCards(ghostCards.length > 0 ? ghostCards : null);
   };
 
   const handleDragEnd = React.useCallback(
@@ -114,8 +266,9 @@ export const useGameDnD = () => {
       }
 
       const { active, over } = event;
-      setGhostCard(null);
+      setGhostCards(null);
       setActiveCardId(null);
+      setIsGroupDragging(false);
       setOverCardScale(1);
       setZoomEdge(null);
       currentDragSeq.current = null;
@@ -142,6 +295,9 @@ export const useGameDnD = () => {
         activeTapped: Boolean(active.data.current?.tapped),
       });
 
+      const group = dragSelectionRef.current;
+      dragSelectionRef.current = null;
+
       if (plan.kind === "reorderHand") {
         const zone = state.zones[plan.zoneId];
         if (!zone) return;
@@ -151,15 +307,114 @@ export const useGameDnD = () => {
       }
 
       if (plan.kind === "moveCard") {
+        if (group && group.groupCardIds.length > 1) {
+          const targetZone = state.zones[plan.toZoneId];
+          if (!targetZone) return;
+
+          const activeStart = group.startPositions[group.activeCardId];
+          if (!activeStart) return;
+
+          if (targetZone.type === ZONE.BATTLEFIELD && plan.position) {
+            const delta = {
+              x: plan.position.x - activeStart.x,
+              y: plan.position.y - activeStart.y,
+            };
+            const zoneScale = over?.data.current?.scale ?? 1;
+            const cardScale = over?.data.current?.cardScale ?? 1;
+            const zoneWidth = (over?.rect.width ?? 0) / (zoneScale || 1);
+            const zoneHeight = (over?.rect.height ?? 0) / (zoneScale || 1);
+
+            const targetPositions: Record<CardId, { x: number; y: number }> = {};
+            const movingIds: CardId[] = [];
+            group.groupCardIds.forEach((id) => {
+              const card = state.cards[id];
+              if (!card) return;
+              if (card.zoneId !== group.startZoneId) return;
+              const startPos = group.startPositions[id];
+              if (!startPos) return;
+
+              const target = {
+                x: startPos.x + delta.x,
+                y: startPos.y + delta.y,
+              };
+              const { cardWidth, cardHeight } = getEffectiveCardSize({
+                viewScale: cardScale,
+                isTapped: card.tapped,
+              });
+              const snapped = snapNormalizedWithZone(
+                target,
+                zoneWidth,
+                zoneHeight,
+                cardWidth,
+                cardHeight
+              );
+              targetPositions[id] = snapped;
+              movingIds.push(id);
+            });
+
+            batchSharedMutations(() => {
+              const groupCollision = {
+                movingCardIds: movingIds,
+                targetPositions,
+              };
+              movingIds.forEach((id) => {
+                const snapped = targetPositions[id];
+                if (!snapped) return;
+                moveCard(id, plan.toZoneId, snapped, myPlayerId, undefined, {
+                  suppressLog: id !== group.activeCardId,
+                  groupCollision,
+                });
+              });
+            });
+            if (targetZone.ownerId !== myPlayerId) {
+              clearSelection();
+            }
+            return;
+          }
+
+          batchSharedMutations(() => {
+            group.groupCardIds.forEach((id) => {
+              const card = state.cards[id];
+              if (!card) return;
+              if (card.zoneId !== group.startZoneId) return;
+              moveCard(id, plan.toZoneId, plan.position, myPlayerId, undefined, {
+                suppressLog: id !== group.activeCardId,
+                skipCollision: true,
+              });
+            });
+          });
+          if (targetZone.type !== ZONE.BATTLEFIELD || targetZone.ownerId !== myPlayerId) {
+            clearSelection();
+          }
+          return;
+        }
+
         moveCard(plan.cardId, plan.toZoneId, plan.position, myPlayerId);
+        const targetZone = state.zones[plan.toZoneId];
+        const activeCard = state.cards[plan.cardId];
+        if (
+          targetZone &&
+          activeCard &&
+          (targetZone.type !== ZONE.BATTLEFIELD ||
+            targetZone.ownerId !== myPlayerId)
+        ) {
+          const selectionState = useSelectionStore.getState();
+          if (
+            selectionState.selectionZoneId === activeCard.zoneId &&
+            selectionState.selectedCardIds.includes(plan.cardId)
+          ) {
+            clearSelection();
+          }
+        }
       }
     },
     [
+      clearSelection,
       moveCard,
       myPlayerId,
       reorderZoneCards,
       setActiveCardId,
-      setGhostCard,
+      setGhostCards,
       setOverCardScale,
       setZoomEdge,
     ]

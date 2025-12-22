@@ -2,13 +2,14 @@ import * as React from "react";
 
 import { useGameStore } from "@/store/gameStore";
 import { PRESET_COUNTERS, resolveCounterColor } from "@/lib/counters";
+import { batchSharedMutations } from "@/yjs/docManager";
 
 import { getAllCounterTypes, normalizeCounterCount, normalizeCounterType, planAddCounter } from "@/models/game/add-counter/addCounterModel";
 
 export type AddCounterControllerInput = {
   isOpen: boolean;
   onClose: () => void;
-  cardId: string;
+  cardIds: string[];
 };
 
 const DEFAULT_COUNTER_TYPE = "+1/+1";
@@ -16,7 +17,7 @@ const DEFAULT_COUNTER_TYPE = "+1/+1";
 export const useAddCounterController = ({
   isOpen,
   onClose,
-  cardId,
+  cardIds,
 }: AddCounterControllerInput) => {
   const [counterType, setCounterType] = React.useState(DEFAULT_COUNTER_TYPE);
   const [count, setCount] = React.useState(1);
@@ -75,14 +76,21 @@ export const useAddCounterController = ({
 
     if (!planned) return;
 
-    addCounterToCard(cardId, planned.counter);
+    const targets = cardIds.length > 0 ? cardIds : [];
+    if (targets.length === 0) return;
+
+    batchSharedMutations(() => {
+      targets.forEach((targetId) => {
+        addCounterToCard(targetId, planned.counter);
+      });
+    });
 
     if (planned.shouldAddGlobalCounter) {
       addGlobalCounter(planned.counter.type, planned.counter.color);
     }
 
     onClose();
-  }, [addCounterToCard, addGlobalCounter, cardId, count, counterType, globalCounters, onClose]);
+  }, [addCounterToCard, addGlobalCounter, cardIds, count, counterType, globalCounters, onClose]);
 
   return {
     isOpen,
@@ -99,4 +107,3 @@ export const useAddCounterController = ({
 };
 
 export type AddCounterController = ReturnType<typeof useAddCounterController>;
-

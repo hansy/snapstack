@@ -3,11 +3,13 @@ import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
 
 import { useGameStore } from "@/store/gameStore";
+import { useSelectionStore } from "@/store/selectionStore";
 import type { Card, ZoneId } from "@/types";
 import { actionRegistry } from "@/models/game/context-menu/actionsRegistry";
 import { fetchScryfallCardByUri } from "@/services/scryfall/scryfallCard";
 import { getCard as getCachedCard } from "@/services/scryfall/scryfallCache";
 import { getDisplayName } from "@/lib/cardDisplay";
+import { ZONE } from "@/constants/zones";
 import { getShortcutLabel } from "@/models/game/shortcuts/gameShortcuts";
 
 import { fetchBattlefieldRelatedParts } from "./relatedParts";
@@ -55,6 +57,13 @@ export const useGameContextMenu = (
         const store = useGameStore.getState();
         const zone = store.zones[card.zoneId];
         if (!seatHasDeckLoaded(zone?.ownerId ?? card.ownerId)) return;
+
+        const selectionEnabled =
+            zone?.type === ZONE.BATTLEFIELD && zone.ownerId === myPlayerId;
+        const selectionState = useSelectionStore.getState();
+        if (selectionEnabled && !selectionState.selectedCardIds.includes(card.id)) {
+            useSelectionStore.getState().selectOnly(card.id, card.zoneId);
+        }
 
         // Fetch full Scryfall data to get related parts (tokens, meld results, etc.)
         // This is needed because we only sync lite data over Yjs

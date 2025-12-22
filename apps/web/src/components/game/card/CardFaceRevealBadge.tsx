@@ -28,7 +28,10 @@ export const CardFaceRevealBadge: React.FC<{ reveal: CardFaceRevealModel | null 
         </div>
       }
     >
-      <div className="absolute top-1 left-1 z-20 bg-zinc-900/90 rounded-full p-1 border border-zinc-700 shadow-md">
+      <div
+        className="absolute top-1 left-1 z-20 bg-zinc-900/90 rounded-full p-1 border border-zinc-700 shadow-md"
+        title={reveal.title}
+      >
         <Eye size={14} className="text-white" />
       </div>
     </Tooltip>

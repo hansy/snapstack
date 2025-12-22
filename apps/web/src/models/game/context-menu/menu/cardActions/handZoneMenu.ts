@@ -12,7 +12,7 @@ type MoveCardFn = (
   position?: { x: number; y: number },
   actorId?: PlayerId,
   isRemote?: boolean,
-  opts?: { suppressLog?: boolean; faceDown?: boolean }
+  opts?: { suppressLog?: boolean; faceDown?: boolean; skipCollision?: boolean }
 ) => void;
 
 type BuildHandZoneMenuItemsParams = {

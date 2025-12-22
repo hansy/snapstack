@@ -17,22 +17,24 @@ interface ZoneProps {
     cardScale?: number;
     mirrorY?: boolean;
     onContextMenu?: (e: React.MouseEvent) => void;
+    onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
+    onPointerMove?: (e: React.PointerEvent<HTMLDivElement>) => void;
+    onPointerUp?: (e: React.PointerEvent<HTMLDivElement>) => void;
+    onPointerCancel?: (e: React.PointerEvent<HTMLDivElement>) => void;
     innerRef?: (node: HTMLDivElement | null) => void;
 }
 
-const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 'stack', scale = 1, cardScale = 1, mirrorY = false, onContextMenu, innerRef }) => {
+const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 'stack', scale = 1, cardScale = 1, mirrorY = false, onContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, innerRef }) => {
     const myPlayerId = useGameStore((state) => state.myPlayerId);
 
-    // Only subscribe to the ghost card for THIS zone
-    const ghostState = useDragStore((state) => {
-        if (state.ghostCard?.zoneId === zone.id) {
-            return state.ghostCard;
-        }
-        return null;
+    const ghostCard = useDragStore((state) => {
+        if (!state.ghostCards || state.ghostCards.length !== 1) return null;
+        const [ghost] = state.ghostCards;
+        return ghost.zoneId === zone.id ? ghost : null;
     });
 
-    const ghostPosition = ghostState?.position;
-    const ghostTapped = ghostState?.tapped;
+    const ghostPosition = ghostCard?.position;
+    const ghostTapped = ghostCard?.tapped;
 
     const { setNodeRef, isOver } = useDroppable({
         id: zone.id,
@@ -87,6 +89,10 @@ const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 's
                 className
             )}
             onContextMenu={onContextMenu}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
         >
             {children}
             {ghostPosition && (() => {

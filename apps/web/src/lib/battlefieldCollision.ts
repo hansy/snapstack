@@ -1,15 +1,32 @@
-import { GRID_STEP_Y, clampNormalizedPosition, positionsRoughlyEqual } from './positions';
+import { GRID_STEP_Y, clampNormalizedPosition } from './positions';
 
 export type NormalizedPosition = { x: number; y: number };
 
-export type BattlefieldCollisionPatch = {
-  id: string;
-  position: NormalizedPosition;
-};
-
 const positionKey = (position: NormalizedPosition) => `${position.x.toFixed(4)}:${position.y.toFixed(4)}`;
 
-export const computeBattlefieldCollisionPatches = ({
+const resolvePositionAgainstOccupied = ({
+  targetPosition,
+  occupied,
+  maxAttempts,
+}: {
+  targetPosition: NormalizedPosition;
+  occupied: Set<string>;
+  maxAttempts: number;
+}): NormalizedPosition => {
+  const clampedTarget = clampNormalizedPosition(targetPosition);
+  let candidate = clampedTarget;
+  let attempts = 0;
+
+  while (occupied.has(positionKey(candidate)) && attempts < maxAttempts) {
+    candidate = clampNormalizedPosition({ x: candidate.x, y: candidate.y + GRID_STEP_Y });
+    attempts += 1;
+  }
+
+  if (attempts >= maxAttempts) return clampedTarget;
+  return candidate;
+};
+
+export const resolveBattlefieldCollisionPosition = ({
   movingCardId,
   targetPosition,
   orderedCardIds,
@@ -21,47 +38,63 @@ export const computeBattlefieldCollisionPatches = ({
   orderedCardIds: string[];
   getPosition: (cardId: string) => NormalizedPosition | null | undefined;
   maxAttempts?: number;
-}): BattlefieldCollisionPatch[] => {
-  const otherIds = orderedCardIds.filter((id) => id !== movingCardId);
-
+}): NormalizedPosition => {
   const occupied = new Set<string>();
-  const positions: Record<string, NormalizedPosition> = {};
+  orderedCardIds.forEach((id) => {
+    if (id === movingCardId) return;
+    const pos = getPosition(id);
+    if (!pos) return;
+    const clamped = clampNormalizedPosition(pos);
+    occupied.add(positionKey(clamped));
+  });
+
+  return resolvePositionAgainstOccupied({
+    targetPosition,
+    occupied,
+    maxAttempts,
+  });
+};
+
+export const resolveBattlefieldGroupCollisionPositions = ({
+  movingCardIds,
+  targetPositions,
+  orderedCardIds,
+  getPosition,
+  maxAttempts = 200,
+}: {
+  movingCardIds: string[];
+  targetPositions: Record<string, NormalizedPosition | undefined>;
+  orderedCardIds: string[];
+  getPosition: (cardId: string) => NormalizedPosition | null | undefined;
+  maxAttempts?: number;
+}): Record<string, NormalizedPosition> => {
+  if (movingCardIds.length === 0) return {};
+
+  const movingSet = new Set(movingCardIds);
+  const otherIds = orderedCardIds.filter((id) => !movingSet.has(id));
+  const occupied = new Set<string>();
 
   for (const otherId of otherIds) {
     const pos = getPosition(otherId);
     if (!pos) continue;
     const clamped = clampNormalizedPosition(pos);
-    positions[otherId] = clamped;
     occupied.add(positionKey(clamped));
   }
 
-  const reserved = positionKey(clampNormalizedPosition(targetPosition));
-  occupied.add(reserved);
+  const resolved: Record<string, NormalizedPosition> = {};
+  const orderedMovingIds = movingCardIds.filter((id) => Boolean(targetPositions[id]));
 
-  const moved: BattlefieldCollisionPatch[] = [];
+  orderedMovingIds.forEach((id) => {
+    const target = targetPositions[id];
+    if (!target) return;
+    const next = resolvePositionAgainstOccupied({
+      targetPosition: target,
+      occupied,
+      maxAttempts,
+    });
+    resolved[id] = next;
+    occupied.add(positionKey(next));
+  });
 
-  for (const otherId of otherIds) {
-    const otherPos = positions[otherId];
-    if (!otherPos) continue;
-    if (!positionsRoughlyEqual(otherPos, targetPosition)) continue;
-
-    const oldKey = positionKey(otherPos);
-    let candidate = clampNormalizedPosition({ x: targetPosition.x, y: otherPos.y + GRID_STEP_Y });
-    let attempts = 0;
-
-    while (occupied.has(positionKey(candidate)) && attempts < maxAttempts) {
-      candidate = clampNormalizedPosition({ x: candidate.x, y: candidate.y + GRID_STEP_Y });
-      attempts += 1;
-    }
-
-    if (attempts >= maxAttempts) continue;
-
-    if (oldKey !== reserved) occupied.delete(oldKey);
-    occupied.add(positionKey(candidate));
-    positions[otherId] = candidate;
-    moved.push({ id: otherId, position: candidate });
-  }
-
-  return moved;
+  return resolved;
 };
-

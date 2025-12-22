@@ -1,10 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createCardActionAdapters, createZoneActionAdapters } from "../actionAdapters";
+import { useSelectionStore } from "@/store/selectionStore";
+
+beforeEach(() => {
+  useSelectionStore.setState({ selectedCardIds: [], selectionZoneId: null });
+});
 
 describe("gameContextMenu actionAdapters", () => {
   it("card adapters forward actions with myPlayerId", () => {
     const store = {
+      cards: {
+        c1: { id: "c1", zoneId: "z1", tapped: false, isToken: true },
+      },
       moveCard: vi.fn(),
       tapCard: vi.fn(),
       transformCard: vi.fn(),
@@ -62,14 +70,50 @@ describe("gameContextMenu actionAdapters", () => {
     adapters.removeCounter("c1", "+1/+1");
     expect(store.removeCounterFromCard).toHaveBeenCalledWith("c1", "+1/+1", "me");
 
-    adapters.openAddCounterModal("c1");
-    expect(store.setActiveModal).toHaveBeenCalledWith({ type: "ADD_COUNTER", cardId: "c1" });
+    adapters.openAddCounterModal(["c1"]);
+    expect(store.setActiveModal).toHaveBeenCalledWith({ type: "ADD_COUNTER", cardIds: ["c1"] });
 
     adapters.removeCard({ id: "c1" } as any);
     expect(store.removeCard).toHaveBeenCalledWith("c1", "me");
 
-    expect(adapters.createRelatedCard).toBe(createRelatedCard);
+    const related = { name: "Token", uri: "token", component: "token" };
+    adapters.createRelatedCard(store.cards.c1 as any, related as any);
+    expect(createRelatedCard).toHaveBeenCalledWith(store.cards.c1, related);
     expect(adapters.openTextPrompt).toBe(openTextPrompt);
+  });
+
+  it("card adapters apply actions to selected cards", () => {
+    useSelectionStore.setState({
+      selectedCardIds: ["c1", "c2"],
+      selectionZoneId: "z1",
+    });
+    const store = {
+      cards: {
+        c1: { id: "c1", zoneId: "z1", tapped: false, isToken: true },
+        c2: { id: "c2", zoneId: "z1", tapped: false, isToken: true },
+      },
+      addCounterToCard: vi.fn(),
+    } as any;
+
+    const adapters = createCardActionAdapters({
+      store,
+      myPlayerId: "me",
+      createRelatedCard: vi.fn(),
+    });
+
+    adapters.addCounter("c1", { type: "+1/+1", count: 1 });
+
+    expect(store.addCounterToCard).toHaveBeenCalledTimes(2);
+    expect(store.addCounterToCard).toHaveBeenCalledWith(
+      "c1",
+      { type: "+1/+1", count: 1 },
+      "me"
+    );
+    expect(store.addCounterToCard).toHaveBeenCalledWith(
+      "c2",
+      { type: "+1/+1", count: 1 },
+      "me"
+    );
   });
 
   it("zone adapters forward actions with myPlayerId", () => {
@@ -105,4 +149,3 @@ describe("gameContextMenu actionAdapters", () => {
     expect(store.unloadDeck).toHaveBeenCalledWith("me", "me");
   });
 });
-

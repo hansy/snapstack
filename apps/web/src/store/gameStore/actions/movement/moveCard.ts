@@ -5,7 +5,10 @@ import { canMoveCard } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
 import { emitLog } from "@/logging/logStore";
 import { enforceZoneCounterRules } from "@/lib/counters";
-import { computeBattlefieldCollisionPatches } from "@/lib/battlefieldCollision";
+import {
+  resolveBattlefieldCollisionPosition,
+  resolveBattlefieldGroupCollisionPositions,
+} from "@/lib/battlefieldCollision";
 import { resetCardToFrontFace } from "@/lib/cardDisplay";
 import {
   moveCard as yMoveCard,
@@ -97,7 +100,10 @@ export const createMoveCard =
         return;
       }
 
-      yMoveCard(maps, cardId, toZoneId, position);
+      yMoveCard(maps, cardId, toZoneId, position, {
+        skipCollision: opts?.skipCollision,
+        groupCollision: opts?.groupCollision,
+      });
 
       if (controlWillChange) {
         yPatchCard(maps, cardId, { controllerId: nextControllerId });
@@ -135,19 +141,29 @@ export const createMoveCard =
       const nextTapped = toZone.type === ZONE.BATTLEFIELD ? card.tapped : false;
       const nextCounters = enforceZoneCounterRules(card.counters, toZone);
       const newPosition = normalizeMovePosition(position, card.position);
+      let resolvedPosition = newPosition;
 
-      if (toZone.type === ZONE.BATTLEFIELD && position) {
-        const patches = computeBattlefieldCollisionPatches({
-          movingCardId: cardId,
-          targetPosition: newPosition,
-          orderedCardIds: state.zones[toZoneId]?.cardIds ?? toZone.cardIds,
-          getPosition: (id) => cardsCopy[id]?.position,
-        });
-        patches.forEach(({ id, position }) => {
-          const otherCard = cardsCopy[id];
-          if (!otherCard) return;
-          cardsCopy[id] = { ...otherCard, position };
-        });
+      if (
+        toZone.type === ZONE.BATTLEFIELD &&
+        position &&
+        (!opts?.skipCollision || opts?.groupCollision)
+      ) {
+        if (opts?.groupCollision) {
+          const resolvedPositions = resolveBattlefieldGroupCollisionPositions({
+            movingCardIds: opts.groupCollision.movingCardIds,
+            targetPositions: opts.groupCollision.targetPositions,
+            orderedCardIds: state.zones[toZoneId]?.cardIds ?? toZone.cardIds,
+            getPosition: (id) => cardsCopy[id]?.position,
+          });
+          resolvedPosition = resolvedPositions[cardId] ?? newPosition;
+        } else {
+          resolvedPosition = resolveBattlefieldCollisionPosition({
+            movingCardId: cardId,
+            targetPosition: newPosition,
+            orderedCardIds: state.zones[toZoneId]?.cardIds ?? toZone.cardIds,
+            getPosition: (id) => cardsCopy[id]?.position,
+          });
+        }
       }
       const localFaceDown = faceDownResolution.effectiveFaceDown;
 
@@ -156,7 +172,7 @@ export const createMoveCard =
         cardsCopy[cardId] = {
           ...nextCard,
           ...(revealPatch ?? {}),
-          position: newPosition,
+          position: resolvedPosition,
           tapped: nextTapped,
           counters: nextCounters,
           faceDown: localFaceDown,
@@ -182,7 +198,7 @@ export const createMoveCard =
         ...nextCard,
         ...(revealPatch ?? {}),
         zoneId: toZoneId,
-        position: newPosition,
+        position: resolvedPosition,
         tapped: nextTapped,
         counters: nextCounters,
         faceDown: localFaceDown,
@@ -201,4 +217,3 @@ export const createMoveCard =
       };
     });
   };
-

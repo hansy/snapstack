@@ -7,6 +7,7 @@ import {
 } from "@dnd-kit/core";
 
 import { ZONE } from "@/constants/zones";
+import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from "@/lib/constants";
 import { CardView } from "../card/CardView";
 import { CardPreviewProvider } from "../card/CardPreviewProvider";
 import { Seat } from "../seat/Seat";
@@ -40,6 +41,9 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
   setActiveModal,
   overCardScale,
   activeCardId,
+  isGroupDragging,
+  showGroupDragOverlay,
+  groupDragCardIds,
   sensors,
   handleDragStart,
   handleDragMove,
@@ -80,6 +84,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
   handleCopyLink,
   handleLeave,
 }) => {
+  const suppressSingleOverlay = isGroupDragging && !showGroupDragOverlay;
+
   return (
     <CardPreviewProvider>
       <DndContext
@@ -196,7 +202,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
         <AddCounterModal
           isOpen={activeModal?.type === "ADD_COUNTER"}
           onClose={() => setActiveModal(null)}
-          cardId={activeModal?.type === "ADD_COUNTER" ? activeModal.cardId : ""}
+          cardIds={activeModal?.type === "ADD_COUNTER" ? activeModal.cardIds : []}
         />
         <ZoneViewerModal
           isOpen={zoneViewerState.isOpen}
@@ -227,9 +233,10 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
           onSubmit={handleUsernameSubmit}
         />
         <DragOverlay dropAnimation={null}>
-          {activeCardId && cards[activeCardId]
+          {showGroupDragOverlay
             ? (() => {
-                const overlayCard = cards[activeCardId];
+                const overlayCard = activeCardId ? cards[activeCardId] : null;
+                if (!overlayCard) return null;
                 const overlayZone = zones[overlayCard.zoneId];
                 const overlayPreferArtCrop = false;
                 const viewScale =
@@ -237,6 +244,18 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
                     ? (battlefieldViewScale[overlayZone.ownerId] ?? 1)
                     : 1;
                 const targetScale = overCardScale || viewScale;
+                const offset = 10;
+                const overlayCards = groupDragCardIds
+                  .map((id) => cards[id])
+                  .filter((card): card is (typeof cards)[string] => Boolean(card))
+                  .slice(0, 4);
+                if (overlayCards.length === 0) return null;
+                const extraCount = Math.max(0, groupDragCardIds.length - overlayCards.length);
+                const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
+                const baseHeight = BASE_CARD_HEIGHT;
+                const stackWidth = baseWidth + offset * Math.max(0, overlayCards.length - 1);
+                const stackHeight = baseHeight + offset * Math.max(0, overlayCards.length - 1);
+
                 return (
                   <div
                     style={{
@@ -244,16 +263,60 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
                       transformOrigin: "top left",
                     }}
                   >
-                    <CardView
-                      card={overlayCard}
-                      isDragging
-                      preferArtCrop={overlayPreferArtCrop}
-                      faceDown={overlayCard.faceDown}
-                    />
+                    <div
+                      className="relative"
+                      style={{ width: stackWidth, height: stackHeight }}
+                    >
+                      {overlayCards.map((card, index) => (
+                        <div
+                          key={card.id}
+                          className="absolute"
+                          style={{ left: index * offset, top: index * offset }}
+                        >
+                          <CardView
+                            card={card}
+                            isDragging
+                            preferArtCrop={overlayPreferArtCrop}
+                            faceDown={card.faceDown}
+                          />
+                        </div>
+                      ))}
+                      {extraCount > 0 && (
+                        <div className="absolute -bottom-2 -right-2 rounded-full bg-zinc-900/80 text-zinc-100 text-xs px-1.5 py-0.5 border border-zinc-700">
+                          +{extraCount}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })()
-            : null}
+            : activeCardId && cards[activeCardId] && !suppressSingleOverlay
+              ? (() => {
+                  const overlayCard = cards[activeCardId];
+                  const overlayZone = zones[overlayCard.zoneId];
+                  const overlayPreferArtCrop = false;
+                  const viewScale =
+                    overlayZone?.type === ZONE.BATTLEFIELD
+                      ? (battlefieldViewScale[overlayZone.ownerId] ?? 1)
+                      : 1;
+                  const targetScale = overCardScale || viewScale;
+                  return (
+                    <div
+                      style={{
+                        transform: `scale(${scale * targetScale})`,
+                        transformOrigin: "top left",
+                      }}
+                    >
+                      <CardView
+                        card={overlayCard}
+                        isDragging
+                        preferArtCrop={overlayPreferArtCrop}
+                        faceDown={overlayCard.faceDown}
+                      />
+                    </div>
+                  );
+                })()
+              : null}
         </DragOverlay>
       </DndContext>
     </CardPreviewProvider>

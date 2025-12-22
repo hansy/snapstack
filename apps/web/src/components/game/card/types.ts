@@ -12,7 +12,9 @@ export interface CardProps {
   rotateLabel?: boolean;
   disableDrag?: boolean;
   isDragging?: boolean;
+  disableInteractions?: boolean;
   highlightColor?: string;
+  isSelected?: boolean;
 }
 
 export interface CardViewProps {
@@ -32,5 +34,5 @@ export interface CardViewProps {
   onMouseLeave?: (e: React.MouseEvent<HTMLDivElement>) => void;
   highlightColor?: string;
   disableHoverAnimation?: boolean;
+  isSelected?: boolean;
 }
-

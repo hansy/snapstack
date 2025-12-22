@@ -25,6 +25,7 @@ export const CardView = React.memo(
         rotateLabel,
         highlightColor,
         disableHoverAnimation,
+        isSelected,
         ...props
       },
       ref
@@ -43,6 +44,9 @@ export const CardView = React.memo(
         <div
           ref={ref}
           style={style}
+          data-card-id={card.id}
+          {...props}
+          draggable={false}
           className={cn(
             CARD_HEIGHT_CLASS,
             CARD_ASPECT_CLASS,
@@ -53,6 +57,7 @@ export const CardView = React.memo(
             card.tapped && "border-zinc-600 bg-zinc-900",
             isDragging &&
               "shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-2 ring-indigo-500 cursor-grabbing",
+            isSelected && "outline outline-2 outline-indigo-400/80 outline-offset-2",
             highlightColor === "rose" &&
               "ring-2 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)]",
             highlightColor === "violet" &&
@@ -68,7 +73,7 @@ export const CardView = React.memo(
           onContextMenu={onContextMenu}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
-          {...props}
+          onDragStart={(e) => e.preventDefault()}
         >
           <CardFace
             card={card}
@@ -87,4 +92,3 @@ export const CardView = React.memo(
 );
 
 CardView.displayName = "CardView";
-

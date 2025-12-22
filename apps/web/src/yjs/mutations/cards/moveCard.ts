@@ -1,5 +1,8 @@
 import { enforceZoneCounterRules } from "@/lib/counters";
-import { computeBattlefieldCollisionPatches } from "@/lib/battlefieldCollision";
+import {
+  resolveBattlefieldCollisionPosition,
+  resolveBattlefieldGroupCollisionPositions,
+} from "@/lib/battlefieldCollision";
 import {
   clampNormalizedPosition,
   migratePositionToNormalized,
@@ -17,7 +20,14 @@ export function moveCard(
   maps: SharedMaps,
   cardId: string,
   toZoneId: string,
-  position?: { x: number; y: number }
+  position?: { x: number; y: number },
+  opts?: {
+    skipCollision?: boolean;
+    groupCollision?: {
+      movingCardIds: string[];
+      targetPositions: Record<string, { x: number; y: number } | undefined>;
+    };
+  }
 ) {
   const card = readCard(maps, cardId);
   if (!card) return;
@@ -35,20 +45,34 @@ export function moveCard(
       ? migratePositionToNormalized(position)
       : clampNormalizedPosition(position)
     : undefined;
-  const newPosition = clampNormalizedPosition(normalizedInput ?? card.position);
+  const basePosition = clampNormalizedPosition(normalizedInput ?? card.position);
+  let newPosition = basePosition;
 
   const leavingBattlefield =
     fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
 
-  if (toZone.type === ZONE.BATTLEFIELD && position) {
+  if (
+    toZone.type === ZONE.BATTLEFIELD &&
+    position &&
+    (!opts?.skipCollision || opts?.groupCollision)
+  ) {
     const toOrder = ensureZoneOrder(maps, toZone.id, toZone.cardIds);
-    const patches = computeBattlefieldCollisionPatches({
-      movingCardId: cardId,
-      targetPosition: newPosition,
-      orderedCardIds: toOrder.toArray(),
-      getPosition: (id) => readCard(maps, id)?.position,
-    });
-    patches.forEach(({ id, position }) => patchCard(maps, id, { position }));
+    if (opts?.groupCollision) {
+      const resolvedPositions = resolveBattlefieldGroupCollisionPositions({
+        movingCardIds: opts.groupCollision.movingCardIds,
+        targetPositions: opts.groupCollision.targetPositions,
+        orderedCardIds: toOrder.toArray(),
+        getPosition: (id) => readCard(maps, id)?.position,
+      });
+      newPosition = resolvedPositions[cardId] ?? basePosition;
+    } else {
+      newPosition = resolveBattlefieldCollisionPosition({
+        movingCardId: cardId,
+        targetPosition: basePosition,
+        orderedCardIds: toOrder.toArray(),
+        getPosition: (id) => readCard(maps, id)?.position,
+      });
+    }
   }
 
   const fromOrder = ensureZoneOrder(maps, fromZoneId, fromZone.cardIds);
@@ -79,4 +103,3 @@ export function moveCard(
 
   patchCard(maps, cardId, { position: newPosition, tapped: nextTapped, counters: nextCounters });
 }
-

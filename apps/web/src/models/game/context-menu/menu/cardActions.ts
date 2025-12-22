@@ -33,7 +33,7 @@ interface CardActionBuilderParams {
     position?: { x: number; y: number },
     actorId?: PlayerId,
     isRemote?: boolean,
-    opts?: { suppressLog?: boolean; faceDown?: boolean }
+    opts?: { suppressLog?: boolean; faceDown?: boolean; skipCollision?: boolean }
   ) => void;
   tapCard: (cardId: CardId) => void;
   transformCard: (cardId: CardId, faceIndex?: number) => void;
@@ -45,7 +45,7 @@ interface CardActionBuilderParams {
   ) => void;
   removeCounter: (cardId: CardId, counterType: string) => void;
   removeCard?: (card: Card) => void;
-  openAddCounterModal: (cardId: CardId) => void;
+  openAddCounterModal: (cardIds: CardId[]) => void;
   globalCounters: Record<string, string>;
   updateCard?: (cardId: CardId, updates: Partial<Card>) => void;
   openTextPrompt?: (opts: {

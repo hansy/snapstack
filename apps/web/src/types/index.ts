@@ -101,7 +101,7 @@ export interface GameState {
 
   // Counters
   globalCounters: Record<string, string>; // type -> color
-  activeModal: { type: 'ADD_COUNTER'; cardId: string } | null;
+  activeModal: { type: 'ADD_COUNTER'; cardIds: string[] } | null;
 
   // Actions
   addPlayer: (player: Player, isRemote?: boolean) => void;
@@ -111,7 +111,22 @@ export interface GameState {
   addCard: (card: Card, isRemote?: boolean) => void;
   updateCard: (id: CardId, updates: Partial<Card>, actorId?: PlayerId, isRemote?: boolean) => void;
   transformCard: (id: CardId, faceIndex?: number, isRemote?: boolean) => void;
-  moveCard: (cardId: CardId, toZoneId: ZoneId, position?: { x: number; y: number }, actorId?: PlayerId, isRemote?: boolean, opts?: { suppressLog?: boolean; faceDown?: boolean }) => void;
+  moveCard: (
+    cardId: CardId,
+    toZoneId: ZoneId,
+    position?: { x: number; y: number },
+    actorId?: PlayerId,
+    isRemote?: boolean,
+    opts?: {
+      suppressLog?: boolean;
+      faceDown?: boolean;
+      skipCollision?: boolean;
+      groupCollision?: {
+        movingCardIds: CardId[];
+        targetPositions: Record<CardId, { x: number; y: number } | undefined>;
+      };
+    }
+  ) => void;
   moveCardToBottom: (cardId: CardId, toZoneId: ZoneId, actorId?: PlayerId, isRemote?: boolean) => void;
   duplicateCard: (cardId: CardId, actorId?: PlayerId, isRemote?: boolean) => void;
   reorderZoneCards: (zoneId: ZoneId, orderedCardIds: CardId[], actorId?: PlayerId, isRemote?: boolean) => void;
@@ -136,7 +151,7 @@ export interface GameState {
   addGlobalCounter: (name: string, color?: string, isRemote?: boolean) => void;
   addCounterToCard: (cardId: CardId, counter: Counter, actorId?: PlayerId, isRemote?: boolean) => void;
   removeCounterFromCard: (cardId: CardId, counterType: string, actorId?: PlayerId, isRemote?: boolean) => void;
-  setActiveModal: (modal: { type: 'ADD_COUNTER'; cardId: string } | null) => void;
+  setActiveModal: (modal: { type: 'ADD_COUNTER'; cardIds: string[] } | null) => void;
 
   // Session management
   playerIdsBySession: Record<string, PlayerId>;

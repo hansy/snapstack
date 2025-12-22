@@ -7,12 +7,15 @@ import { ZONE } from "@/constants/zones";
 import { useCardPreview } from "@/components/game/card/CardPreviewProvider";
 import { canViewerSeeCardIdentity } from "@/lib/reveal";
 import { getFlipRotation } from "@/lib/cardDisplay";
+import { useSelectionStore } from "@/store/selectionStore";
 import {
   canToggleCardPreviewLock,
   computeCardContainerStyle,
   getCardHoverPreviewPolicy,
   shouldDisableHoverAnimation,
 } from "@/models/game/card/cardModel";
+import { batchSharedMutations } from "@/yjs/docManager";
+import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
 
 import type { CardProps, CardViewProps } from "@/components/game/card/types";
 
@@ -34,7 +37,9 @@ export const useCardController = (props: CardProps): CardController => {
     rotateLabel,
     disableDrag,
     isDragging: propIsDragging,
+    disableInteractions,
     highlightColor,
+    isSelected: propIsSelected,
   } = props;
 
   const { showPreview, hidePreview, toggleLock } = useCardPreview();
@@ -55,10 +60,20 @@ export const useCardController = (props: CardProps): CardController => {
   });
 
   const isDragging = propIsDragging ?? internalIsDragging;
+  const interactionsDisabled =
+    Boolean(disableInteractions) || Boolean(propIsDragging) || internalIsDragging;
   const zoneType = useGameStore((state) => state.zones[card.zoneId]?.type);
+  const zoneOwnerId = useGameStore((state) => state.zones[card.zoneId]?.ownerId);
   const myPlayerId = useGameStore((state) => state.myPlayerId);
   const tapCard = useGameStore((state) => state.tapCard);
   const useArtCrop = preferArtCrop ?? false;
+  const isSelected = useSelectionStore(
+    (state) =>
+      state.selectionZoneId === card.zoneId &&
+      state.selectedCardIds.includes(card.id)
+  );
+  const toggleCardSelection = useSelectionStore((state) => state.toggleCard);
+  const selectOnly = useSelectionStore((state) => state.selectOnly);
 
   const canPeek = React.useMemo(
     () => canViewerSeeCardIdentity(card, zoneType, myPlayerId),
@@ -87,11 +102,12 @@ export const useCardController = (props: CardProps): CardController => {
 
   const handleMouseEnter = React.useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      if (interactionsDisabled) return;
       const policy = getCardHoverPreviewPolicy({
         zoneType,
         canPeek,
         faceDown,
-        isDragging,
+        isDragging: interactionsDisabled,
       });
       if (policy.kind === "none") return;
 
@@ -110,7 +126,7 @@ export const useCardController = (props: CardProps): CardController => {
         hoverTimeoutRef.current = null;
       }, policy.delayMs);
     },
-    [isDragging, canPeek, card, faceDown, showPreview, zoneType]
+    [interactionsDisabled, canPeek, card, faceDown, showPreview, zoneType]
   );
 
   const handleMouseLeave = React.useCallback(() => {
@@ -123,12 +139,22 @@ export const useCardController = (props: CardProps): CardController => {
 
   const handleClick = React.useCallback(
     (e: React.MouseEvent) => {
+      if (interactionsDisabled) return;
+      if (
+        e.defaultPrevented ||
+        e.shiftKey ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey
+      ) {
+        return;
+      }
       if (
         !canToggleCardPreviewLock({
           zoneType,
           canPeek,
           faceDown,
-          isDragging,
+          isDragging: interactionsDisabled,
         })
       ) {
         return;
@@ -137,14 +163,77 @@ export const useCardController = (props: CardProps): CardController => {
       const rect = e.currentTarget.getBoundingClientRect();
       toggleLock(card, rect);
     },
-    [zoneType, isDragging, card, toggleLock, faceDown, canPeek]
+    [zoneType, interactionsDisabled, card, toggleLock, faceDown, canPeek]
   );
 
   const handleDoubleClick = React.useCallback(() => {
+    if (interactionsDisabled) return;
     if (zoneType !== ZONE.BATTLEFIELD) return;
-    if (card.ownerId !== myPlayerId) return;
-    tapCard(card.id, myPlayerId);
-  }, [zoneType, card.id, card.ownerId, myPlayerId, tapCard]);
+    const actorId = myPlayerId;
+    const selection = useSelectionStore.getState();
+    const state = useGameStore.getState();
+    const groupIds = resolveSelectedCardIds({
+      seedCardId: card.id,
+      cardsById: state.cards,
+      selection,
+      minCount: 2,
+      fallbackToSeed: true,
+    });
+    if (groupIds.length > 1) {
+      const targetTapped = !card.tapped;
+      batchSharedMutations(() => {
+        groupIds.forEach((id) => {
+          const targetCard = state.cards[id];
+          if (!targetCard) return;
+          if (targetCard.zoneId !== card.zoneId) return;
+          if (targetCard.controllerId !== actorId) return;
+          if (targetCard.tapped === targetTapped) return;
+          tapCard(targetCard.id, actorId);
+        });
+      });
+      return;
+    }
+    if (card.controllerId !== actorId) return;
+    tapCard(card.id, actorId);
+  }, [
+    interactionsDisabled,
+    zoneType,
+    card.id,
+    card.zoneId,
+    card.controllerId,
+    card.tapped,
+    myPlayerId,
+    tapCard,
+  ]);
+
+  const handlePointerDown = React.useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (interactionsDisabled) return;
+      if (e.button !== 0) return;
+      if (zoneType !== ZONE.BATTLEFIELD) return;
+      if (zoneOwnerId !== myPlayerId) return;
+
+      if (e.shiftKey) {
+        toggleCardSelection(card.id, card.zoneId);
+        return;
+      }
+
+      if (!isSelected) {
+        selectOnly(card.id, card.zoneId);
+      }
+    },
+    [
+      card.id,
+      card.zoneId,
+      isSelected,
+      myPlayerId,
+      selectOnly,
+      toggleCardSelection,
+      zoneOwnerId,
+      zoneType,
+      interactionsDisabled,
+    ]
+  );
 
   React.useEffect(() => {
     return () => {
@@ -155,18 +244,15 @@ export const useCardController = (props: CardProps): CardController => {
     };
   }, [hidePreview]);
 
-  const disableHoverAnimation = shouldDisableHoverAnimation({
-    zoneType,
-    ownerId: card.ownerId,
-    viewerId: myPlayerId,
-  });
+  const disableHoverAnimation =
+    shouldDisableHoverAnimation({
+      zoneType,
+      ownerId: card.ownerId,
+      viewerId: myPlayerId,
+    }) || interactionsDisabled;
 
   return {
     ref: setNodeRef,
-    draggableProps: {
-      ...listeners,
-      ...attributes,
-    },
     cardViewProps: {
       card,
       style,
@@ -182,7 +268,16 @@ export const useCardController = (props: CardProps): CardController => {
       preferArtCrop: useArtCrop,
       rotateLabel,
       highlightColor,
+      isSelected: propIsSelected,
       disableHoverAnimation,
+    },
+    draggableProps: {
+      ...listeners,
+      ...attributes,
+      onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+        handlePointerDown(event);
+        listeners?.onPointerDown?.(event);
+      },
     },
   };
 };
