@@ -95,6 +95,7 @@ export interface GameState {
   battlefieldViewScale: Record<PlayerId, number>;
   roomHostId: PlayerId | null;
   roomLockedByHost: boolean;
+  roomOverCapacity: boolean;
 
   // Session
   sessionId: string;

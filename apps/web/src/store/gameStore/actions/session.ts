@@ -59,6 +59,7 @@ export const createSessionActions = (
       battlefieldViewScale: {},
       roomHostId: null,
       roomLockedByHost: false,
+      roomOverCapacity: false,
       sessionId: freshSessionId,
       myPlayerId: freshPlayerId,
       playerIdsBySession: {

@@ -129,18 +129,15 @@ export function useMultiplayerSync(sessionId: string) {
       useGameStore.setState(next);
     });
 
-    const ensureLocalPlayer = () => {
+    const attemptJoin = () => {
       const result = ensureLocalPlayerInitialized({
         transact: (fn) => doc.transact(fn),
         sharedMaps,
         playerId: ensuredPlayerId,
         preferredUsername: useClientPrefsStore.getState().username,
       });
-      if (result?.status === "blocked") {
-        setJoinBlocked(true);
-      } else {
-        setJoinBlocked(false);
-      }
+      const blocked = result?.status === "blocked";
+      setJoinBlocked(blocked);
     };
 
     const SYNC_DEBOUNCE_MS = 50;
@@ -181,7 +178,7 @@ export function useMultiplayerSync(sessionId: string) {
       if (!isSynced) return;
       flushPendingMutations();
       scheduleDebouncedTimeout(postSyncFullSyncTimer, 50, fullSyncToStore);
-      scheduleDebouncedTimeout(postSyncInitTimer, 60, ensureLocalPlayer);
+      scheduleDebouncedTimeout(postSyncInitTimer, 60, attemptJoin);
     });
 
     flushPendingMutations();

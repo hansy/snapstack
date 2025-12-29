@@ -21,7 +21,7 @@ const resolveHostId = (players: Record<string, unknown>, playerOrder: string[]):
 };
 
 export type LocalPlayerInitResult =
-  | { status: "blocked"; reason: "full" | "locked" }
+  | { status: "blocked"; reason: "full" | "locked" | "overCapacity" }
   | null;
 
 export const ensureLocalPlayerInitialized = (params: {
@@ -37,11 +37,15 @@ export const ensureLocalPlayerInitialized = (params: {
   const playerExists = Boolean(snapshot.players[params.playerId]);
   const playerCount = Object.keys(snapshot.players).length;
   const roomIsFull = playerCount >= MAX_ROOM_PLAYERS;
+  const roomOverCapacity = playerCount > MAX_ROOM_PLAYERS;
   const rawMeta = snapshot.meta ?? {};
   const roomLockedByHost = rawMeta.locked === true;
   const roomIsLocked = roomLockedByHost || roomIsFull;
 
   if (!playerExists && roomIsLocked) {
+    if (roomOverCapacity) {
+      return { status: "blocked", reason: "overCapacity" };
+    }
     return { status: "blocked", reason: roomIsFull ? "full" : "locked" };
   }
 

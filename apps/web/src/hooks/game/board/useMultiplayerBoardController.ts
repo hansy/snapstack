@@ -47,6 +47,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   );
   const roomHostId = useGameStore((state) => state.roomHostId);
   const roomLockedByHost = useGameStore((state) => state.roomLockedByHost);
+  const roomOverCapacity = useGameStore((state) => state.roomOverCapacity);
   const setRoomLockedByHost = useGameStore((state) => state.setRoomLockedByHost);
   const activeModal = useGameStore((state) => state.activeModal);
   const setActiveModal = useGameStore((state) => state.setActiveModal);
@@ -307,6 +308,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     roomIsFull,
     onToggleRoomLock: handleToggleRoomLock,
     joinBlocked: isJoinBlocked,
+    roomOverCapacity,
   };
 };
 

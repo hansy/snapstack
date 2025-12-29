@@ -123,5 +123,49 @@ describe("sanitizeSharedSnapshot", () => {
 
     expect(safe.cards.c1.counters).toEqual([]);
   });
-});
 
+  it("defaults room metadata when absent", () => {
+    const safe = sanitizeSharedSnapshot({
+      players: { p1: { id: "p1", name: "P1", life: 40 } },
+      zones: {},
+      cards: {},
+      globalCounters: {},
+      playerOrder: [],
+    });
+
+    expect(safe.roomHostId).toBeNull();
+    expect(safe.roomLockedByHost).toBe(false);
+  });
+
+  it("hydrates room metadata from snapshot", () => {
+    const safe = sanitizeSharedSnapshot({
+      players: { p1: { id: "p1", name: "P1", life: 40 } },
+      zones: {},
+      cards: {},
+      globalCounters: {},
+      playerOrder: [],
+      meta: { hostId: "p1", locked: true },
+    });
+
+    expect(safe.roomHostId).toBe("p1");
+    expect(safe.roomLockedByHost).toBe(true);
+  });
+
+  it("flags rooms that exceed the player cap", () => {
+    const players = Array.from({ length: 5 }, (_, index) => [
+      `p${index + 1}`,
+      { id: `p${index + 1}`, name: `P${index + 1}`, life: 40 },
+    ]);
+
+    const safe = sanitizeSharedSnapshot({
+      players: Object.fromEntries(players),
+      zones: {},
+      cards: {},
+      globalCounters: {},
+      playerOrder: [],
+    });
+
+    expect(Object.keys(safe.players).length).toBe(4);
+    expect(safe.roomOverCapacity).toBe(true);
+  });
+});

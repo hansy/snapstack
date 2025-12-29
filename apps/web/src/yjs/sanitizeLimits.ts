@@ -3,8 +3,8 @@
 // These are intentionally conservative to keep Yjs updates bounded even if UI
 // accidentally passes large blobs.
 
-export const MAX_PLAYERS = 8;
-export const MAX_ZONES = MAX_PLAYERS * 10; // 80 zones
+export const MAX_PLAYERS = 4;
+export const MAX_ZONES = MAX_PLAYERS * 10; // 40 zones
 
 export const MAX_COUNTERS = 24;
 export const MAX_COUNTER_TYPE_LENGTH = 64;
@@ -19,4 +19,3 @@ export const MAX_ORACLE_TEXT_LENGTH = 2_000;
 export const MAX_IMAGE_URL_LENGTH = 1_024;
 export const MAX_SCRYFALL_ID_LENGTH = 64;
 export const MAX_CUSTOM_TEXT_LENGTH = 280;
-

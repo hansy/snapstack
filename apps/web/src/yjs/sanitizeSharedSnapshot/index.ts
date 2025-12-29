@@ -20,6 +20,8 @@ export type SharedSnapshotLike = {
 };
 
 export function sanitizeSharedSnapshot(snapshot: SharedSnapshotLike) {
+  const rawPlayerCount = Object.keys(snapshot.players).length;
+  const roomOverCapacity = rawPlayerCount > MAX_PLAYERS;
   const safePlayers: Record<string, Player> = {};
   let playerCount = 0;
   Object.entries(snapshot.players).forEach(([key, value]) => {
@@ -104,5 +106,6 @@ export function sanitizeSharedSnapshot(snapshot: SharedSnapshotLike) {
     battlefieldViewScale: safeBattlefieldViewScale,
     roomHostId,
     roomLockedByHost,
+    roomOverCapacity,
   };
 }

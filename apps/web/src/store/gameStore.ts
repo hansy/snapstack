@@ -75,6 +75,7 @@ export const useGameStore = create<GameStore>()(
                 battlefieldViewScale: {},
                 roomHostId: null,
                 roomLockedByHost: false,
+                roomOverCapacity: false,
                 positionFormat: 'normalized',
                 globalCounters: {},
                 activeModal: null,

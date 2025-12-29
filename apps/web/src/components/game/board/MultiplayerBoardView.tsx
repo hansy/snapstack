@@ -27,7 +27,10 @@ import { EditUsernameDialog } from "@/components/username/EditUsernameDialog";
 
 import type { MultiplayerBoardController } from "@/hooks/game/board/useMultiplayerBoardController";
 
-type MultiplayerBoardViewProps = Omit<MultiplayerBoardController, "joinBlocked">;
+type MultiplayerBoardViewProps = Omit<
+  MultiplayerBoardController,
+  "joinBlocked" | "roomOverCapacity"
+>;
 
 export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   zones,
