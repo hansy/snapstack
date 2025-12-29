@@ -16,6 +16,7 @@ export type SharedSnapshotLike = {
   globalCounters: Record<string, any>;
   battlefieldViewScale?: Record<string, any>;
   playerOrder: any;
+  meta?: Record<string, any>;
 };
 
 export function sanitizeSharedSnapshot(snapshot: SharedSnapshotLike) {
@@ -87,6 +88,12 @@ export function sanitizeSharedSnapshot(snapshot: SharedSnapshotLike) {
   });
 
   const safePlayerOrder = sanitizePlayerOrder(snapshot.playerOrder, safePlayers, MAX_PLAYERS);
+  const rawMeta = snapshot.meta ?? {};
+  const roomHostId =
+    typeof rawMeta.hostId === "string" && rawMeta.hostId.length > 0
+      ? rawMeta.hostId
+      : null;
+  const roomLockedByHost = rawMeta.locked === true;
 
   return {
     players: safePlayers,
@@ -95,5 +102,7 @@ export function sanitizeSharedSnapshot(snapshot: SharedSnapshotLike) {
     globalCounters: safeGlobalCounters,
     playerOrder: safePlayerOrder,
     battlefieldViewScale: safeBattlefieldViewScale,
+    roomHostId,
+    roomLockedByHost,
   };
 }

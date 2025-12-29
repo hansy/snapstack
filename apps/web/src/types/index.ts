@@ -93,6 +93,8 @@ export interface GameState {
   cards: Record<CardId, Card>;
   zones: Record<ZoneId, Zone>;
   battlefieldViewScale: Record<PlayerId, number>;
+  roomHostId: PlayerId | null;
+  roomLockedByHost: boolean;
 
   // Session
   sessionId: string;
@@ -146,6 +148,7 @@ export interface GameState {
   resetDeck: (playerId: PlayerId, actorId?: PlayerId, isRemote?: boolean) => void;
   unloadDeck: (playerId: PlayerId, actorId?: PlayerId, isRemote?: boolean) => void;
   setDeckLoaded: (playerId: PlayerId, loaded: boolean, isRemote?: boolean) => void;
+  setRoomLockedByHost: (locked: boolean) => void;
 
   // Counter Actions
   addGlobalCounter: (name: string, color?: string, isRemote?: boolean) => void;

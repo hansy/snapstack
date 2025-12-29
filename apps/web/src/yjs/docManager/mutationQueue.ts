@@ -12,6 +12,7 @@ const buildSharedMaps = (handles: YDocHandles): SharedMaps => ({
   zoneCardOrders: handles.zoneCardOrders,
   globalCounters: handles.globalCounters,
   battlefieldViewScale: handles.battlefieldViewScale,
+  meta: handles.meta,
 });
 
 /**
@@ -90,4 +91,3 @@ export function flushPendingMutations(): void {
     mutations.forEach((mutation) => mutation(maps));
   });
 }
-

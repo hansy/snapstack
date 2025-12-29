@@ -12,6 +12,7 @@ export const sharedSnapshot = (maps: SharedMaps) => {
   const globalCounters: Record<string, string> = {};
   const battlefieldViewScale: Record<string, number> = {};
   const playerOrder: string[] = [];
+  const meta: Record<string, unknown> = {};
 
   maps.players.forEach((_value, key) => {
     const p = readPlayer(maps, key as string);
@@ -43,6 +44,11 @@ export const sharedSnapshot = (maps: SharedMaps) => {
     }
   });
 
-  return { players, zones, cards, globalCounters, battlefieldViewScale, playerOrder };
-};
+  maps.meta.forEach((value, key) => {
+    if (typeof key === 'string') {
+      meta[key] = value;
+    }
+  });
 
+  return { players, zones, cards, globalCounters, battlefieldViewScale, playerOrder, meta };
+};

@@ -5,7 +5,18 @@ import type { GameState } from "@/types";
 
 import { clearLogs } from "@/logging/logStore";
 import { destroySession, getSessionHandles } from "@/yjs/docManager";
-import { removePlayer as yRemovePlayer, type SharedMaps } from "@/yjs/yMutations";
+import { patchRoomMeta, removePlayer as yRemovePlayer, type SharedMaps } from "@/yjs/yMutations";
+
+const resolveNextHostId = (maps: SharedMaps): string | null => {
+  const ordered = maps.playerOrder.toArray().filter((id): id is string => typeof id === "string");
+  for (const id of ordered) {
+    if (maps.players.get(id)) return id;
+  }
+  const fallback = Array.from(maps.players.keys())
+    .map((id) => String(id))
+    .sort()[0];
+  return fallback ?? null;
+};
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];
@@ -46,6 +57,8 @@ export const createSessionActions = (
       cards: {},
       zones: {},
       battlefieldViewScale: {},
+      roomHostId: null,
+      roomLockedByHost: false,
       sessionId: freshSessionId,
       myPlayerId: freshPlayerId,
       playerIdsBySession: {
@@ -107,8 +120,14 @@ export const createSessionActions = (
             zoneCardOrders: handles.zoneCardOrders,
             globalCounters: handles.globalCounters,
             battlefieldViewScale: handles.battlefieldViewScale,
+            meta: handles.meta,
           };
+          const currentHostId = handles.meta.get("hostId");
+          const isHost = typeof currentHostId === "string" && currentHostId === playerId;
           yRemovePlayer(maps, playerId);
+          if (isHost) {
+            patchRoomMeta(maps, { hostId: resolveNextHostId(maps) });
+          }
         });
       }
 

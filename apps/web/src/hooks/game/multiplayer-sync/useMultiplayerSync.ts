@@ -41,6 +41,7 @@ export function useMultiplayerSync(sessionId: string) {
   const hasHydrated = useGameStore((state) => state.hasHydrated);
   const [status, setStatus] = useState<SyncStatus>("connecting");
   const [peers, setPeers] = useState(1);
+  const [joinBlocked, setJoinBlocked] = useState(false);
   const fullSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postSyncFullSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postSyncInitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,6 +50,8 @@ export function useMultiplayerSync(sessionId: string) {
     if (!sessionId) return;
     if (typeof window === "undefined") return;
     if (!hasHydrated) return;
+
+    setJoinBlocked(false);
 
     const envUrl = import.meta.env.VITE_WEBSOCKET_SERVER;
     const signalingUrl = buildSignalingUrlFromEnv(envUrl);
@@ -71,6 +74,7 @@ export function useMultiplayerSync(sessionId: string) {
       globalCounters,
       battlefieldViewScale,
       logs,
+      meta,
     } = handles;
 
     const sharedMaps: SharedMaps = {
@@ -81,6 +85,7 @@ export function useMultiplayerSync(sessionId: string) {
       zoneCardOrders,
       globalCounters,
       battlefieldViewScale,
+      meta,
     };
 
     // Setup store
@@ -125,12 +130,17 @@ export function useMultiplayerSync(sessionId: string) {
     });
 
     const ensureLocalPlayer = () => {
-      ensureLocalPlayerInitialized({
+      const result = ensureLocalPlayerInitialized({
         transact: (fn) => doc.transact(fn),
         sharedMaps,
         playerId: ensuredPlayerId,
         preferredUsername: useClientPrefsStore.getState().username,
       });
+      if (result?.status === "blocked") {
+        setJoinBlocked(true);
+      } else {
+        setJoinBlocked(false);
+      }
     };
 
     const SYNC_DEBOUNCE_MS = 50;
@@ -203,5 +213,5 @@ export function useMultiplayerSync(sessionId: string) {
     };
   }, [sessionId, hasHydrated]);
 
-  return { status, peers };
+  return { status, peers, joinBlocked };
 }

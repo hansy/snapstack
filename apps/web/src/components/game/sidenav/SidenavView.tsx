@@ -3,11 +3,13 @@ import {
   Dice5,
   Keyboard,
   Loader2,
+  Lock,
   LogOut,
   Plus,
   CornerUpLeft,
   ScrollText,
   Share2,
+  Unlock,
   Wifi,
 } from "lucide-react";
 
@@ -20,6 +22,7 @@ interface NavIconProps {
   label: string;
   onClick?: () => void;
   className?: string;
+  disabled?: boolean;
 }
 
 const NavIcon: React.FC<NavIconProps> = ({
@@ -27,13 +30,15 @@ const NavIcon: React.FC<NavIconProps> = ({
   label,
   onClick,
   className,
+  disabled = false,
 }) => (
   <button
     type="button"
     aria-label={label}
     onClick={onClick}
+    disabled={disabled}
     className={cn(
-      "relative group p-3 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 rounded-lg transition-all",
+      "relative group p-3 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-400",
       className
     )}
   >
@@ -48,6 +53,7 @@ export const SidenavView: React.FC<SidenavController> = ({
   onCreateToken,
   onOpenDiceRoller,
   onToggleLog,
+  onToggleRoomLock,
   onCopyLink,
   onLeaveGame,
   syncStatus,
@@ -57,6 +63,9 @@ export const SidenavView: React.FC<SidenavController> = ({
   closeMenu,
   handleUntapAll,
   handleOpenShortcuts,
+  isHost,
+  roomLocked,
+  roomIsFull,
 }) => {
   return (
     <>
@@ -92,6 +101,26 @@ export const SidenavView: React.FC<SidenavController> = ({
         <div className="flex-1" />
 
         <div className="flex flex-col items-center gap-2">
+          {isHost && (
+            <NavIcon
+              icon={roomLocked ? <Lock size={20} /> : <Unlock size={20} />}
+              label={
+                roomIsFull
+                  ? "Room is full"
+                  : roomLocked
+                    ? "Unlock room"
+                    : "Lock room (no more players can join)"
+              }
+              onClick={onToggleRoomLock}
+              disabled={roomIsFull}
+              className={
+                roomLocked
+                  ? "text-amber-400 hover:text-amber-300"
+                  : "hover:text-emerald-400"
+              }
+            />
+          )}
+
           <NavIcon
             icon={<Share2 size={20} />}
             label="Click to copy room link and share with others"

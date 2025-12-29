@@ -27,7 +27,9 @@ import { EditUsernameDialog } from "@/components/username/EditUsernameDialog";
 
 import type { MultiplayerBoardController } from "@/hooks/game/board/useMultiplayerBoardController";
 
-export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
+type MultiplayerBoardViewProps = Omit<MultiplayerBoardController, "joinBlocked">;
+
+export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   zones,
   cards,
   players,
@@ -50,6 +52,10 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
   handleDragEnd,
   syncStatus,
   peers,
+  isHost,
+  roomLocked,
+  roomIsFull,
+  onToggleRoomLock,
   handleViewZone,
   contextMenu,
   handleCardContextMenu,
@@ -107,11 +113,15 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardController> = ({
             onCreateToken={() => setIsTokenModalOpen(true)}
             onOpenDiceRoller={handleOpenDiceRoller}
             onToggleLog={() => setIsLogOpen(!isLogOpen)}
+            onToggleRoomLock={onToggleRoomLock}
             onCopyLink={handleCopyLink}
             onLeaveGame={handleLeave}
             onOpenShortcuts={() => setIsShortcutsOpen(true)}
             syncStatus={syncStatus}
             peerCount={peers}
+            isHost={isHost}
+            roomLocked={roomLocked}
+            roomIsFull={roomIsFull}
           />
 
           <div className={`w-full h-full grid ${gridClass} pl-12`}>

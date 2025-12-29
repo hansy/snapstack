@@ -20,6 +20,7 @@ import { useGameShortcuts } from "../shortcuts/useGameShortcuts";
 import { useMultiplayerSync } from "../multiplayer-sync/useMultiplayerSync";
 import { usePlayerLayout, type LayoutMode } from "../player/usePlayerLayout";
 import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
+import { MAX_ROOM_PLAYERS } from "@/lib/room";
 
 const getGridClass = (layoutMode: LayoutMode) => {
   switch (layoutMode) {
@@ -44,6 +45,9 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const battlefieldViewScale = useGameStore(
     (state) => state.battlefieldViewScale
   );
+  const roomHostId = useGameStore((state) => state.roomHostId);
+  const roomLockedByHost = useGameStore((state) => state.roomLockedByHost);
+  const setRoomLockedByHost = useGameStore((state) => state.setRoomLockedByHost);
   const activeModal = useGameStore((state) => state.activeModal);
   const setActiveModal = useGameStore((state) => state.setActiveModal);
 
@@ -59,7 +63,8 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const { slots, layoutMode, myPlayerId } = usePlayerLayout();
   const gridClass = React.useMemo(() => getGridClass(layoutMode), [layoutMode]);
 
-  const { status: syncStatus, peers } = useMultiplayerSync(sessionId);
+  const { status: syncStatus, peers, joinBlocked } =
+    useMultiplayerSync(sessionId);
 
   const [zoneViewerState, setZoneViewerState] = React.useState<{
     isOpen: boolean;
@@ -156,6 +161,17 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     () => setIsDiceRollerOpen(true),
     []
   );
+
+  const playerCount = Object.keys(players).length;
+  const roomIsFull = playerCount >= MAX_ROOM_PLAYERS;
+  const roomLocked = roomLockedByHost || roomIsFull;
+  const isHost = roomHostId === myPlayerId;
+  const isJoinBlocked = joinBlocked && !players[myPlayerId];
+
+  const handleToggleRoomLock = React.useCallback(() => {
+    if (!isHost || roomIsFull) return;
+    setRoomLockedByHost(!roomLockedByHost);
+  }, [isHost, roomIsFull, roomLockedByHost, setRoomLockedByHost]);
 
   useGameShortcuts({
     myPlayerId,
@@ -286,6 +302,11 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     handleRollDice,
     handleCopyLink,
     handleLeave,
+    isHost,
+    roomLocked,
+    roomIsFull,
+    onToggleRoomLock: handleToggleRoomLock,
+    joinBlocked: isJoinBlocked,
   };
 };
 

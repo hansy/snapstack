@@ -19,6 +19,7 @@ export type SharedMaps = {
   zoneCardOrders: Y.Map<Y.Array<string>>;
   globalCounters: Y.Map<unknown>;
   battlefieldViewScale: Y.Map<unknown>;
+  meta: Y.Map<unknown>;
 };
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>

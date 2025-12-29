@@ -16,4 +16,4 @@ export {
   upsertCard,
 } from './mutations/cards';
 export { resetDeck, unloadDeck } from './mutations/deck';
-
+export { patchRoomMeta, type RoomMetaPatch } from './mutations/meta';

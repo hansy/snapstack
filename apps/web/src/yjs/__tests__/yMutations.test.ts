@@ -36,6 +36,7 @@ const createSharedMaps = (): SharedMaps => {
     zoneCardOrders: doc.getMap('zoneCardOrders'),
     globalCounters: doc.getMap('globalCounters'),
     battlefieldViewScale: doc.getMap('battlefieldViewScale'),
+    meta: doc.getMap('meta'),
   };
 };
 
@@ -49,6 +50,7 @@ const createDocAndMaps = (): { doc: Y.Doc; maps: SharedMaps } => {
     zoneCardOrders: doc.getMap('zoneCardOrders'),
     globalCounters: doc.getMap('globalCounters'),
     battlefieldViewScale: doc.getMap('battlefieldViewScale'),
+    meta: doc.getMap('meta'),
   };
   return { doc, maps };
 };

@@ -17,6 +17,7 @@ const createSharedMaps = (): SharedMaps => {
     zoneCardOrders: doc.getMap("zoneCardOrders"),
     globalCounters: doc.getMap("globalCounters"),
     battlefieldViewScale: doc.getMap("battlefieldViewScale"),
+    meta: doc.getMap("meta"),
   };
 };
 
@@ -46,4 +47,3 @@ describe("createFullSyncToStore", () => {
     expect(next.playerOrder).toEqual(["p1"]);
   });
 });
-

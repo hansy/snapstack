@@ -13,6 +13,7 @@ import { createCounterActions } from './gameStore/actions/counters';
 import { createDeckActions } from './gameStore/actions/deck';
 import { createMovementActions } from './gameStore/actions/movement';
 import { createPlayerActions } from './gameStore/actions/players';
+import { createRoomActions } from './gameStore/actions/room';
 import { createSessionActions } from './gameStore/actions/session';
 import { createUiActions } from './gameStore/actions/ui';
 import { createZoneActions } from './gameStore/actions/zones';
@@ -72,6 +73,8 @@ export const useGameStore = create<GameStore>()(
                 cards: {},
                 zones: {},
                 battlefieldViewScale: {},
+                roomHostId: null,
+                roomLockedByHost: false,
                 positionFormat: 'normalized',
                 globalCounters: {},
                 activeModal: null,
@@ -83,6 +86,7 @@ export const useGameStore = create<GameStore>()(
                 ...createMovementActions(set, get, { applyShared, buildLogContext }),
                 ...createDeckActions(set, get, { applyShared, buildLogContext }),
                 ...createCounterActions(set, get, { applyShared, buildLogContext }),
+                ...createRoomActions(set, get, { applyShared }),
                 ...createUiActions(set, get, { applyShared }),
             });
         },

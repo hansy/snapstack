@@ -5,6 +5,7 @@ import type { Player, Zone } from "@/types";
 import type { SharedMaps } from "@/yjs/yMutations";
 import { sharedSnapshot, upsertPlayer, upsertZone } from "@/yjs/yMutations";
 import { ZONE } from "@/constants/zones";
+import { MAX_ROOM_PLAYERS } from "@/lib/room";
 
 import {
   ensureLocalPlayerInitialized,
@@ -20,6 +21,7 @@ const createSharedMaps = (doc: Y.Doc): SharedMaps => ({
   zoneCardOrders: doc.getMap("zoneCardOrders"),
   globalCounters: doc.getMap("globalCounters"),
   battlefieldViewScale: doc.getMap("battlefieldViewScale"),
+  meta: doc.getMap("meta"),
 });
 
 const createZonesForPlayer = (playerId: string): Zone[] => [
@@ -83,6 +85,60 @@ describe("ensureLocalPlayerInitialized", () => {
     const snapshot = sharedSnapshot(maps);
     expect(snapshot.players.p1?.name).toBe("Bob");
   });
+
+  it("assigns the local player as host when creating the room", () => {
+    const doc = new Y.Doc();
+    const maps = createSharedMaps(doc);
+
+    ensureLocalPlayerInitialized({
+      transact: (fn) => doc.transact(fn),
+      sharedMaps: maps,
+      playerId: "p1",
+      preferredUsername: "Host",
+    });
+
+    const snapshot = sharedSnapshot(maps);
+    expect(snapshot.meta?.hostId).toBe("p1");
+  });
+
+  it("blocks new players when the room is locked or full", () => {
+    const doc = new Y.Doc();
+    const maps = createSharedMaps(doc);
+    maps.meta.set("locked", true);
+
+    const result = ensureLocalPlayerInitialized({
+      transact: (fn) => doc.transact(fn),
+      sharedMaps: maps,
+      playerId: "p1",
+      preferredUsername: "Alice",
+    });
+
+    expect(result?.status).toBe("blocked");
+    expect(sharedSnapshot(maps).players.p1).toBeUndefined();
+
+    maps.meta.set("locked", false);
+    for (let i = 0; i < MAX_ROOM_PLAYERS; i += 1) {
+      upsertPlayer(maps, {
+        id: `p${i}`,
+        name: `P${i}`,
+        life: 40,
+        counters: [],
+        commanderDamage: {},
+        commanderTax: 0,
+        deckLoaded: false,
+      });
+    }
+
+    const fullResult = ensureLocalPlayerInitialized({
+      transact: (fn) => doc.transact(fn),
+      sharedMaps: maps,
+      playerId: "p9",
+      preferredUsername: "Late",
+    });
+
+    expect(fullResult?.status).toBe("blocked");
+    expect(sharedSnapshot(maps).players.p9).toBeUndefined();
+  });
 });
 
 describe("resolveDesiredPlayerName", () => {
@@ -90,4 +146,3 @@ describe("resolveDesiredPlayerName", () => {
     expect(resolveDesiredPlayerName("   ", "Player P1")).toBe("Player P1");
   });
 });
-
