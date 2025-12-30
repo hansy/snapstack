@@ -79,6 +79,7 @@ describe("gameShortcuts/model", () => {
       drawOne: vi.fn(),
       shuffle: vi.fn(),
       resetDeck: vi.fn(),
+      mulligan: vi.fn(),
       unloadDeck: vi.fn(),
       untapAll: vi.fn(),
     };
@@ -128,6 +129,7 @@ describe("gameShortcuts/model", () => {
         drawOne: vi.fn(),
         shuffle: vi.fn(),
         resetDeck: vi.fn(),
+        mulligan: vi.fn(),
         unloadDeck: vi.fn(),
         untapAll: vi.fn(),
       },

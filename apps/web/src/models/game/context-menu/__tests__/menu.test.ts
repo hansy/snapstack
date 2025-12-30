@@ -131,6 +131,7 @@ describe('buildZoneViewActions', () => {
       drawCard: vi.fn(),
       shuffleLibrary: vi.fn(),
       resetDeck: vi.fn(),
+      mulligan: vi.fn(),
       unloadDeck: vi.fn(),
     });
 
@@ -149,6 +150,7 @@ describe('buildZoneViewActions', () => {
       drawCard: vi.fn(),
       shuffleLibrary: vi.fn(),
       resetDeck: vi.fn(),
+      mulligan: vi.fn(),
       unloadDeck: vi.fn(),
       openCountPrompt,
     });

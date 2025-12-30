@@ -134,6 +134,7 @@ export type GameShortcutActions = {
   drawOne: () => void;
   shuffle: () => void;
   resetDeck: () => void;
+  mulligan: (count: number) => void;
   unloadDeck: () => void;
   untapAll: () => void;
 };
@@ -222,11 +223,10 @@ export const runGameShortcut = (params: {
     case "game.mulligan":
       params.openCountPrompt({
         title: "Mulligan",
-        message: "Shuffle library and draw new cards. How many cards to draw?",
+        message: "Reset deck and draw new cards. How many cards to draw?",
         initialValue: 7,
         onSubmit: (count) => {
-          params.actions.shuffle();
-          for (let i = 0; i < count; i++) params.actions.drawOne();
+          params.actions.mulligan(count);
         },
       });
       return true;

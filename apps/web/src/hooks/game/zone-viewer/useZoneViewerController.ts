@@ -51,6 +51,7 @@ export const useZoneViewerController = ({
   const [contextMenu, setContextMenu] = React.useState<ZoneViewerContextMenuState>(null);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
   const [orderedCardIds, setOrderedCardIds] = React.useState<string[]>([]);
   const [draggingId, setDraggingId] = React.useState<string | null>(null);
   const [frozenCardIds, setFrozenCardIds] = React.useState<string[] | null>(null);
@@ -69,7 +70,8 @@ export const useZoneViewerController = ({
   }, [isOpen]);
 
   React.useEffect(() => {
-    if (!isOpen || !zone || zone.type !== ZONE.LIBRARY || !count || count <= 0) {
+    if (!isOpen) return;
+    if (!zone || zone.type !== ZONE.LIBRARY || !count || count <= 0) {
       setFrozenCardIds(null);
       return;
     }
@@ -120,6 +122,51 @@ export const useZoneViewerController = ({
 
   const reorderList = React.useCallback(reorderZoneViewerList, []);
 
+  const handleMoveCardToBottom = React.useCallback(
+    (cardId: string, toZoneId: string) => {
+      moveCardToBottom(cardId, toZoneId, myPlayerId);
+
+      const scrollToBottom = () => {
+        requestAnimationFrame(() => {
+          const target = listRef.current;
+          if (!target) return;
+          if (typeof target.scrollTo === "function") {
+            target.scrollTo({ left: 0, behavior: "smooth" });
+            return;
+          }
+          target.scrollLeft = 0;
+        });
+      };
+
+      if (zone?.type === ZONE.LIBRARY && count && count > 0) {
+        setFrozenCardIds((ids) => (ids ? ids.filter((id) => id !== cardId) : ids));
+        setOrderedCardIds((ids) => ids.filter((id) => id !== cardId));
+        scrollToBottom();
+        return;
+      }
+
+      if (zone?.type !== ZONE.LIBRARY || viewMode !== "linear") return;
+
+      setOrderedCardIds((ids) => {
+        const source = ids.length ? ids : displayCards.map((card) => card.id);
+        if (!source.includes(cardId)) return ids;
+        return [cardId, ...source.filter((id) => id !== cardId)];
+      });
+
+      scrollToBottom();
+    },
+    [
+      count,
+      displayCards,
+      moveCardToBottom,
+      myPlayerId,
+      setFrozenCardIds,
+      setOrderedCardIds,
+      viewMode,
+      zone?.type,
+    ]
+  );
+
   const commitReorder = React.useCallback(
     (newOrder: string[]) => {
       if (!zone || !newOrder.length) return;
@@ -145,7 +192,7 @@ export const useZoneViewerController = ({
             myPlayerId,
             (cardId, toZoneId, opts) =>
               moveCard(cardId, toZoneId, undefined, myPlayerId, undefined, opts),
-            (cardId, toZoneId) => moveCardToBottom(cardId, toZoneId, myPlayerId),
+            handleMoveCardToBottom,
             players,
             (cardId, reveal) => setCardReveal(cardId, reveal, myPlayerId),
             viewerRole
@@ -172,6 +219,7 @@ export const useZoneViewerController = ({
       viewerRole,
       zone,
       zones,
+      handleMoveCardToBottom,
     ]
   );
 
@@ -190,6 +238,7 @@ export const useZoneViewerController = ({
     filterText,
     setFilterText,
     containerRef,
+    listRef,
     displayCards,
     viewMode,
     groupedCards,

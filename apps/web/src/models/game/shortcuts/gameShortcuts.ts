@@ -131,7 +131,7 @@ export const GAME_SHORTCUTS: GameShortcutDefinition[] = [
     id: "game.mulligan",
     binding: { key: "m" },
     title: "Mulligan",
-    description: "Prompts for a hand size (default 7), then shuffles and draws that many cards.",
+    description: "Prompts for a hand size (default 7), then resets the deck and draws that many cards.",
     requiresDeckLoaded: true,
   },
   {

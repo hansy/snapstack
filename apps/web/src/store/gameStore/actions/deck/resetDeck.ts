@@ -93,10 +93,13 @@ export const createResetDeck =
             zoneId: libraryZone.id,
             tapped: false,
             faceDown: false,
+            controllerId: card.ownerId,
             knownToAll: false,
             revealedToAll: false,
             revealedTo: [],
             position: { x: 0, y: 0 },
+            rotation: 0,
+            customText: undefined,
             counters: enforceZoneCounterRules(resetCard.counters, libraryZone),
           };
           toLibrary.push(card.id);

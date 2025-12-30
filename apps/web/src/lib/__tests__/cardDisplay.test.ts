@@ -58,6 +58,21 @@ describe("resetCardToFrontFace", () => {
       currentFaceIndex: 2,
       power: "5",
       toughness: "6",
+      basePower: "2",
+      baseToughness: "3",
+    });
+
+    const next = resetCardToFrontFace(card);
+    expect(next.currentFaceIndex).toBe(0);
+    expect(next.power).toBe("2");
+    expect(next.toughness).toBe("3");
+  });
+
+  it("preserves power/toughness when base stats are missing", () => {
+    const card = makeCard({
+      currentFaceIndex: 2,
+      power: "5",
+      toughness: "6",
     });
 
     const next = resetCardToFrontFace(card);
@@ -66,4 +81,3 @@ describe("resetCardToFrontFace", () => {
     expect(next.toughness).toBe("6");
   });
 });
-

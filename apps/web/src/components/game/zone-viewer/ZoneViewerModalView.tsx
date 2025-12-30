@@ -15,6 +15,7 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
   filterText,
   setFilterText,
   containerRef,
+  listRef,
   displayCards,
   viewMode,
   groupedCards,
@@ -75,6 +76,7 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
                 interactionsDisabled={interactionsDisabled}
                 pinnedCardId={pinnedCardId}
                 onCardContextMenu={handleContextMenu}
+                listRef={listRef}
               />
             )}
           </div>

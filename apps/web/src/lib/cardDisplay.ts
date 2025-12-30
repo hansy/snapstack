@@ -118,5 +118,14 @@ export const syncCardStatsToFace = (
   };
 };
 
-export const resetCardToFrontFace = (card: Card): Card =>
-  syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0);
+export const resetCardToFrontFace = (card: Card): Card => {
+  const reset = syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0);
+  if (!getCardFaces(card).length) {
+    return {
+      ...reset,
+      power: reset.basePower ?? reset.power,
+      toughness: reset.baseToughness ?? reset.toughness,
+    };
+  }
+  return reset;
+};

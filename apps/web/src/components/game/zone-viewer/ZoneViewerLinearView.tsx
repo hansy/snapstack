@@ -18,6 +18,7 @@ export interface ZoneViewerLinearViewProps {
   interactionsDisabled: boolean;
   pinnedCardId?: string;
   onCardContextMenu: (e: React.MouseEvent, card: Card) => void;
+  listRef: React.RefObject<HTMLDivElement>;
 }
 
 export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
@@ -33,9 +34,11 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
   interactionsDisabled,
   pinnedCardId,
   onCardContextMenu,
+  listRef,
 }) => {
   return (
     <div
+      ref={listRef}
       className="flex h-full items-center overflow-x-auto px-4 pb-4 pr-[220px]"
       style={{ pointerEvents: interactionsDisabled ? "none" : "auto" }}
     >

@@ -275,6 +275,59 @@ describe('resetDeck', () => {
     expect(snapshot.cards.o1?.revealedToAll).toBe(false);
     expect(snapshot.cards.o1?.revealedTo ?? []).toHaveLength(0);
   });
+
+  it('resets owned card state before returning to the library', () => {
+    const maps = createSharedMaps();
+
+    const library: Zone = {
+      id: 'lib-p1',
+      type: ZONE.LIBRARY,
+      ownerId: 'p1',
+      cardIds: [],
+    };
+    const battlefield: Zone = {
+      id: 'bf-p1',
+      type: ZONE.BATTLEFIELD,
+      ownerId: 'p1',
+      cardIds: ['c1'],
+    };
+
+    yUpsertZone(maps, library);
+    yUpsertZone(maps, battlefield);
+
+    yUpsertCard(maps, {
+      id: 'c1',
+      ownerId: 'p1',
+      controllerId: 'p2',
+      zoneId: battlefield.id,
+      name: 'Card1',
+      tapped: true,
+      faceDown: true,
+      position: { x: 0.2, y: 0.2 },
+      rotation: 90,
+      counters: [{ type: '+1/+1', count: 2 }],
+      customText: 'Note',
+      power: '5',
+      toughness: '6',
+      basePower: '2',
+      baseToughness: '3',
+    });
+
+    resetDeck(maps, 'p1');
+
+    const snapshot = sharedSnapshot(maps);
+    const resetCard = snapshot.cards.c1;
+    expect(resetCard?.zoneId).toBe(library.id);
+    expect(resetCard?.controllerId).toBe('p1');
+    expect(resetCard?.rotation).toBe(0);
+    expect(resetCard?.customText).toBeUndefined();
+    expect(resetCard?.tapped).toBe(false);
+    expect(resetCard?.faceDown).toBe(false);
+    expect(resetCard?.power).toBe('2');
+    expect(resetCard?.toughness).toBe('3');
+    expect(resetCard?.basePower).toBe('2');
+    expect(resetCard?.baseToughness).toBe('3');
+  });
 });
 
 describe('unloadDeck', () => {

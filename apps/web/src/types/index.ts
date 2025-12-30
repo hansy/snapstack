@@ -140,6 +140,12 @@ export interface GameState {
   untapAll: (playerId: PlayerId, isRemote?: boolean) => void;
   drawCard: (playerId: PlayerId, actorId?: PlayerId, isRemote?: boolean) => void;
   shuffleLibrary: (playerId: PlayerId, actorId?: PlayerId, isRemote?: boolean) => void;
+  mulligan: (
+    playerId: PlayerId,
+    count: number,
+    actorId?: PlayerId,
+    isRemote?: boolean
+  ) => void;
   setCardReveal: (
     cardId: CardId,
     reveal:

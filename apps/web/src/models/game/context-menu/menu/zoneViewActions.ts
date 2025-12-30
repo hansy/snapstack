@@ -14,6 +14,7 @@ interface ZoneActionBuilderParams {
   drawCard: (playerId: PlayerId) => void;
   shuffleLibrary: (playerId: PlayerId) => void;
   resetDeck: (playerId: PlayerId) => void;
+  mulligan: (playerId: PlayerId, count: number) => void;
   unloadDeck: (playerId: PlayerId) => void;
   openCountPrompt?: (opts: {
     title: string;
@@ -115,6 +116,7 @@ export const buildZoneViewActions = ({
   drawCard,
   shuffleLibrary,
   resetDeck,
+  mulligan,
   unloadDeck,
   openCountPrompt,
 }: ZoneActionBuilderParams): ContextMenuItem[] => {
@@ -148,11 +150,10 @@ export const buildZoneViewActions = ({
         if (!openCountPrompt) return;
         openCountPrompt({
           title: "Mulligan",
-          message: "Shuffle library and draw new cards. How many cards to draw?",
+          message: "Reset deck and draw new cards. How many cards to draw?",
           initialValue: 7,
           onSubmit: (count) => {
-            shuffleLibrary(myPlayerId);
-            for (let i = 0; i < count; i++) drawCard(myPlayerId);
+            mulligan(myPlayerId, count);
           },
         });
       },

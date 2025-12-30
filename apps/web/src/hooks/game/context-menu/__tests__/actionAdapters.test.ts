@@ -26,6 +26,7 @@ describe("gameContextMenu actionAdapters", () => {
       drawCard: vi.fn(),
       shuffleLibrary: vi.fn(),
       resetDeck: vi.fn(),
+      mulligan: vi.fn(),
       unloadDeck: vi.fn(),
     } as any;
 
@@ -131,6 +132,7 @@ describe("gameContextMenu actionAdapters", () => {
       drawCard: vi.fn(),
       shuffleLibrary: vi.fn(),
       resetDeck: vi.fn(),
+      mulligan: vi.fn(),
       unloadDeck: vi.fn(),
     } as any;
 
@@ -144,6 +146,9 @@ describe("gameContextMenu actionAdapters", () => {
 
     adapters.resetDeck("me");
     expect(store.resetDeck).toHaveBeenCalledWith("me", "me");
+
+    adapters.mulligan("me", 7);
+    expect(store.mulligan).toHaveBeenCalledWith("me", 7, "me");
 
     adapters.unloadDeck("me");
     expect(store.unloadDeck).toHaveBeenCalledWith("me", "me");

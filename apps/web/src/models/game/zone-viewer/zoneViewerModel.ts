@@ -20,7 +20,7 @@ export const computeZoneViewerCards = (params: {
 
   // If count is specified, take from the END (top of library).
   if (params.count && params.count > 0) {
-    if (params.zone.type === ZONE.LIBRARY && params.frozenCardIds?.length) {
+    if (params.zone.type === ZONE.LIBRARY && params.frozenCardIds != null) {
       const frozenSet = new Set(params.frozenCardIds);
       cardIds = cardIds.filter((id) => frozenSet.has(id));
     } else {
@@ -75,4 +75,3 @@ export const sortZoneViewerGroupKeys = (keys: string[]): string[] => {
     return costA - costB;
   });
 };
-

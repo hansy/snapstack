@@ -46,6 +46,7 @@ describe("ZoneViewerModalView", () => {
         filterText=""
         setFilterText={vi.fn()}
         containerRef={React.createRef<HTMLDivElement>()}
+        listRef={React.createRef<HTMLDivElement>()}
         displayCards={cards}
         viewMode="linear"
         groupedCards={{}}
@@ -86,6 +87,7 @@ describe("ZoneViewerModalView", () => {
         filterText=""
         setFilterText={vi.fn()}
         containerRef={React.createRef<HTMLDivElement>()}
+        listRef={React.createRef<HTMLDivElement>()}
         displayCards={[land, spell]}
         viewMode="grouped"
         groupedCards={{ Lands: [land], "Cost 1": [spell] }}
@@ -113,4 +115,3 @@ describe("ZoneViewerModalView", () => {
     expect(screen.getByText("Spell")).toBeTruthy();
   });
 });
-

@@ -36,6 +36,7 @@ type StoreForContextMenu = Pick<
   | "drawCard"
   | "shuffleLibrary"
   | "resetDeck"
+  | "mulligan"
   | "unloadDeck"
 >;
 
@@ -205,6 +206,8 @@ export const createZoneActionAdapters = (params: {
       params.store.shuffleLibrary(playerId, params.myPlayerId),
     resetDeck: (playerId: PlayerId) =>
       params.store.resetDeck(playerId, params.myPlayerId),
+    mulligan: (playerId: PlayerId, count: number) =>
+      params.store.mulligan(playerId, count, params.myPlayerId),
     unloadDeck: (playerId: PlayerId) =>
       params.store.unloadDeck(playerId, params.myPlayerId),
   };

@@ -160,6 +160,8 @@ export const useGameShortcuts = (args: UseGameShortcutsArgs) => {
       const drawOne = () => useGameStore.getState().drawCard(myPlayerId, myPlayerId);
       const shuffle = () => useGameStore.getState().shuffleLibrary(myPlayerId, myPlayerId);
       const resetDeck = () => useGameStore.getState().resetDeck(myPlayerId, myPlayerId);
+      const mulligan = (count: number) =>
+        useGameStore.getState().mulligan(myPlayerId, count, myPlayerId);
       const unloadDeck = () => useGameStore.getState().unloadDeck(myPlayerId, myPlayerId);
       const untapAll = () => useGameStore.getState().untapAll(myPlayerId);
 
@@ -179,7 +181,7 @@ export const useGameShortcuts = (args: UseGameShortcutsArgs) => {
         openCountPrompt,
         handleViewZone,
         handleLeave,
-        actions: { drawOne, shuffle, resetDeck, unloadDeck, untapAll },
+        actions: { drawOne, shuffle, resetDeck, mulligan, unloadDeck, untapAll },
       });
       if (handled) consume();
       return;
