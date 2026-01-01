@@ -35,7 +35,6 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
   const setActiveCardId = useDragStore((state) => state.setActiveCardId);
   const setIsGroupDragging = useDragStore((state) => state.setIsGroupDragging);
   const setOverCardScale = useDragStore((state) => state.setOverCardScale);
-  const setZoomEdge = useDragStore((state) => state.setZoomEdge);
   const myPlayerId = useGameStore((state) => state.myPlayerId);
   const clearSelection = useSelectionStore((state) => state.clearSelection);
   const isSpectator = params.viewerRole === "spectator";
@@ -127,7 +126,6 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
       params.viewerRole,
       setGhostCards,
       setOverCardScale,
-      setZoomEdge,
     ]
   );
 
@@ -135,7 +133,6 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
     if (isSpectator) {
       setGhostCards(null);
       setOverCardScale(1);
-      setZoomEdge(null);
       return;
     }
     if (currentDragSeq.current == null) {
@@ -170,7 +167,6 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
     const group = dragSelectionRef.current;
     const isGroupDragging = Boolean(group && group.groupCardIds.length > 1);
     setOverCardScale(result.overCardScale);
-    setZoomEdge(result.zoomEdge);
 
     if (!isGroupDragging) {
       if (result.ghostCard && activeCardId) {
@@ -287,7 +283,6 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
       setActiveCardId(null);
       setIsGroupDragging(false);
       setOverCardScale(1);
-      setZoomEdge(null);
       currentDragSeq.current = null;
 
       if (!over || active.id === over.id) return;
@@ -436,7 +431,6 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
       setActiveCardId,
       setGhostCards,
       setOverCardScale,
-      setZoomEdge,
     ]
   );
 

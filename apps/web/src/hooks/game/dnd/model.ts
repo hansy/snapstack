@@ -2,12 +2,7 @@ import type { Card, CardId, PlayerId, ViewerRole, Zone, ZoneId, ZoneType } from 
 
 import { ZONE } from "@/constants/zones";
 import { canMoveCard } from "@/rules/permissions";
-import {
-  computeBattlefieldPlacement,
-  detectBattlefieldZoomEdge,
-  type RectLike,
-  type ZoomEdge,
-} from "@/lib/dndBattlefield";
+import { computeBattlefieldPlacement, type RectLike } from "@/lib/dndBattlefield";
 
 export type GhostCardState = {
   zoneId: ZoneId;
@@ -18,7 +13,6 @@ export type GhostCardState = {
 export type DragMoveUiState = {
   ghostCard: GhostCardState | null;
   overCardScale: number;
-  zoomEdge: ZoomEdge;
 };
 
 export const computeDragMoveUiState = (params: {
@@ -40,21 +34,21 @@ export const computeDragMoveUiState = (params: {
         mirrorY?: boolean;
       };
 }): DragMoveUiState => {
-  if (!params.over) return { ghostCard: null, overCardScale: 1, zoomEdge: null };
+  if (!params.over) return { ghostCard: null, overCardScale: 1 };
 
   if (params.over.type !== ZONE.BATTLEFIELD) {
-    return { ghostCard: null, overCardScale: 1, zoomEdge: null };
+    return { ghostCard: null, overCardScale: 1 };
   }
 
   const activeCard = params.activeCardId
     ? params.cards[params.activeCardId]
     : undefined;
-  if (!activeCard) return { ghostCard: null, overCardScale: 1, zoomEdge: null };
+  if (!activeCard) return { ghostCard: null, overCardScale: 1 };
 
   const targetZone = params.zones[params.over.id];
   const fromZone = params.zones[activeCard.zoneId];
   if (!targetZone || !fromZone) {
-    return { ghostCard: null, overCardScale: 1, zoomEdge: null };
+    return { ghostCard: null, overCardScale: 1 };
   }
 
   const permission = canMoveCard({
@@ -65,7 +59,7 @@ export const computeDragMoveUiState = (params: {
     toZone: targetZone,
   });
   if (!permission.allowed) {
-    return { ghostCard: null, overCardScale: 1, zoomEdge: null };
+    return { ghostCard: null, overCardScale: 1 };
   }
 
   const zoneScale = params.over.scale || 1;
@@ -74,13 +68,8 @@ export const computeDragMoveUiState = (params: {
   const isTapped = Boolean(params.activeTapped ?? activeCard.tapped);
   const overCardScale = viewScale;
 
-  const zoomEdge =
-    targetZone.ownerId === params.myPlayerId && params.activeRect
-      ? detectBattlefieldZoomEdge(params.activeRect, params.over.rect, 30)
-      : null;
-
   if (!params.activeRect) {
-    return { ghostCard: null, overCardScale, zoomEdge };
+    return { ghostCard: null, overCardScale };
   }
 
   const centerScreen = {
@@ -104,7 +93,6 @@ export const computeDragMoveUiState = (params: {
       tapped: isTapped,
     },
     overCardScale,
-    zoomEdge,
   };
 };
 

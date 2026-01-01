@@ -83,6 +83,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   setIsLogOpen,
   isShortcutsOpen,
   setIsShortcutsOpen,
+  zoomControlsBlocked,
   isEditUsernameOpen,
   setIsEditUsernameOpen,
   zoneViewerState,
@@ -166,6 +167,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                     onOpponentLibraryReveals={(zoneId) =>
                       setRevealedLibraryZoneId(zoneId)
                     }
+                    zoomControlsDisabled={zoomControlsBlocked}
                     onLifeContextMenu={(e) =>
                       handleLifeContextMenu?.(e, slot.player)
                     }
@@ -225,7 +227,9 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
         <AddCounterModal
           isOpen={activeModal?.type === "ADD_COUNTER"}
           onClose={() => setActiveModal(null)}
-          cardIds={activeModal?.type === "ADD_COUNTER" ? activeModal.cardIds : []}
+          cardIds={
+            activeModal?.type === "ADD_COUNTER" ? activeModal.cardIds : []
+          }
         />
         <ZoneViewerModal
           isOpen={zoneViewerState.isOpen}
@@ -270,14 +274,21 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                 const offset = 10;
                 const overlayCards = groupDragCardIds
                   .map((id) => cards[id])
-                  .filter((card): card is (typeof cards)[string] => Boolean(card))
+                  .filter((card): card is (typeof cards)[string] =>
+                    Boolean(card)
+                  )
                   .slice(0, 4);
                 if (overlayCards.length === 0) return null;
-                const extraCount = Math.max(0, groupDragCardIds.length - overlayCards.length);
+                const extraCount = Math.max(
+                  0,
+                  groupDragCardIds.length - overlayCards.length
+                );
                 const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
                 const baseHeight = BASE_CARD_HEIGHT;
-                const stackWidth = baseWidth + offset * Math.max(0, overlayCards.length - 1);
-                const stackHeight = baseHeight + offset * Math.max(0, overlayCards.length - 1);
+                const stackWidth =
+                  baseWidth + offset * Math.max(0, overlayCards.length - 1);
+                const stackHeight =
+                  baseHeight + offset * Math.max(0, overlayCards.length - 1);
 
                 return (
                   <div
@@ -306,15 +317,18 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                           <div
                             key={card.id}
                             className="absolute"
-                            style={{ left: index * offset, top: index * offset }}
+                            style={{
+                              left: index * offset,
+                              top: index * offset,
+                            }}
                           >
                             <CardView
                               card={card}
                               isDragging
                               preferArtCrop={overlayPreferArtCrop}
-                            faceDown={faceDown}
-                          />
-                        </div>
+                              faceDown={faceDown}
+                            />
+                          </div>
                         );
                       })}
                       {extraCount > 0 && (

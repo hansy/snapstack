@@ -13,6 +13,7 @@ import { fromNormalizedPosition, mirrorNormalizedY } from "@/lib/positions";
 import { getEffectiveCardSize } from "@/lib/dndBattlefield";
 import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from "@/lib/constants";
 import { getFlipRotation } from "@/lib/cardDisplay";
+import { useBattlefieldZoomControls } from "@/hooks/game/board/useBattlefieldZoomControls";
 
 interface BattlefieldProps {
     zone: ZoneType;
@@ -29,6 +30,7 @@ interface BattlefieldProps {
     onContextMenu?: (e: React.MouseEvent) => void;
     showContextMenuCursor?: boolean;
     playerColors: Record<string, string>;
+    disableZoomControls?: boolean;
 }
 
 // Memoized card wrapper to prevent unnecessary re-renders
@@ -118,7 +120,8 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
     onCardContextMenu,
     onContextMenu,
     showContextMenuCursor,
-    playerColors
+    playerColors,
+    disableZoomControls,
 }) => {
     const activeCardId = useDragStore((state) => state.activeCardId);
     const ghostCards = useDragStore((state) => state.ghostCards);
@@ -129,9 +132,11 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
     const cardsById = useGameStore((state) => state.cards);
     const { ref: zoneSizeRef, size: zoneSize } = useElementSize<HTMLDivElement>();
     const zoneNodeRef = React.useRef<HTMLDivElement | null>(null);
+    const [zoneNode, setZoneNode] = React.useState<HTMLDivElement | null>(null);
     const setZoneRef = React.useCallback((node: HTMLDivElement | null) => {
         zoneSizeRef(node);
         zoneNodeRef.current = node;
+        setZoneNode(node);
     }, [zoneSizeRef]);
     const isSelectionEnabled = Boolean(isMe && zone.ownerId === viewerPlayerId);
     const setSelection = useSelectionStore((state) => state.setSelection);
@@ -149,6 +154,13 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
         baseSelection: Set<string>;
         shiftKey: boolean;
     } | null>(null);
+
+    useBattlefieldZoomControls({
+        playerId: viewerPlayerId,
+        enabled: Boolean(isMe),
+        wheelTarget: zoneNode,
+        isBlocked: disableZoomControls,
+    });
 
     const clampRectToZone = React.useCallback((rect: {
         x: number;
@@ -417,55 +429,8 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
                 <span className="text-4xl font-bold uppercase tracking-widest">{player.name || (isMe ? 'Me' : '')}</span>
             </div>
 
-            {/* Zoom Edge Indicators */}
-            {isMe && (
-                <ZoomEdgeOverlay />
-            )}
         </div>
     );
 };
 
 export const Battlefield = React.memo(BattlefieldInner);
-
-const ZoomEdgeOverlay = React.memo(() => {
-    const zoomEdge = useDragStore((state) => state.zoomEdge);
-    const myPlayerId = useGameStore((state) => state.myPlayerId);
-    const battlefieldViewScale = useGameStore((state) => state.battlefieldViewScale);
-
-    if (!zoomEdge) return null;
-
-    const currentScale = battlefieldViewScale[myPlayerId] ?? 1;
-    const isZoomingIn = zoomEdge === 'top' || zoomEdge === 'left';
-    const isZoomingOut = zoomEdge === 'bottom' || zoomEdge === 'right';
-
-    const zoomPercentage = Math.round(currentScale * 100);
-
-    // Check limits based on the displayed percentage to match user perception
-    const isMaxedIn = zoomPercentage >= 100;
-    const isMaxedOut = zoomPercentage <= 50;
-
-    const showZoomingText = (isZoomingIn && !isMaxedIn) || (isZoomingOut && !isMaxedOut);
-
-    return (
-        <>
-            <div className={cn(
-                "absolute pointer-events-none z-50 transition-all duration-300",
-                zoomEdge === 'top' && "top-0 left-0 right-0 h-32 bg-gradient-to-b from-indigo-500/50 to-transparent",
-                zoomEdge === 'bottom' && "bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-indigo-500/50 to-transparent",
-                zoomEdge === 'left' && "left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-indigo-500/50 to-transparent",
-                zoomEdge === 'right' && "right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-indigo-500/50 to-transparent",
-            )} />
-
-            <div className="absolute top-4 left-4 z-50 pointer-events-none bg-black/80 text-white px-4 py-2 rounded-md border border-white/10 shadow-xl backdrop-blur-sm flex flex-col gap-0.5">
-                <span className="text-2xl font-bold font-mono text-indigo-400">{zoomPercentage}%</span>
-                {showZoomingText && (
-                    <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                        Zooming {isZoomingIn ? 'in' : 'out'}...
-                    </span>
-                )}
-            </div>
-        </>
-    );
-});
-
-ZoomEdgeOverlay.displayName = 'ZoomEdgeOverlay';

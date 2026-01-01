@@ -42,7 +42,7 @@ describe("gameDnD model", () => {
         over: null,
       });
 
-      expect(state).toEqual({ ghostCard: null, overCardScale: 1, zoomEdge: null });
+      expect(state).toEqual({ ghostCard: null, overCardScale: 1 });
     });
 
     it("computes battlefield ghost placement when permitted", () => {
@@ -77,7 +77,6 @@ describe("gameDnD model", () => {
       });
 
       expect(state.overCardScale).toBe(1);
-      expect(state.zoomEdge).toBeNull();
       expect(state.ghostCard).toEqual({
         zoneId: "p1-battlefield",
         position: { x: 340, y: 360 },
@@ -124,7 +123,7 @@ describe("gameDnD model", () => {
         },
       });
 
-      expect(state).toEqual({ ghostCard: null, overCardScale: 1, zoomEdge: null });
+      expect(state).toEqual({ ghostCard: null, overCardScale: 1 });
     });
   });
 
