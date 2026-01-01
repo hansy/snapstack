@@ -10,7 +10,8 @@ export const getNextCardStatUpdate = (
   delta: number
 ): Pick<Card, CardStatKey> | null => {
   const faceStat = getCurrentFace(card)?.[type];
-  const currentVal = parseInt(card[type] ?? faceStat ?? "0");
+  const statString = card[type] ?? faceStat ?? "0";
+  const currentVal = statString === "*" ? 0 : parseInt(statString, 10);
   if (Number.isNaN(currentVal)) return null;
   return { [type]: (currentVal + delta).toString() } as Pick<Card, CardStatKey>;
 };
