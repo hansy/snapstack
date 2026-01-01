@@ -101,6 +101,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     handleCardContextMenu,
     handleZoneContextMenu,
     handleBattlefieldContextMenu,
+    handleLifeContextMenu,
     closeContextMenu,
     countPrompt,
     openCountPrompt,

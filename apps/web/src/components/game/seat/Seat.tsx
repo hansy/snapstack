@@ -26,6 +26,7 @@ export interface SeatProps {
   onDrawCard?: (playerId: string) => void;
   battlefieldScale?: number;
   onOpponentLibraryReveals?: (zoneId: ZoneId) => void;
+  onLifeContextMenu?: (e: React.MouseEvent, player: Player) => void;
 }
 
 const SeatInner: React.FC<SeatProps> = ({
@@ -49,6 +50,7 @@ const SeatInner: React.FC<SeatProps> = ({
   onDrawCard,
   battlefieldScale = 1,
   onOpponentLibraryReveals,
+  onLifeContextMenu,
 }) => {
   const model = React.useMemo(
     () =>
@@ -84,6 +86,7 @@ const SeatInner: React.FC<SeatProps> = ({
       onDrawCard={onDrawCard}
       battlefieldScale={battlefieldScale}
       onOpponentLibraryReveals={onOpponentLibraryReveals}
+      onLifeContextMenu={onLifeContextMenu}
       model={model}
     />
   );

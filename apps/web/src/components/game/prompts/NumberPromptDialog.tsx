@@ -8,6 +8,8 @@ interface NumberPromptDialogProps {
   title: string;
   message?: string;
   initialValue?: number;
+  minValue?: number;
+  confirmLabel?: string;
   onSubmit: (value: number) => void;
   onClose: () => void;
 }
@@ -17,6 +19,8 @@ export const NumberPromptDialog: React.FC<NumberPromptDialogProps> = ({
   title,
   message,
   initialValue = 1,
+  minValue = 1,
+  confirmLabel,
   onSubmit,
   onClose,
 }) => {
@@ -38,13 +42,13 @@ export const NumberPromptDialog: React.FC<NumberPromptDialogProps> = ({
 
   const handleSubmit = () => {
     const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    if (!Number.isFinite(parsed) || parsed < minValue) return;
     onSubmit(parsed);
     onClose();
   };
 
   const parsedValue = Number.parseInt(value, 10);
-  const isValid = Number.isFinite(parsedValue) && parsedValue > 0;
+  const isValid = Number.isFinite(parsedValue) && parsedValue >= minValue;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -80,7 +84,7 @@ export const NumberPromptDialog: React.FC<NumberPromptDialogProps> = ({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!isValid} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-            Confirm
+            {confirmLabel ?? "Confirm"}
           </Button>
         </DialogFooter>
       </DialogContent>

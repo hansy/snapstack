@@ -11,6 +11,8 @@ type CountPromptOptions = {
   message: string;
   onSubmit: (count: number) => void;
   initialValue?: number;
+  minValue?: number;
+  confirmLabel?: string;
 };
 
 export const isTypingTarget = (target: EventTarget | null) => {

@@ -12,6 +12,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
   className,
   isRight,
   onEditUsername,
+  onContextMenu,
   canEditLife,
   canEditCommanderDamage,
   showCommanderDamageDrawer,
@@ -71,7 +72,10 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
             <div className="w-8 h-8" />
           )}
 
-          <div className="text-4xl font-bold font-mono text-center leading-none">
+          <div
+            className="text-4xl font-bold font-mono text-center leading-none select-none"
+            onContextMenu={canEditLife ? onContextMenu : undefined}
+          >
             {player.life}
           </div>
 

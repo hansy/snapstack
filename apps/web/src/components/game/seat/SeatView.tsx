@@ -33,6 +33,7 @@ interface SeatViewProps {
   onViewZone?: (zoneId: ZoneId, count?: number) => void;
   onDrawCard?: (playerId: string) => void;
   onOpponentLibraryReveals?: (zoneId: ZoneId) => void;
+  onLifeContextMenu?: (e: React.MouseEvent, player: Player) => void;
 }
 
 export const SeatView: React.FC<SeatViewProps> = ({
@@ -54,6 +55,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
   battlefieldScale = 1,
   onOpponentLibraryReveals,
   model,
+  onLifeContextMenu,
 }) => {
   const { isTop, isRight, inverseScalePercent, opponentLibraryRevealCount } = model;
   const { hand, library, graveyard, exile, battlefield, commander } = model.zones;
@@ -109,6 +111,11 @@ export const SeatView: React.FC<SeatViewProps> = ({
               opponentColors={opponentColors}
               isRight={isRight}
               onEditUsername={isMe ? onEditUsername : undefined}
+              onContextMenu={
+                isMe && onLifeContextMenu
+                  ? (e) => onLifeContextMenu(e, player)
+                  : undefined
+              }
             />
           </div>
 

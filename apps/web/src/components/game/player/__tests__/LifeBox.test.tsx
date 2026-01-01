@@ -43,4 +43,27 @@ describe("LifeBox", () => {
     expect(updatePlayer).toHaveBeenCalledTimes(1);
     expect(updatePlayer).toHaveBeenCalledWith("me", { life: 41 });
   });
+
+  it("invokes context menu handler when right clicking life total", () => {
+    const onContextMenu = vi.fn();
+
+    render(
+      <LifeBox
+        player={{
+          id: "me",
+          name: "Me",
+          life: 25,
+          counters: [],
+          commanderDamage: {},
+          commanderTax: 0,
+        } as any}
+        isMe
+        opponentColors={{ me: "rose" }}
+        onContextMenu={onContextMenu}
+      />
+    );
+
+    fireEvent.contextMenu(screen.getByText("25"));
+    expect(onContextMenu).toHaveBeenCalledTimes(1);
+  });
 });
