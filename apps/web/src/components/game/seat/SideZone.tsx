@@ -71,7 +71,7 @@ export const SideZone: React.FC<SideZoneProps> = ({
               card={card}
               faceDown={faceDown}
               className={cn(
-                "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 scale-90 pointer-events-none origin-center",
+                "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 scale-90 origin-center",
                 cardClassName
               )}
             />

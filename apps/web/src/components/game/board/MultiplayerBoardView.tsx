@@ -10,6 +10,7 @@ import { ZONE } from "@/constants/zones";
 import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from "@/lib/constants";
 import { CardView } from "../card/CardView";
 import { CardPreviewProvider } from "../card/CardPreviewProvider";
+import { shouldRenderFaceDown } from "@/lib/reveal";
 import { Seat } from "../seat/Seat";
 import { ContextMenu } from "../context-menu/ContextMenu";
 import { AddCounterModal } from "../add-counter/AddCounterModal";
@@ -293,7 +294,14 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                             card={card}
                             isDragging
                             preferArtCrop={overlayPreferArtCrop}
-                            faceDown={card.faceDown}
+                            faceDown={
+                              shouldRenderFaceDown(
+                                card,
+                                zones[card.zoneId]?.type,
+                                myPlayerId,
+                                viewerRole
+                              )
+                            }
                           />
                         </div>
                       ))}
@@ -316,6 +324,12 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                       ? (battlefieldViewScale[overlayZone.ownerId] ?? 1)
                       : 1;
                   const targetScale = overCardScale || viewScale;
+                  const overlayFaceDown = shouldRenderFaceDown(
+                    overlayCard,
+                    overlayZone?.type,
+                    myPlayerId,
+                    viewerRole
+                  );
                   return (
                     <div
                       style={{
@@ -327,7 +341,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                         card={overlayCard}
                         isDragging
                         preferArtCrop={overlayPreferArtCrop}
-                        faceDown={overlayCard.faceDown}
+                        faceDown={overlayFaceDown}
                       />
                     </div>
                   );
