@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { useGameStore } from "@/store/gameStore";
 import { useSelectionStore } from "@/store/selectionStore";
-import type { Card, ViewerRole, ZoneId } from "@/types";
+import type { Card, Player, ViewerRole, ZoneId } from "@/types";
 import { actionRegistry } from "@/models/game/context-menu/actionsRegistry";
 import { fetchScryfallCardByUri } from "@/services/scryfall/scryfallCard";
 import { getCard as getCachedCard } from "@/services/scryfall/scryfallCache";
@@ -146,11 +146,44 @@ export const useGameContextMenu = (
         [isSpectator, myPlayerId, onRollDice, openContextMenu, seatHasDeckLoaded]
     );
 
+    const handleLifeContextMenu = React.useCallback(
+        (e: React.MouseEvent, player: Player) => {
+            if (isSpectator) return;
+            if (player.id !== myPlayerId) return;
+
+            openContextMenu(e, [
+                {
+                    type: "action",
+                    label: "Set life total",
+                    onSelect: () => {
+                        openCountPrompt({
+                            title: "Set life total",
+                            message: "Enter the new life total.",
+                            initialValue: player.life,
+                            minValue: 0,
+                            confirmLabel: "Set life",
+                            onSubmit: (value) => {
+                                const nextLife = Number.isFinite(value)
+                                    ? Math.max(0, Math.floor(value))
+                                    : 0;
+                                useGameStore
+                                    .getState()
+                                    .updatePlayer(player.id, { life: nextLife }, myPlayerId);
+                            },
+                        });
+                    },
+                },
+            ]);
+        },
+        [isSpectator, myPlayerId, openContextMenu, openCountPrompt]
+    );
+
     return {
         contextMenu,
         handleCardContextMenu,
         handleZoneContextMenu,
         handleBattlefieldContextMenu,
+        handleLifeContextMenu,
         closeContextMenu,
         countPrompt,
         openCountPrompt,

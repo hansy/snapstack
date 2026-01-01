@@ -65,6 +65,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   handleCardContextMenu,
   handleZoneContextMenu,
   handleBattlefieldContextMenu,
+  handleLifeContextMenu,
   handleOpenDiceRoller,
   closeContextMenu,
   countPrompt,
@@ -164,6 +165,9 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                     onOpponentLibraryReveals={(zoneId) =>
                       setRevealedLibraryZoneId(zoneId)
                     }
+                    onLifeContextMenu={(e) =>
+                      handleLifeContextMenu?.(e, slot.player)
+                    }
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
@@ -190,6 +194,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
           onSubmit={(value) => countPrompt?.onSubmit(value)}
           onClose={closeCountPrompt}
           initialValue={countPrompt?.initialValue ?? 1}
+          minValue={countPrompt?.minValue}
+          confirmLabel={countPrompt?.confirmLabel}
         />
         <TextPromptDialog
           open={Boolean(textPrompt)}
