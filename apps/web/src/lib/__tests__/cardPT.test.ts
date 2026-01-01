@@ -53,9 +53,9 @@ describe("getNextCardStatUpdate", () => {
     expect(getNextCardStatUpdate(card, "power", 2)).toEqual({ power: "3" });
   });
 
-  it("returns null when the value is not numeric", () => {
+  it("treats * stats as zero so they can be incremented", () => {
     const card = makeCard({ power: "*" });
-    expect(getNextCardStatUpdate(card, "power", 1)).toBeNull();
+    expect(getNextCardStatUpdate(card, "power", 1)).toEqual({ power: "1" });
   });
 });
 

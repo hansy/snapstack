@@ -10,6 +10,7 @@ import { ZONE } from "@/constants/zones";
 import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from "@/lib/constants";
 import { CardView } from "../card/CardView";
 import { CardPreviewProvider } from "../card/CardPreviewProvider";
+import { shouldRenderFaceDown } from "@/lib/reveal";
 import { Seat } from "../seat/Seat";
 import { ContextMenu } from "../context-menu/ContextMenu";
 import { AddCounterModal } from "../add-counter/AddCounterModal";
@@ -65,6 +66,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   handleCardContextMenu,
   handleZoneContextMenu,
   handleBattlefieldContextMenu,
+  handleLifeContextMenu,
   handleOpenDiceRoller,
   closeContextMenu,
   countPrompt,
@@ -166,6 +168,9 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                       setRevealedLibraryZoneId(zoneId)
                     }
                     zoomControlsDisabled={zoomControlsBlocked}
+                    onLifeContextMenu={(e) =>
+                      handleLifeContextMenu?.(e, slot.player)
+                    }
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
@@ -192,6 +197,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
           onSubmit={(value) => countPrompt?.onSubmit(value)}
           onClose={closeCountPrompt}
           initialValue={countPrompt?.initialValue ?? 1}
+          minValue={countPrompt?.minValue}
+          confirmLabel={countPrompt?.confirmLabel}
         />
         <TextPromptDialog
           open={Boolean(textPrompt)}
@@ -220,7 +227,9 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
         <AddCounterModal
           isOpen={activeModal?.type === "ADD_COUNTER"}
           onClose={() => setActiveModal(null)}
-          cardIds={activeModal?.type === "ADD_COUNTER" ? activeModal.cardIds : []}
+          cardIds={
+            activeModal?.type === "ADD_COUNTER" ? activeModal.cardIds : []
+          }
         />
         <ZoneViewerModal
           isOpen={zoneViewerState.isOpen}
@@ -265,14 +274,21 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                 const offset = 10;
                 const overlayCards = groupDragCardIds
                   .map((id) => cards[id])
-                  .filter((card): card is (typeof cards)[string] => Boolean(card))
+                  .filter((card): card is (typeof cards)[string] =>
+                    Boolean(card)
+                  )
                   .slice(0, 4);
                 if (overlayCards.length === 0) return null;
-                const extraCount = Math.max(0, groupDragCardIds.length - overlayCards.length);
+                const extraCount = Math.max(
+                  0,
+                  groupDragCardIds.length - overlayCards.length
+                );
                 const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
                 const baseHeight = BASE_CARD_HEIGHT;
-                const stackWidth = baseWidth + offset * Math.max(0, overlayCards.length - 1);
-                const stackHeight = baseHeight + offset * Math.max(0, overlayCards.length - 1);
+                const stackWidth =
+                  baseWidth + offset * Math.max(0, overlayCards.length - 1);
+                const stackHeight =
+                  baseHeight + offset * Math.max(0, overlayCards.length - 1);
 
                 return (
                   <div
@@ -285,20 +301,36 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                       className="relative"
                       style={{ width: stackWidth, height: stackHeight }}
                     >
-                      {overlayCards.map((card, index) => (
-                        <div
-                          key={card.id}
-                          className="absolute"
-                          style={{ left: index * offset, top: index * offset }}
-                        >
-                          <CardView
-                            card={card}
-                            isDragging
-                            preferArtCrop={overlayPreferArtCrop}
-                            faceDown={card.faceDown}
-                          />
-                        </div>
-                      ))}
+                      {overlayCards.map((card, index) => {
+                        const overlayZoneType = zones[card.zoneId]?.type;
+                        const faceDown =
+                          overlayZoneType === ZONE.LIBRARY
+                            ? true
+                            : shouldRenderFaceDown(
+                                card,
+                                overlayZoneType,
+                                myPlayerId,
+                                viewerRole
+                              );
+
+                        return (
+                          <div
+                            key={card.id}
+                            className="absolute"
+                            style={{
+                              left: index * offset,
+                              top: index * offset,
+                            }}
+                          >
+                            <CardView
+                              card={card}
+                              isDragging
+                              preferArtCrop={overlayPreferArtCrop}
+                              faceDown={faceDown}
+                            />
+                          </div>
+                        );
+                      })}
                       {extraCount > 0 && (
                         <div className="absolute -bottom-2 -right-2 rounded-full bg-zinc-900/80 text-zinc-100 text-xs px-1.5 py-0.5 border border-zinc-700">
                           +{extraCount}
@@ -318,6 +350,15 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                       ? (battlefieldViewScale[overlayZone.ownerId] ?? 1)
                       : 1;
                   const targetScale = overCardScale || viewScale;
+                  const overlayFaceDown =
+                    overlayZone?.type === ZONE.LIBRARY
+                      ? true
+                      : shouldRenderFaceDown(
+                          overlayCard,
+                          overlayZone?.type,
+                          myPlayerId,
+                          viewerRole
+                        );
                   return (
                     <div
                       style={{
@@ -329,7 +370,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                         card={overlayCard}
                         isDragging
                         preferArtCrop={overlayPreferArtCrop}
-                        faceDown={overlayCard.faceDown}
+                        faceDown={overlayFaceDown}
                       />
                     </div>
                   );

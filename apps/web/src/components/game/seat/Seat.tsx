@@ -1,9 +1,18 @@
-import React from 'react';
+import React from "react";
 
-import type { Card as CardType, Player, ViewerRole, Zone as ZoneType, ZoneId } from '@/types';
+import type {
+  Card as CardType,
+  Player,
+  ViewerRole,
+  Zone as ZoneType,
+  ZoneId,
+} from "@/types";
 
-import { createSeatModel, type SeatPosition } from '@/models/game/seat/seatModel';
-import { SeatView } from './SeatView';
+import {
+  createSeatModel,
+  type SeatPosition,
+} from "@/models/game/seat/seatModel";
+import { SeatView } from "./SeatView";
 
 export interface SeatProps {
   player: Player;
@@ -27,6 +36,7 @@ export interface SeatProps {
   battlefieldScale?: number;
   onOpponentLibraryReveals?: (zoneId: ZoneId) => void;
   zoomControlsDisabled?: boolean;
+  onLifeContextMenu?: (e: React.MouseEvent, player: Player) => void;
 }
 
 const SeatInner: React.FC<SeatProps> = ({
@@ -51,6 +61,7 @@ const SeatInner: React.FC<SeatProps> = ({
   battlefieldScale = 1,
   onOpponentLibraryReveals,
   zoomControlsDisabled,
+  onLifeContextMenu,
 }) => {
   const model = React.useMemo(
     () =>
@@ -86,6 +97,7 @@ const SeatInner: React.FC<SeatProps> = ({
       onDrawCard={onDrawCard}
       battlefieldScale={battlefieldScale}
       onOpponentLibraryReveals={onOpponentLibraryReveals}
+      onLifeContextMenu={onLifeContextMenu}
       model={model}
       zoomControlsDisabled={zoomControlsDisabled}
     />

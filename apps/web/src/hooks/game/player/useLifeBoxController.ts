@@ -19,6 +19,7 @@ export type LifeBoxControllerInput = {
   opponentColors: Record<string, string>;
   isRight?: boolean;
   onEditUsername?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 };
 
 export const useLifeBoxController = ({
@@ -28,6 +29,7 @@ export const useLifeBoxController = ({
   opponentColors,
   isRight,
   onEditUsername,
+  onContextMenu,
 }: LifeBoxControllerInput) => {
   const updatePlayer = useGameStore((state) => state.updatePlayer);
 
@@ -68,6 +70,7 @@ export const useLifeBoxController = ({
     className,
     isRight,
     onEditUsername,
+    onContextMenu,
     canEditLife,
     canEditCommanderDamage,
     showCommanderDamageDrawer,

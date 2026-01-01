@@ -36,13 +36,15 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
   onCardContextMenu,
   listRef,
 }) => {
+  const renderCards = React.useMemo(() => [...orderedCards].reverse(), [orderedCards]);
+
   return (
     <div
       ref={listRef}
       className="flex h-full items-center overflow-x-auto px-4 pb-4 pr-[220px]"
       style={{ pointerEvents: interactionsDisabled ? "none" : "auto" }}
     >
-      {orderedCards.map((card, index) => {
+      {renderCards.map((card, index) => {
         const isPinned = pinnedCardId === card.id;
         const isDragging = draggingId === card.id;
         return (
@@ -53,7 +55,12 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
             onDragEnter={(e) => {
               if (!canReorder || !draggingId) return;
               e.preventDefault();
-              setOrderedCardIds((ids) => reorderList(ids, draggingId, card.id));
+              setOrderedCardIds((ids) => {
+                const source = ids.length ? ids : displayCards.map((c) => c.id);
+                const rendered = [...source].reverse();
+                const reordered = reorderList(rendered, draggingId, card.id);
+                return reordered.reverse();
+              });
             }}
             onDragOver={canReorder ? (e) => e.preventDefault() : undefined}
             onDragEnd={() => {
@@ -71,12 +78,12 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
               isPinned && "scale-110 w-[200px]"
             )}
             style={{
-              zIndex: isPinned ? 200 : index,
+              zIndex: isPinned ? 200 : renderCards.length - index,
               opacity: isDragging ? 0.5 : 1,
             }}
           >
             <div className="absolute left-0 top-1/2 -translate-y-1/2 mt-4 h-[calc(100%-2rem)] max-h-[280px] w-auto aspect-[2.5/3.5]">
-              {index === orderedCards.length - 1 && (
+              {index === 0 && (
                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-[101]">
                   Top card
                 </div>
