@@ -33,6 +33,7 @@ interface SeatViewProps {
   onViewZone?: (zoneId: ZoneId, count?: number) => void;
   onDrawCard?: (playerId: string) => void;
   onOpponentLibraryReveals?: (zoneId: ZoneId) => void;
+  zoomControlsDisabled?: boolean;
 }
 
 export const SeatView: React.FC<SeatViewProps> = ({
@@ -54,6 +55,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
   battlefieldScale = 1,
   onOpponentLibraryReveals,
   model,
+  zoomControlsDisabled,
 }) => {
   const { isTop, isRight, inverseScalePercent, opponentLibraryRevealCount } = model;
   const { hand, library, graveyard, exile, battlefield, commander } = model.zones;
@@ -212,11 +214,11 @@ export const SeatView: React.FC<SeatViewProps> = ({
           )}
         >
           {battlefield && (
-              <Battlefield
-                zone={battlefield}
-                cards={battlefieldCards}
-                player={player}
-                isTop={isTop}
+            <Battlefield
+              zone={battlefield}
+              cards={battlefieldCards}
+              player={player}
+              isTop={isTop}
                 isMe={isMe}
                 viewerPlayerId={viewerPlayerId}
                 viewerRole={viewerRole}
@@ -227,6 +229,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
               onContextMenu={isMe ? onBattlefieldContextMenu : undefined}
               showContextMenuCursor={Boolean(player.deckLoaded && isMe)}
               playerColors={{ [player.id]: color, ...opponentColors }}
+              disableZoomControls={zoomControlsDisabled}
             />
           )}
 

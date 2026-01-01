@@ -62,7 +62,6 @@ describe("CardPreview", () => {
       activeCardId: null,
       isGroupDragging: false,
       overCardScale: 1,
-      zoomEdge: null,
     });
   });
 

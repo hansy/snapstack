@@ -26,6 +26,7 @@ export interface SeatProps {
   onDrawCard?: (playerId: string) => void;
   battlefieldScale?: number;
   onOpponentLibraryReveals?: (zoneId: ZoneId) => void;
+  zoomControlsDisabled?: boolean;
 }
 
 const SeatInner: React.FC<SeatProps> = ({
@@ -49,6 +50,7 @@ const SeatInner: React.FC<SeatProps> = ({
   onDrawCard,
   battlefieldScale = 1,
   onOpponentLibraryReveals,
+  zoomControlsDisabled,
 }) => {
   const model = React.useMemo(
     () =>
@@ -85,6 +87,7 @@ const SeatInner: React.FC<SeatProps> = ({
       battlefieldScale={battlefieldScale}
       onOpponentLibraryReveals={onOpponentLibraryReveals}
       model={model}
+      zoomControlsDisabled={zoomControlsDisabled}
     />
   );
 };

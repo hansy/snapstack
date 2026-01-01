@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeBattlefieldPlacement, detectBattlefieldZoomEdge } from '../dndBattlefield';
+import { computeBattlefieldPlacement } from '../dndBattlefield';
 
 describe('dndBattlefield', () => {
   describe('computeBattlefieldPlacement', () => {
@@ -75,41 +75,4 @@ describe('dndBattlefield', () => {
     });
   });
 
-  describe('detectBattlefieldZoomEdge', () => {
-    it('detects top/bottom/left/right edges in order', () => {
-      const overRect = { top: 0, bottom: 400, left: 0, right: 600 };
-
-      expect(
-        detectBattlefieldZoomEdge(
-          { top: 10, bottom: 110, left: 100, right: 200 },
-          overRect,
-          30
-        )
-      ).toBe('top');
-
-      expect(
-        detectBattlefieldZoomEdge(
-          { top: 100, bottom: 395, left: 100, right: 200 },
-          overRect,
-          30
-        )
-      ).toBe('bottom');
-
-      expect(
-        detectBattlefieldZoomEdge(
-          { top: 100, bottom: 200, left: 10, right: 110 },
-          overRect,
-          30
-        )
-      ).toBe('left');
-
-      expect(
-        detectBattlefieldZoomEdge(
-          { top: 100, bottom: 200, left: 100, right: 595 },
-          overRect,
-          30
-        )
-      ).toBe('right');
-    });
-  });
 });

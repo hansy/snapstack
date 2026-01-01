@@ -11,12 +11,12 @@ import {
   resolveOrderedPlayerIds,
 } from "@/lib/playerColors";
 import { emitLog } from "@/logging/logStore";
-import { useBattlefieldEdgeZoom } from "./useBattlefieldEdgeZoom";
 import { useBoardScale } from "./useBoardScale";
 import { useGameContextMenu } from "../context-menu/useGameContextMenu";
 import { useGameDnD } from "../dnd/useGameDnD";
 import { useSelectionSync } from "../selection/useSelectionSync";
 import { useGameShortcuts } from "../shortcuts/useGameShortcuts";
+import { areShortcutsBlockedByUi } from "../shortcuts/model";
 import { useMultiplayerSync } from "../multiplayer-sync/useMultiplayerSync";
 import { usePlayerLayout, type LayoutMode } from "../player/usePlayerLayout";
 import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
@@ -180,6 +180,18 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     setRoomLockedByHost(!roomLockedByHost);
   }, [isHost, roomIsFull, roomLockedByHost, setRoomLockedByHost]);
 
+  const zoomControlsBlocked = areShortcutsBlockedByUi({
+    contextMenuOpen: Boolean(contextMenu),
+    countPromptOpen: Boolean(countPrompt),
+    textPromptOpen: Boolean(textPrompt),
+    activeModalOpen: Boolean(activeModal),
+    tokenModalOpen: isTokenModalOpen,
+    diceRollerOpen: isDiceRollerOpen,
+    loadDeckModalOpen: isLoadDeckModalOpen,
+    zoneViewerOpen: zoneViewerState.isOpen,
+    opponentRevealsOpen: Boolean(revealedLibraryZoneId),
+  });
+
   useGameShortcuts({
     viewerRole,
     myPlayerId,
@@ -224,7 +236,6 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   }, [players, playerOrder]);
 
   const scale = useBoardScale(layoutMode);
-  useBattlefieldEdgeZoom(myPlayerId);
   useSelectionSync(myPlayerId);
 
   const groupDragCardIds = React.useMemo(() => {
@@ -298,6 +309,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     setIsLogOpen,
     isShortcutsOpen,
     setIsShortcutsOpen,
+    zoomControlsBlocked,
     isEditUsernameOpen,
     setIsEditUsernameOpen,
     zoneViewerState,

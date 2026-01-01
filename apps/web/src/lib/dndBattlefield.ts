@@ -7,8 +7,6 @@ import {
 } from './positions';
 import { clampToZoneBounds } from './dndMath';
 
-export type ZoomEdge = 'top' | 'bottom' | 'left' | 'right' | null;
-
 export type RectLike = Pick<
   DOMRect,
   'left' | 'top' | 'right' | 'bottom' | 'width' | 'height'
@@ -19,18 +17,6 @@ export const getEffectiveCardSize = (params: { viewScale: number; isTapped: bool
   const cardWidth = (params.isTapped ? BASE_CARD_HEIGHT : baseWidth) * params.viewScale;
   const cardHeight = (params.isTapped ? baseWidth : BASE_CARD_HEIGHT) * params.viewScale;
   return { cardWidth, cardHeight };
-};
-
-export const detectBattlefieldZoomEdge = (
-  activeRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right'>,
-  overRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right'>,
-  thresholdPx: number = 30
-): ZoomEdge => {
-  if (activeRect.top < overRect.top + thresholdPx) return 'top';
-  if (activeRect.bottom > overRect.bottom - thresholdPx) return 'bottom';
-  if (activeRect.left < overRect.left + thresholdPx) return 'left';
-  if (activeRect.right > overRect.right - thresholdPx) return 'right';
-  return null;
 };
 
 export const computeBattlefieldPlacement = (params: {

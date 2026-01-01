@@ -81,6 +81,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   setIsLogOpen,
   isShortcutsOpen,
   setIsShortcutsOpen,
+  zoomControlsBlocked,
   isEditUsernameOpen,
   setIsEditUsernameOpen,
   zoneViewerState,
@@ -164,6 +165,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                     onOpponentLibraryReveals={(zoneId) =>
                       setRevealedLibraryZoneId(zoneId)
                     }
+                    zoomControlsDisabled={zoomControlsBlocked}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
