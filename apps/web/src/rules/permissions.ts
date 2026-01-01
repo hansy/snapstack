@@ -2,7 +2,7 @@ import { ZONE } from '@/constants/zones';
 import { ZoneType, isTokenCard, Player } from '@/types';
 import { ActorContext, MoveContext, PermissionResult, ViewResult } from './types';
 
-const HIDDEN_ZONES = new Set<ZoneType>([ZONE.LIBRARY, ZONE.HAND]);
+const HIDDEN_ZONES = new Set<ZoneType>([ZONE.LIBRARY, ZONE.HAND, ZONE.SIDEBOARD]);
 
 const isHiddenZone = (zoneType: ZoneType) => HIDDEN_ZONES.has(zoneType);
 const isSpectator = (ctx: ActorContext) => ctx.role === "spectator";

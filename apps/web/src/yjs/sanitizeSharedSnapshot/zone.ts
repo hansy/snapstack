@@ -7,7 +7,15 @@ export const sanitizeZone = (value: any): Zone | null => {
   const rawType = typeof value.type === "string" ? value.type : null;
   const type = rawType === "command" ? "commander" : rawType;
   if (!type) return null;
-  if (!["library", "hand", "battlefield", "graveyard", "exile", "commander"].includes(type)) {
+  if (![
+    "library",
+    "hand",
+    "battlefield",
+    "graveyard",
+    "exile",
+    "commander",
+    "sideboard",
+  ].includes(type)) {
     return null;
   }
   const ids: string[] = Array.isArray(value.cardIds)

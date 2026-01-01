@@ -5,13 +5,15 @@ export const getRequestedCounts = (parsedDeck: ParsedCard[]) => {
     total: 0,
     commander: 0,
     library: 0,
+    sideboard: 0,
   };
 
   parsedDeck.forEach((card) => {
     const qty = typeof card.quantity === "number" ? Math.max(0, card.quantity) : 0;
     counts.total += qty;
     if (card.section === "commander") counts.commander += qty;
-    else counts.library += qty; // main + sideboard both end up in the library zone today
+    else if (card.section === "sideboard") counts.sideboard += qty;
+    else counts.library += qty;
   });
 
   return counts;

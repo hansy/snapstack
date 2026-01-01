@@ -9,7 +9,7 @@ export interface ParsedCard {
 }
 
 export interface FetchScryfallResult {
-  cards: (Partial<Card> & { section: string })[];
+  cards: (Partial<Card> & { section: ParsedCard["section"] })[];
   missing: ParsedCard[];
   warnings: string[];
 }

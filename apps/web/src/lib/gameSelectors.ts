@@ -29,6 +29,7 @@ export const getPlayerZones = (
     graveyard: getZoneByType(zones, ownerId, ZONE.GRAVEYARD),
     exile: getZoneByType(zones, ownerId, ZONE.EXILE),
     commander: getZoneByType(zones, ownerId, ZONE.COMMANDER),
+    sideboard: getZoneByType(zones, ownerId, ZONE.SIDEBOARD),
 });
 
 // Returns ordered card objects for a zone, filtering out any missing references.

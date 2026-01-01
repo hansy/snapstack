@@ -21,13 +21,15 @@ export const isMultiplayerProviderReady = (params: {
 export const resolveDeckZoneIds = (params: {
   zones: Record<ZoneId, Zone>;
   playerId: PlayerId;
-}): { libraryZoneId: ZoneId; commanderZoneId: ZoneId } => {
+}): { libraryZoneId: ZoneId; commanderZoneId: ZoneId; sideboardZoneId: ZoneId } => {
   const libraryZone = getZoneByType(params.zones, params.playerId, ZONE.LIBRARY);
   const commanderZone = getZoneByType(params.zones, params.playerId, ZONE.COMMANDER);
+  const sideboardZone = getZoneByType(params.zones, params.playerId, ZONE.SIDEBOARD);
 
   return {
     libraryZoneId: (libraryZone?.id ?? `${params.playerId}-${ZONE.LIBRARY}`) as ZoneId,
     commanderZoneId: (commanderZone?.id ?? `${params.playerId}-${ZONE.COMMANDER}`) as ZoneId,
+    sideboardZoneId: (sideboardZone?.id ?? `${params.playerId}-${ZONE.SIDEBOARD}`) as ZoneId,
   };
 };
 
@@ -41,11 +43,15 @@ export const chunkArray = <T,>(items: T[], chunkSize: number): T[][] => {
   return chunks;
 };
 
-export type DeckImportCardData = Partial<Card> & { section: string };
+export type DeckImportCardData = Partial<Card> & {
+  deckSection?: "main" | "commander" | "sideboard";
+  section?: string;
+};
 
 export type DeckImportCardPlan = {
   cardData: DeckImportCardData;
   zoneId: ZoneId;
+  zoneType: Zone["type"];
 };
 
 export const planDeckImport = async (params: {
@@ -77,16 +83,25 @@ export const planDeckImport = async (params: {
     throw new Error(validation.error);
   }
 
-  const { libraryZoneId, commanderZoneId } = resolveDeckZoneIds({
+  const { libraryZoneId, commanderZoneId, sideboardZoneId } = resolveDeckZoneIds({
     zones: params.zones,
     playerId: params.playerId,
   });
 
   const planned: DeckImportCardPlan[] = fetchResult.cards.map((cardData) => {
-    const zoneId = cardData.section === "commander" ? commanderZoneId : libraryZoneId;
+    const zoneId =
+      cardData.section === "commander"
+        ? commanderZoneId
+        : cardData.section === "sideboard"
+          ? sideboardZoneId
+          : libraryZoneId;
+    const zoneType =
+      zoneId === commanderZoneId ? ZONE.COMMANDER : zoneId === sideboardZoneId ? ZONE.SIDEBOARD : ZONE.LIBRARY;
     const withFaceDown =
-      zoneId === libraryZoneId ? ({ ...cardData, faceDown: true } as DeckImportCardData) : cardData;
-    return { cardData: withFaceDown, zoneId };
+      zoneId === libraryZoneId
+        ? ({ ...cardData, faceDown: true, deckSection: cardData.section } as DeckImportCardData)
+        : ({ ...cardData, deckSection: cardData.section } as DeckImportCardData);
+    return { cardData: withFaceDown, zoneId, zoneType };
   });
 
   const chunks = chunkArray(planned, params.chunkSize ?? 20);

@@ -6,6 +6,8 @@ export const createCardFromImport = (
   ownerId: PlayerId,
   zoneId: ZoneId
 ): Card => {
+  const deckSection = (cardData as { deckSection?: Card["deckSection"]; section?: string }).deckSection ??
+    (cardData as { section?: string }).section;
   return {
     id: uuidv4(),
     ownerId,
@@ -22,6 +24,7 @@ export const createCardFromImport = (
     counters: [],
     position: { x: 0, y: 0 },
     ...cardData,
+    deckSection: deckSection as Card["deckSection"],
     currentFaceIndex: cardData.currentFaceIndex ?? 0,
   };
 };

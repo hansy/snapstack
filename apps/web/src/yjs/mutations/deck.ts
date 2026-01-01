@@ -17,7 +17,8 @@ export function resetDeck(maps: SharedMaps, playerId: string) {
   );
   if (!libraryZone) return;
 
-  const isCommanderZoneType = (type: unknown) => type === ZONE.COMMANDER || type === "command";
+  const isCommanderZoneType = (type: unknown) =>
+    type === ZONE.COMMANDER || type === "command" || type === ZONE.SIDEBOARD;
 
   const libraryKeeps = (snapshot.zones[libraryZone.id]?.cardIds ?? []).filter((id) => {
     const card = snapshot.cards[id];

@@ -176,7 +176,7 @@ export const fetchScryfallCards = async (
   const chunks = chunkArray(identifiers, 75);
   const requestChunks = chunkArray(mergedRequests, 75);
 
-  const fetchedCards: (Partial<Card> & { section: string })[] = [];
+  const fetchedCards: (Partial<Card> & { section: ParsedCard["section"] })[] = [];
   const missingMap = new Map<string, ParsedCard>();
   const warnings: string[] = [];
   const cardsToCache: ScryfallCard[] = [];

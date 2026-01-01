@@ -71,7 +71,11 @@ export const createResetDeck =
           const fromZone = nextZones[card.zoneId];
           if (fromZone && fromZone.ownerId === playerId) {
             const fromType: string = fromZone.type;
-            if (fromType === ZONE.COMMANDER || fromType === "command") {
+            if (
+              fromType === ZONE.COMMANDER ||
+              fromType === "command" ||
+              fromType === ZONE.SIDEBOARD
+            ) {
               return;
             }
           }

@@ -33,6 +33,7 @@ export const useLoadDeckController = ({
   const wasOpenRef = React.useRef(false);
 
   const addCard = useGameStore((state) => state.addCard);
+  const addZone = useGameStore((state) => state.addZone);
   const setDeckLoaded = useGameStore((state) => state.setDeckLoaded);
   const shuffleLibrary = useGameStore((state) => state.shuffleLibrary);
   const zones = useGameStore((state) => state.zones);
@@ -98,6 +99,23 @@ export const useLoadDeckController = ({
       if (planned.warnings.length) {
         toast.warning("Imported with warnings", {
           description: planned.warnings.join("\n"),
+        });
+      }
+
+      const missingZones = new Map<string, (typeof planned.chunks)[number][number]["zoneType"]>();
+      planned.chunks.forEach((chunk) => {
+        chunk.forEach(({ zoneId, zoneType }) => {
+          if (!zones[zoneId] && !missingZones.has(zoneId)) {
+            missingZones.set(zoneId, zoneType);
+          }
+        });
+      });
+
+      if (missingZones.size) {
+        batchSharedMutations(() => {
+          missingZones.forEach((zoneType, zoneId) => {
+            addZone({ id: zoneId, ownerId: playerId, type: zoneType, cardIds: [] });
+          });
         });
       }
 

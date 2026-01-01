@@ -142,6 +142,25 @@ describe('parseDeckList', () => {
             { quantity: 1, name: 'Dispel', set: '', collectorNumber: '', section: 'sideboard' },
         ]);
     });
+
+    it('treats the first blank line as a sideboard separator', () => {
+        const text = `
+        1 Rampant Growth (DSC) 193
+        1 Rishkar's Expertise (PW25) 1
+
+        1 Ancient Bronze Dragon (CLB) 214
+        1 Balefire Dragon (CMM) 207
+        `;
+
+        const parsed = parseDeckList(text);
+
+        expect(parsed).toEqual([
+            { quantity: 1, name: 'Rampant Growth', set: 'dsc', collectorNumber: '193', section: 'main' },
+            { quantity: 1, name: "Rishkar's Expertise", set: 'pw25', collectorNumber: '1', section: 'main' },
+            { quantity: 1, name: 'Ancient Bronze Dragon', set: 'clb', collectorNumber: '214', section: 'sideboard' },
+            { quantity: 1, name: 'Balefire Dragon', set: 'cmm', collectorNumber: '207', section: 'sideboard' },
+        ]);
+    });
 });
 
 describe('validateDeckListLimits', () => {

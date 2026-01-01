@@ -32,6 +32,7 @@ export interface Card extends CardIdentity {
   ownerId: PlayerId;
   controllerId: PlayerId;
   zoneId: ZoneId;
+  deckSection?: "main" | "sideboard" | "commander";
 
   // State
   tapped: boolean;
@@ -67,7 +68,14 @@ export type TokenCard = Card & { isToken: true };
 
 export const isTokenCard = (card: Card): card is TokenCard => card.isToken === true;
 
-export type ZoneType = 'library' | 'hand' | 'battlefield' | 'graveyard' | 'exile' | 'commander';
+export type ZoneType =
+  | 'library'
+  | 'hand'
+  | 'battlefield'
+  | 'graveyard'
+  | 'exile'
+  | 'commander'
+  | 'sideboard';
 
 export interface Zone {
   id: ZoneId;

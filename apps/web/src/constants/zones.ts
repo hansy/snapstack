@@ -7,6 +7,7 @@ export const ZONE = {
   GRAVEYARD: 'graveyard',
   EXILE: 'exile',
   COMMANDER: 'commander',
+  SIDEBOARD: 'sideboard',
 } as const satisfies Record<string, ZoneType>;
 
 export const ZONE_LABEL: Record<ZoneType, string> = {
@@ -16,4 +17,5 @@ export const ZONE_LABEL: Record<ZoneType, string> = {
   graveyard: 'Graveyard',
   exile: 'Exile',
   commander: 'Commander',
+  sideboard: 'Sideboard',
 };

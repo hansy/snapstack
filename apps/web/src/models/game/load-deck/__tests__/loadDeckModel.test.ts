@@ -23,16 +23,19 @@ describe("loadDeckModel", () => {
     expect(resolveDeckZoneIds({ zones: {}, playerId: "p1" })).toEqual({
       libraryZoneId: "p1-library",
       commanderZoneId: "p1-commander",
+      sideboardZoneId: "p1-sideboard",
     });
 
     const zones: Record<string, Zone> = {
       lib: { id: "lib", type: ZONE.LIBRARY, ownerId: "p1", cardIds: [] },
       cmd: { id: "cmd", type: ZONE.COMMANDER, ownerId: "p1", cardIds: [] },
+      sb: { id: "sb", type: ZONE.SIDEBOARD, ownerId: "p1", cardIds: [] },
     };
 
     expect(resolveDeckZoneIds({ zones, playerId: "p1" })).toEqual({
       libraryZoneId: "lib",
       commanderZoneId: "cmd",
+      sideboardZoneId: "sb",
     });
   });
 
@@ -40,12 +43,14 @@ describe("loadDeckModel", () => {
     const parsed: ParsedCard[] = [
       { quantity: 1, name: "A", set: "set", collectorNumber: "1", section: "main" },
       { quantity: 1, name: "B", set: "set", collectorNumber: "2", section: "commander" },
+      { quantity: 1, name: "C", set: "set", collectorNumber: "3", section: "sideboard" },
     ];
 
     const fetchResult: FetchScryfallResult = {
       cards: [
         { name: "A", section: "main" },
         { name: "B", section: "commander" },
+        { name: "C", section: "sideboard" },
       ],
       missing: [],
       warnings: [],
@@ -54,6 +59,7 @@ describe("loadDeckModel", () => {
     const zones: Record<string, Zone> = {
       lib: { id: "lib", type: ZONE.LIBRARY, ownerId: "p1", cardIds: [] },
       cmd: { id: "cmd", type: ZONE.COMMANDER, ownerId: "p1", cardIds: [] },
+      sb: { id: "sb", type: ZONE.SIDEBOARD, ownerId: "p1", cardIds: [] },
     };
 
     const result = await planDeckImport({
@@ -68,13 +74,17 @@ describe("loadDeckModel", () => {
     });
 
     expect(result.warnings).toEqual(["warn"]);
-    expect(result.chunks).toHaveLength(2);
+    expect(result.chunks).toHaveLength(3);
 
     expect(result.chunks[0]?.[0]?.zoneId).toBe("lib");
     expect(result.chunks[0]?.[0]?.cardData.faceDown).toBe(true);
 
     expect(result.chunks[1]?.[0]?.zoneId).toBe("cmd");
     expect(result.chunks[1]?.[0]?.cardData.faceDown).not.toBe(true);
+
+    expect(result.chunks[2]?.[0]?.zoneId).toBe("sb");
+    expect(result.chunks[2]?.[0]?.cardData.faceDown).not.toBe(true);
+    expect(result.chunks[2]?.[0]?.cardData.deckSection).toBe("sideboard");
   });
 
   it("planDeckImport errors on empty parsed list", async () => {

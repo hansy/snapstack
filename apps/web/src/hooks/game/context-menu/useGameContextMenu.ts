@@ -9,6 +9,7 @@ import { actionRegistry } from "@/models/game/context-menu/actionsRegistry";
 import { fetchScryfallCardByUri } from "@/services/scryfall/scryfallCard";
 import { getCard as getCachedCard } from "@/services/scryfall/scryfallCache";
 import { getDisplayName } from "@/lib/cardDisplay";
+import { getPlayerZones } from "@/lib/gameSelectors";
 import { ZONE } from "@/constants/zones";
 import { getShortcutLabel } from "@/models/game/shortcuts/gameShortcuts";
 import type { ContextMenuItem } from "@/models/game/context-menu/menu/types";
@@ -122,20 +123,28 @@ export const useGameContextMenu = (
             if (isSpectator) return;
             if (!seatHasDeckLoaded(myPlayerId)) return;
             const onDiceRoll = actions.onOpenDiceRoller ?? onRollDice;
+            const playerZones = getPlayerZones(useGameStore.getState().zones, myPlayerId);
 
             const items: ContextMenuItem[] = [];
             if (onDiceRoll) {
-                items.push({
-                    type: "action",
-                    label: "Roll Dice",
-                    onSelect: onDiceRoll,
-                    shortcut: getShortcutLabel("ui.openDiceRoller"),
-                });
+              items.push({
+                type: "action",
+                label: "Roll Dice",
+                onSelect: onDiceRoll,
+                shortcut: getShortcutLabel("ui.openDiceRoller"),
+              });
+            }
+            if (playerZones.sideboard && onViewZone) {
+              items.push({
+                type: "action",
+                label: "View Sideboard",
+                onSelect: () => onViewZone(playerZones.sideboard!.id),
+              });
             }
             items.push({
-                type: "action",
-                label: "Create Token",
-                onSelect: actions.onCreateToken,
+              type: "action",
+              label: "Create Token",
+              onSelect: actions.onCreateToken,
                 shortcut: getShortcutLabel("ui.openTokenModal"),
             });
 
