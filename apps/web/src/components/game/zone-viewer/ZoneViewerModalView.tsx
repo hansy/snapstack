@@ -48,7 +48,7 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
             />
           </div>
 
-          <div className="flex-1 overflow-x-auto overflow-y-hidden pl-6 py-6 pr-[220px] bg-zinc-950/50">
+          <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 py-6 bg-zinc-950/50">
             {displayCards.length === 0 ? (
               <div className="h-full flex items-center justify-center text-zinc-500">
                 No cards found matching your filter.
