@@ -140,6 +140,8 @@ export type GameShortcutActions = {
   mulligan: (count: number) => void;
   unloadDeck: () => void;
   untapAll: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
 };
 
 export const runGameShortcut = (params: {
@@ -174,6 +176,12 @@ export const runGameShortcut = (params: {
       return true;
     case "game.untapAll":
       params.actions.untapAll();
+      return true;
+    case "game.zoomIn":
+      params.actions.zoomIn();
+      return true;
+    case "game.zoomOut":
+      params.actions.zoomOut();
       return true;
     case "game.drawOne":
       params.actions.drawOne();

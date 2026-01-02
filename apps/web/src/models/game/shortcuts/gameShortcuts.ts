@@ -10,6 +10,8 @@ export type GameShortcutId =
   | "game.discardOne"
   | "game.discardX"
   | "game.shuffleLibrary"
+  | "game.zoomIn"
+  | "game.zoomOut"
   | "zone.viewGraveyard"
   | "zone.viewExile"
   | "zone.viewLibraryAll"
@@ -113,6 +115,20 @@ export const GAME_SHORTCUTS: GameShortcutDefinition[] = [
     binding: { key: "s", shift: true },
     title: "Shuffle",
     description: "Shuffles your library.",
+    requiresDeckLoaded: true,
+  },
+  {
+    id: "game.zoomIn",
+    binding: { key: "+" },
+    title: "Zoom In",
+    description: "Zooms in on the battlefield.",
+    requiresDeckLoaded: true,
+  },
+  {
+    id: "game.zoomOut",
+    binding: { key: "-" },
+    title: "Zoom Out",
+    description: "Zooms out from the battlefield.",
     requiresDeckLoaded: true,
   },
   {

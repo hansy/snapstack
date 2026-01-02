@@ -39,6 +39,7 @@ export const buildZoneMoveActions = (
   const graveyard = playerZones.graveyard;
   const exile = playerZones.exile;
   const library = playerZones.library;
+  const sideboard = playerZones.sideboard;
 
   const items: ContextMenuItem[] = [];
 
@@ -84,6 +85,9 @@ export const buildZoneMoveActions = (
     addIfAllowed(hand, `Move to ${ZONE_LABEL.hand}`, () =>
       moveCard(card.id, hand!.id)
     );
+    addIfAllowed(sideboard, `Move to ${ZONE_LABEL.sideboard}`, () =>
+      moveCard(card.id, sideboard!.id)
+    );
     if (battlefield) {
       addIfAllowed(
         battlefield,
@@ -106,6 +110,9 @@ export const buildZoneMoveActions = (
     addIfAllowed(battlefield, `Move to ${ZONE_LABEL.battlefield}`, () =>
       moveCard(card.id, battlefield!.id)
     );
+    addIfAllowed(library, `Move to ${ZONE_LABEL.library}`, () =>
+      moveCard(card.id, library!.id)
+    );
     if (library && moveCardToBottom) {
       addIfAllowed(library, `Move to bottom of ${ZONE_LABEL.library}`, () =>
         moveCardToBottom(card.id, library.id)
@@ -126,6 +133,9 @@ export const buildZoneMoveActions = (
     addIfAllowed(battlefield, `Move to ${ZONE_LABEL.battlefield}`, () =>
       moveCard(card.id, battlefield!.id)
     );
+    addIfAllowed(library, `Move to ${ZONE_LABEL.library}`, () =>
+      moveCard(card.id, library!.id)
+    );
     if (library) {
       addIfAllowed(library, `Move to top of ${ZONE_LABEL.library}`, () =>
         moveCard(card.id, library.id)
@@ -136,6 +146,10 @@ export const buildZoneMoveActions = (
         moveCardToBottom(card.id, library.id)
       );
     }
+  } else if (currentZone.type === ZONE.SIDEBOARD) {
+    addIfAllowed(library, `Move to ${ZONE_LABEL.library}`, () =>
+      moveCard(card.id, library!.id)
+    );
   }
 
   return items;
