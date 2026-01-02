@@ -4,18 +4,12 @@ export const parseDeckList = (text: string): ParsedCard[] => {
   const lines = text.split("\n");
   const cards: ParsedCard[] = [];
   let currentSection: "main" | "commander" | "sideboard" = "main";
-  let blankLineSwitchedToSideboard = false;
-  let hasSeenMainCard = false;
 
   lines.forEach((line) => {
     const trimmedLine = line.trim();
     const lowerLine = trimmedLine.toLowerCase();
 
     if (trimmedLine === "") {
-      if (!blankLineSwitchedToSideboard && currentSection === "main" && hasSeenMainCard) {
-        currentSection = "sideboard";
-        blankLineSwitchedToSideboard = true;
-      }
       return;
     }
 
@@ -60,7 +54,6 @@ export const parseDeckList = (text: string): ParsedCard[] => {
         section: currentSection,
       } as ParsedCard;
       cards.push(card);
-      if (card.section === "main") hasSeenMainCard = true;
       return;
     }
 
@@ -76,7 +69,6 @@ export const parseDeckList = (text: string): ParsedCard[] => {
         section: currentSection,
       } as ParsedCard;
       cards.push(card);
-      if (card.section === "main") hasSeenMainCard = true;
       return;
     }
 
@@ -90,7 +82,6 @@ export const parseDeckList = (text: string): ParsedCard[] => {
         section: currentSection,
       } as ParsedCard;
       cards.push(card);
-      if (card.section === "main") hasSeenMainCard = true;
     }
   });
 

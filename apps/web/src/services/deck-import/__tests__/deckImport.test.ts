@@ -143,11 +143,12 @@ describe('parseDeckList', () => {
         ]);
     });
 
-    it('treats the first blank line as a sideboard separator', () => {
+    it('requires an explicit sideboard header instead of a blank line', () => {
         const text = `
         1 Rampant Growth (DSC) 193
         1 Rishkar's Expertise (PW25) 1
 
+        Sideboard:
         1 Ancient Bronze Dragon (CLB) 214
         1 Balefire Dragon (CMM) 207
         `;
@@ -159,6 +160,23 @@ describe('parseDeckList', () => {
             { quantity: 1, name: "Rishkar's Expertise", set: 'pw25', collectorNumber: '1', section: 'main' },
             { quantity: 1, name: 'Ancient Bronze Dragon', set: 'clb', collectorNumber: '214', section: 'sideboard' },
             { quantity: 1, name: 'Balefire Dragon', set: 'cmm', collectorNumber: '207', section: 'sideboard' },
+        ]);
+    });
+
+    it('keeps cards in the main section when only separated by blank lines', () => {
+        const text = `
+        1 Vibrant Cityscape
+        1 Winding Way
+
+        1 Six
+        `;
+
+        const parsed = parseDeckList(text);
+
+        expect(parsed).toEqual([
+            { quantity: 1, name: 'Vibrant Cityscape', set: '', collectorNumber: '', section: 'main' },
+            { quantity: 1, name: 'Winding Way', set: '', collectorNumber: '', section: 'main' },
+            { quantity: 1, name: 'Six', set: '', collectorNumber: '', section: 'main' },
         ]);
     });
 });
