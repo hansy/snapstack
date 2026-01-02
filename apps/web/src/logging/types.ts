@@ -5,6 +5,7 @@ export type LogEventId =
   | 'player.commanderTax'
   | 'dice.roll'
   | 'card.draw'
+  | 'card.discard'
   | 'library.shuffle'
   | 'deck.reset'
   | 'deck.unload'

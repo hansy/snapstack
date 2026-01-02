@@ -7,6 +7,8 @@ export type GameShortcutId =
   | "game.untapAll"
   | "game.drawOne"
   | "game.drawX"
+  | "game.discardOne"
+  | "game.discardX"
   | "game.shuffleLibrary"
   | "zone.viewGraveyard"
   | "zone.viewExile"
@@ -90,6 +92,20 @@ export const GAME_SHORTCUTS: GameShortcutDefinition[] = [
     binding: { key: "d", shift: true },
     title: "Draw X",
     description: "Prompts for a number (default 1) and draws that many cards.",
+    requiresDeckLoaded: true,
+  },
+  {
+    id: "game.discardOne",
+    binding: { key: "i" },
+    title: "Discard 1",
+    description: "Discards the top card of your library.",
+    requiresDeckLoaded: true,
+  },
+  {
+    id: "game.discardX",
+    binding: { key: "i", shift: true },
+    title: "Discard X",
+    description: "Prompts for a number (default 1) and discards that many cards from your library.",
     requiresDeckLoaded: true,
   },
   {

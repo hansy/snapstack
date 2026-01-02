@@ -12,6 +12,7 @@ interface ZoneActionBuilderParams {
   viewerRole?: ViewerRole;
   onViewZone?: (zoneId: ZoneId, count?: number) => void;
   drawCard: (playerId: PlayerId) => void;
+  discardFromLibrary: (playerId: PlayerId, count?: number) => void;
   shuffleLibrary: (playerId: PlayerId) => void;
   resetDeck: (playerId: PlayerId) => void;
   mulligan: (playerId: PlayerId, count: number) => void;
@@ -70,6 +71,47 @@ const buildLibraryDrawMenu = ({
   };
 };
 
+const buildLibraryDiscardMenu = ({
+  myPlayerId,
+  discardFromLibrary,
+  openCountPrompt,
+}: {
+  myPlayerId: PlayerId;
+  discardFromLibrary: (playerId: PlayerId, count?: number) => void;
+  openCountPrompt?: ZoneActionBuilderParams["openCountPrompt"];
+}): ContextMenuItem => {
+  const submenu: ContextMenuItem[] = [
+    {
+      type: "action",
+      label: "Discard 1",
+      onSelect: () => discardFromLibrary(myPlayerId, 1),
+      shortcut: getShortcutLabel("game.discardOne"),
+    },
+    {
+      type: "action",
+      label: "Discard X...",
+      onSelect: () => {
+        if (!openCountPrompt) return;
+        openCountPrompt({
+          title: "Discard",
+          message: "How many cards to discard?",
+          onSubmit: (count) => discardFromLibrary(myPlayerId, count),
+          minValue: 1,
+        });
+      },
+      disabledReason: openCountPrompt ? undefined : "Prompt unavailable",
+      shortcut: getShortcutLabel("game.discardX"),
+    },
+  ];
+
+  return {
+    type: "action",
+    label: "Discard ...",
+    onSelect: () => {},
+    submenu,
+  };
+};
+
 const buildLibraryViewMenu = ({
   zoneId,
   onViewZone,
@@ -116,6 +158,7 @@ export const buildZoneViewActions = ({
   viewerRole,
   onViewZone,
   drawCard,
+  discardFromLibrary,
   shuffleLibrary,
   resetDeck,
   mulligan,
@@ -134,6 +177,9 @@ export const buildZoneViewActions = ({
     if (zone.ownerId !== myPlayerId) return items;
 
     items.push(buildLibraryDrawMenu({ myPlayerId, drawCard, openCountPrompt }));
+    items.push(
+      buildLibraryDiscardMenu({ myPlayerId, discardFromLibrary, openCountPrompt })
+    );
 
     if (onViewZone) {
       items.push(buildLibraryViewMenu({ zoneId: zone.id, onViewZone, openCountPrompt }));

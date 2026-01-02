@@ -10,6 +10,7 @@ const EVENT_IDS = [
   "player.commanderTax",
   "dice.roll",
   "card.draw",
+  "card.discard",
   "library.shuffle",
   "deck.reset",
   "deck.unload",

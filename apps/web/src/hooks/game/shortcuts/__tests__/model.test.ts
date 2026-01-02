@@ -77,6 +77,7 @@ describe("gameShortcuts/model", () => {
   it("runs deck reset only when confirmed", () => {
     const actions = {
       drawOne: vi.fn(),
+      discard: vi.fn(),
       shuffle: vi.fn(),
       resetDeck: vi.fn(),
       mulligan: vi.fn(),
@@ -127,6 +128,7 @@ describe("gameShortcuts/model", () => {
       handleLeave: vi.fn(),
       actions: {
         drawOne: vi.fn(),
+        discard: vi.fn(),
         shuffle: vi.fn(),
         resetDeck: vi.fn(),
         mulligan: vi.fn(),

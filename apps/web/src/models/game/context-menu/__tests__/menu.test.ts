@@ -181,6 +181,7 @@ describe("buildZoneViewActions", () => {
       myPlayerId: "owner",
       viewerRole: "player",
       drawCard: vi.fn(),
+      discardFromLibrary: vi.fn(),
       shuffleLibrary: vi.fn(),
       resetDeck: vi.fn(),
       mulligan: vi.fn(),
@@ -196,6 +197,16 @@ describe("buildZoneViewActions", () => {
         i.type === "action" && i.label.includes("Draw X")
     );
     expect(drawX?.disabledReason).toBeTruthy();
+
+    const discardMenu = items.find(
+      (i): i is Extract<typeof i, { type: "action" }> =>
+        i.type === "action" && i.label.includes("Discard ...")
+    );
+    const discardX = discardMenu?.submenu?.find(
+      (i): i is Extract<typeof i, { type: "action" }> =>
+        i.type === "action" && i.label.includes("Discard X")
+    );
+    expect(discardX?.disabledReason).toBeTruthy();
   });
 
   it("enables count prompts when handler provided", () => {
@@ -206,6 +217,7 @@ describe("buildZoneViewActions", () => {
       myPlayerId: "owner",
       viewerRole: "player",
       drawCard: vi.fn(),
+      discardFromLibrary: vi.fn(),
       shuffleLibrary: vi.fn(),
       resetDeck: vi.fn(),
       mulligan: vi.fn(),
@@ -222,6 +234,16 @@ describe("buildZoneViewActions", () => {
         i.type === "action" && i.label.includes("Draw X")
     );
     expect(drawX?.disabledReason).toBeUndefined();
+
+    const discardMenu = items.find(
+      (i): i is Extract<typeof i, { type: "action" }> =>
+        i.type === "action" && i.label.includes("Discard ...")
+    );
+    const discardX = discardMenu?.submenu?.find(
+      (i): i is Extract<typeof i, { type: "action" }> =>
+        i.type === "action" && i.label.includes("Discard X")
+    );
+    expect(discardX?.disabledReason).toBeUndefined();
   });
 });
 

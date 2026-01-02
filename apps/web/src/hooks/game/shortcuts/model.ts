@@ -134,6 +134,7 @@ export const areShortcutsBlockedByUi = (args: {
 
 export type GameShortcutActions = {
   drawOne: () => void;
+  discard: (count?: number) => void;
   shuffle: () => void;
   resetDeck: () => void;
   mulligan: (count: number) => void;
@@ -185,6 +186,18 @@ export const runGameShortcut = (params: {
         onSubmit: (count) => {
           for (let i = 0; i < count; i++) params.actions.drawOne();
         },
+      });
+      return true;
+    case "game.discardOne":
+      params.actions.discard(1);
+      return true;
+    case "game.discardX":
+      params.openCountPrompt({
+        title: "Discard X",
+        message: "How many cards to discard?",
+        initialValue: 1,
+        minValue: 1,
+        onSubmit: (count) => params.actions.discard(count),
       });
       return true;
     case "game.shuffleLibrary":
