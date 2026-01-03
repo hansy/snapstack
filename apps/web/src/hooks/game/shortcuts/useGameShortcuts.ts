@@ -166,6 +166,16 @@ export const useGameShortcuts = (args: UseGameShortcutsArgs) => {
         useGameStore.getState().mulligan(myPlayerId, count, myPlayerId);
       const unloadDeck = () => useGameStore.getState().unloadDeck(myPlayerId, myPlayerId);
       const untapAll = () => useGameStore.getState().untapAll(myPlayerId);
+      const adjustBattlefieldZoom = (direction: "in" | "out") => {
+        const currentScale =
+          useGameStore.getState().battlefieldViewScale[myPlayerId] ?? 1;
+        const delta = 0.05;
+        const nextScale =
+          direction === "in" ? currentScale + delta : currentScale - delta;
+        useGameStore.getState().setBattlefieldViewScale(myPlayerId, nextScale);
+      };
+      const zoomIn = () => adjustBattlefieldZoom("in");
+      const zoomOut = () => adjustBattlefieldZoom("out");
 
       if (!isDeckLoadedForShortcut(shortcut, players, myPlayerId)) return;
 
@@ -183,7 +193,17 @@ export const useGameShortcuts = (args: UseGameShortcutsArgs) => {
         openCountPrompt,
         handleViewZone,
         handleLeave,
-        actions: { drawOne, discard, shuffle, resetDeck, mulligan, unloadDeck, untapAll },
+        actions: {
+          drawOne,
+          discard,
+          shuffle,
+          resetDeck,
+          mulligan,
+          unloadDeck,
+          untapAll,
+          zoomIn,
+          zoomOut,
+        },
       });
       if (handled) consume();
       return;
