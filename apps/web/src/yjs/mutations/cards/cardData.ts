@@ -50,6 +50,10 @@ export const writeCard = (maps: SharedMaps, card: Card) => {
   const scryfallId = clampString(card.scryfallId, MAX_SCRYFALL_ID_LENGTH);
   const scryfall = normalizeScryfallLiteForSync(card.scryfall);
   const customText = clampString(card.customText, MAX_CUSTOM_TEXT_LENGTH);
+  const commanderTax =
+    typeof card.commanderTax === "number" && Number.isFinite(card.commanderTax)
+      ? Math.max(0, Math.min(99, Math.floor(card.commanderTax)))
+      : 0;
 
   target.set("id", card.id);
   target.set("ownerId", card.ownerId);
@@ -77,6 +81,8 @@ export const writeCard = (maps: SharedMaps, card: Card) => {
   target.set("scryfallId", scryfallId);
   target.set("scryfall", scryfall);
   target.set("isToken", card.isToken);
+  target.set("isCommander", card.isCommander === true);
+  target.set("commanderTax", commanderTax);
   target.set("power", clampString(card.power, 16));
   target.set("toughness", clampString(card.toughness, 16));
   target.set("basePower", clampString(card.basePower, 16));
@@ -101,6 +107,12 @@ export const readCard = (maps: SharedMaps, cardId: string): Card | null => {
         ? migratePositionToNormalized(rawPosition)
         : clampNormalizedPosition(rawPosition)
       : { x: 0.5, y: 0.5 };
+  const rawCommanderTax = getVal("commanderTax");
+  const commanderTax =
+    typeof rawCommanderTax === "number" && Number.isFinite(rawCommanderTax)
+      ? Math.max(0, Math.min(99, Math.floor(rawCommanderTax)))
+      : 0;
+
   return {
     id: cardId,
     ownerId: getVal("ownerId"),
@@ -122,6 +134,8 @@ export const readCard = (maps: SharedMaps, cardId: string): Card | null => {
     scryfallId: getVal("scryfallId"),
     scryfall: getVal("scryfall"),
     isToken: getVal("isToken"),
+    isCommander: getVal("isCommander") === true,
+    commanderTax,
     power: getVal("power"),
     toughness: getVal("toughness"),
     basePower: getVal("basePower"),
@@ -143,6 +157,8 @@ export type CardPatch = Partial<
     | "currentFaceIndex"
     | "position"
     | "counters"
+    | "isCommander"
+    | "commanderTax"
     | "power"
     | "toughness"
     | "basePower"
@@ -177,4 +193,3 @@ export const setIfChanged = (target: Y.Map<any>, key: string, value: unknown) =>
   }
   target.set(key, value);
 };
-

@@ -55,7 +55,7 @@ export const createMulligan =
       }) ?? [];
 
     const ownedCount = Object.values(state.cards).filter((card) => {
-      if (card.ownerId !== playerId || card.isToken) return false;
+      if (card.ownerId !== playerId || card.isToken || card.isCommander) return false;
       const fromZone = state.zones[card.zoneId];
       return !(
         fromZone &&
@@ -95,10 +95,16 @@ export const createMulligan =
       set((current) => {
         const currentLibrary = getZoneByType(current.zones, playerId, ZONE.LIBRARY);
         const currentHand = getZoneByType(current.zones, playerId, ZONE.HAND);
+        const currentCommander = getZoneByType(current.zones, playerId, ZONE.COMMANDER);
         if (!currentLibrary || !currentHand) return {};
 
         const nextCards = { ...current.cards };
         const nextZones = { ...current.zones };
+        const commanderOwned =
+          currentCommander?.cardIds.filter((id) => nextCards[id]?.ownerId === playerId) ?? [];
+        const commanderKeeps =
+          currentCommander?.cardIds.filter((id) => nextCards[id]?.ownerId !== playerId) ?? [];
+        const toCommander: string[] = [];
 
         const localKeeps =
           nextZones[currentLibrary.id]?.cardIds.filter((id) => {
@@ -122,13 +128,11 @@ export const createMulligan =
         );
         ownedCards.forEach((card) => {
           const fromZone = nextZones[card.zoneId];
-          if (
+          const inCommanderZone =
             fromZone &&
             fromZone.ownerId === playerId &&
-            isCommanderZoneType(fromZone.type)
-          ) {
-            return;
-          }
+            isCommanderZoneType(fromZone.type);
+          if (inCommanderZone) return;
           if (fromZone) {
             nextZones[card.zoneId] = {
               ...fromZone,
@@ -138,6 +142,27 @@ export const createMulligan =
 
           if (card.isToken === true) {
             Reflect.deleteProperty(nextCards, card.id);
+            return;
+          }
+
+          if (card.isCommander && currentCommander) {
+            const resetCard = resetCardToFrontFace(card);
+            nextCards[card.id] = {
+              ...resetCard,
+              zoneId: currentCommander.id,
+              tapped: false,
+              faceDown: false,
+              controllerId: card.ownerId,
+              knownToAll: true,
+              revealedToAll: false,
+              revealedTo: [],
+              position: { x: 0, y: 0 },
+              rotation: 0,
+              customText: undefined,
+              counters: enforceZoneCounterRules(resetCard.counters, currentCommander),
+              isCommander: true,
+            };
+            toCommander.push(card.id);
             return;
           }
 
@@ -170,6 +195,12 @@ export const createMulligan =
           ...nextZones[currentLibrary.id],
           cardIds: remainingLibrary,
         };
+        if (currentCommander) {
+          nextZones[currentCommander.id] = {
+            ...nextZones[currentCommander.id],
+            cardIds: [...commanderKeeps, ...commanderOwned, ...toCommander],
+          };
+        }
 
         if (drawIds.length > 0) {
           const nextHandIds = [...(nextZones[currentHand.id]?.cardIds ?? [])];

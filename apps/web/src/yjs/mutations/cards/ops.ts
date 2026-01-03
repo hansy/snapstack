@@ -109,10 +109,11 @@ export function duplicateCard(maps: SharedMaps, cardId: string, newId: string) {
     ...existing,
     id: newId,
     isToken: true,
+    isCommander: false,
+    commanderTax: 0,
     position,
     counters: existing.counters.map((c) => ({ ...c })),
   };
   writeCard(maps, cloned);
   ensureZoneOrder(maps, zone.id, zone.cardIds).push([newId]);
 }
-

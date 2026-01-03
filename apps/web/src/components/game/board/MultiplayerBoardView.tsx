@@ -133,16 +133,18 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
           />
 
           <div className={`w-full h-full grid ${gridClass} pl-12`}>
-            {slots.map((slot, index) => (
-              <div key={index} className="relative border-zinc-800/50">
-                {slot.player ? (
+            {slots.map((slot, index) => {
+              const seatPlayer = slot.player;
+              return (
+                <div key={index} className="relative border-zinc-800/50">
+                  {seatPlayer ? (
                   <Seat
-                    player={slot.player}
+                    player={seatPlayer}
                     position={slot.position}
                     color={slot.color}
                     zones={zones}
                     cards={cards}
-                    isMe={slot.player.id === myPlayerId}
+                    isMe={seatPlayer.id === myPlayerId}
                     viewerPlayerId={myPlayerId}
                     viewerRole={viewerRole}
                     onCardContextMenu={handleCardContextMenu}
@@ -155,13 +157,13 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                     }
                     onLoadDeck={() => setIsLoadDeckModalOpen(true)}
                     onEditUsername={
-                      slot.player.id === myPlayerId
+                      seatPlayer.id === myPlayerId
                         ? () => setIsEditUsernameOpen(true)
                         : undefined
                     }
                     opponentColors={playerColors}
                     scale={scale}
-                    battlefieldScale={battlefieldViewScale[slot.player.id] ?? 1}
+                    battlefieldScale={battlefieldViewScale[seatPlayer.id] ?? 1}
                     onViewZone={handleViewZone}
                     onDrawCard={handleDrawCard}
                     onOpponentLibraryReveals={(zoneId) =>
@@ -169,7 +171,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                     }
                     zoomControlsDisabled={zoomControlsBlocked}
                     onLifeContextMenu={(e) =>
-                      handleLifeContextMenu?.(e, slot.player)
+                      handleLifeContextMenu?.(e, seatPlayer)
                     }
                   />
                 ) : (
@@ -178,7 +180,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
         {contextMenu && (

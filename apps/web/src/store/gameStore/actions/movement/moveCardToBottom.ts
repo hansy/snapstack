@@ -1,6 +1,6 @@
 import type { GameState } from "@/types";
 
-import { ZONE } from "@/constants/zones";
+import { ZONE, isCommanderZoneType } from "@/constants/zones";
 import { canMoveCard } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
 import { emitLog } from "@/logging/logStore";
@@ -13,6 +13,7 @@ import {
   reorderZoneCards as yReorderZoneCards,
   sharedSnapshot,
 } from "@/yjs/yMutations";
+import { syncCommanderDecklistForPlayer } from "@/store/gameStore/actions/deck/commanderDecklist";
 import {
   computeRevealPatchAfterMove,
   resolveControllerAfterMove,
@@ -69,6 +70,12 @@ export const createMoveCardToBottom =
       details: { cardId, fromZoneId, toZoneId },
     });
 
+    const isCommanderDestination = isCommanderZoneType(toZone.type);
+    const shouldMarkCommander =
+      isCommanderDestination && card.ownerId === toZone.ownerId && !card.isCommander && !card.isToken;
+    const shouldSyncCommander =
+      shouldMarkCommander && actor === get().myPlayerId && card.ownerId === actor;
+
     const bothBattlefields =
       fromZone.type === ZONE.BATTLEFIELD && toZone.type === ZONE.BATTLEFIELD;
     const sameBattlefield = bothBattlefields && fromZoneId === toZoneId;
@@ -113,6 +120,10 @@ export const createMoveCardToBottom =
 
       yMoveCard(maps, cardId, toZoneId);
 
+      if (shouldMarkCommander) {
+        yPatchCard(maps, cardId, { isCommander: true });
+      }
+
       if (controlWillChange) {
         yPatchCard(maps, cardId, { controllerId: nextControllerId });
       }
@@ -154,6 +165,7 @@ export const createMoveCardToBottom =
       const nextTapped = toZone.type === ZONE.BATTLEFIELD ? card.tapped : false;
       const nextCounters = enforceZoneCounterRules(card.counters, toZone);
       const resetToFront = resetCardToFrontFace(card);
+      const nextCommanderFlag = shouldMarkCommander ? true : card.isCommander;
 
       const nextCard = leavingBattlefield ? resetToFront : card;
       cardsCopy[cardId] = {
@@ -164,6 +176,7 @@ export const createMoveCardToBottom =
         faceDown: faceDownResolution.effectiveFaceDown,
         controllerId: controlWillChange ? nextControllerId : nextCard.controllerId,
         ...(revealPatch ?? {}),
+        isCommander: nextCommanderFlag,
       };
 
       return {
@@ -177,4 +190,12 @@ export const createMoveCardToBottom =
         }),
       };
     });
+
+    if (shouldSyncCommander) {
+      syncCommanderDecklistForPlayer({
+        state: get(),
+        playerId: actor,
+        override: { cardId: card.id, isCommander: true, name: card.name, ownerId: card.ownerId },
+      });
+    }
   };

@@ -15,10 +15,14 @@ export function resetDeck(maps: SharedMaps, playerId: string) {
   const libraryZone = Object.values(snapshot.zones).find(
     (z) => z.ownerId === playerId && z.type === ZONE.LIBRARY
   );
+  const commanderZone = Object.values(snapshot.zones).find(
+    (z) => z.ownerId === playerId && z.type === ZONE.COMMANDER
+  );
   if (!libraryZone) return;
 
   const isCommanderZoneType = (type: unknown) =>
-    type === ZONE.COMMANDER || type === "command" || type === ZONE.SIDEBOARD;
+    type === ZONE.COMMANDER || type === "command";
+  const isSideboardZoneType = (type: unknown) => type === ZONE.SIDEBOARD;
 
   const libraryKeeps = (snapshot.zones[libraryZone.id]?.cardIds ?? []).filter((id) => {
     const card = snapshot.cards[id];
@@ -37,6 +41,14 @@ export function resetDeck(maps: SharedMaps, playerId: string) {
     if (fromZone && fromZone.ownerId === playerId && isCommanderZoneType(fromZone.type)) {
       return;
     }
+    if (
+      fromZone &&
+      fromZone.ownerId === playerId &&
+      isSideboardZoneType(fromZone.type) &&
+      !card.isCommander
+    ) {
+      return;
+    }
 
     if (snapshot.cards[card.id]?.isToken) {
       removeCard(maps, card.id);
@@ -46,6 +58,27 @@ export function resetDeck(maps: SharedMaps, playerId: string) {
     if (fromZone) {
       const fromOrder = ensureZoneOrder(maps, card.zoneId, fromZone.cardIds);
       removeFromOrder(fromOrder, card.id);
+    }
+
+    if (card.isCommander && commanderZone) {
+      const resetCard = resetCardToFrontFace(card);
+      const counters = enforceZoneCounterRules(resetCard.counters, commanderZone);
+      upsertCard(maps, {
+        ...resetCard,
+        zoneId: commanderZone.id,
+        tapped: false,
+        faceDown: false,
+        controllerId: card.ownerId,
+        knownToAll: true,
+        revealedToAll: false,
+        revealedTo: [],
+        position: { x: 0, y: 0 },
+        rotation: 0,
+        customText: undefined,
+        counters,
+        isCommander: true,
+      });
+      return;
     }
 
     const resetCard = resetCardToFrontFace(card);

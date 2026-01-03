@@ -112,6 +112,8 @@ describe("mulligan shortcut (shared mode)", () => {
     sync();
 
     const drawOne = () => useGameStore.getState().drawCard("me", "me");
+    const discard = (count?: number) =>
+      useGameStore.getState().discardFromLibrary("me", count, "me");
     const shuffle = () => useGameStore.getState().shuffleLibrary("me", "me");
     const resetDeck = () => useGameStore.getState().resetDeck("me", "me");
     const mulligan = (count: number) =>
@@ -133,7 +135,7 @@ describe("mulligan shortcut (shared mode)", () => {
       openCountPrompt: (opts) => opts.onSubmit(7),
       handleViewZone: vi.fn(),
       handleLeave: vi.fn(),
-      actions: { drawOne, shuffle, resetDeck, mulligan, unloadDeck, untapAll },
+      actions: { drawOne, discard, shuffle, resetDeck, mulligan, unloadDeck, untapAll },
     });
 
     sync();

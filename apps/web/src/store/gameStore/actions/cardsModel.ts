@@ -29,7 +29,14 @@ export const normalizeCardForAdd = (card: Card): Card => {
 };
 
 export const buildUpdateCardPatch = (cardBefore: Card, updates: Partial<Card>): { next: Card; patch: CardPatch } => {
+  const normalizeCommanderTax = (value: number | undefined) => {
+    if (value === undefined) return value;
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(0, Math.min(99, Math.floor(value)));
+  };
+
   const merged = { ...cardBefore, ...updates };
+  const commanderTax = normalizeCommanderTax(merged.commanderTax);
   const faces = getCardFaces(merged);
   const normalizedFaceIndex = faces.length
     ? Math.min(Math.max(merged.currentFaceIndex ?? 0, 0), faces.length - 1)
@@ -38,7 +45,7 @@ export const buildUpdateCardPatch = (cardBefore: Card, updates: Partial<Card>): 
   const faceChanged = targetFaceIndex !== cardBefore.currentFaceIndex;
 
   const next = syncCardStatsToFace(
-    { ...merged, currentFaceIndex: targetFaceIndex },
+    { ...merged, currentFaceIndex: targetFaceIndex, commanderTax },
     targetFaceIndex,
     faceChanged ? undefined : { preserveExisting: true }
   );
@@ -52,6 +59,8 @@ export const buildUpdateCardPatch = (cardBefore: Card, updates: Partial<Card>): 
   if (next.faceDown !== cardBefore.faceDown) patch.faceDown = next.faceDown;
   if (next.currentFaceIndex !== cardBefore.currentFaceIndex) patch.currentFaceIndex = next.currentFaceIndex;
   if (next.rotation !== cardBefore.rotation) patch.rotation = next.rotation;
+  if (next.isCommander !== cardBefore.isCommander) patch.isCommander = next.isCommander;
+  if (next.commanderTax !== cardBefore.commanderTax) patch.commanderTax = next.commanderTax;
 
   return { next, patch };
 };
@@ -91,6 +100,8 @@ export const buildDuplicateTokenCard = (params: {
   ...params.sourceCard,
   id: params.newCardId,
   isToken: true,
+  isCommander: false,
+  commanderTax: 0,
   position: params.position,
   counters: params.sourceCard.counters.map((counter) => ({ ...counter })),
 });

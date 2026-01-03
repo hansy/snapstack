@@ -19,3 +19,8 @@ export const ZONE_LABEL: Record<ZoneType, string> = {
   commander: 'Commander',
   sideboard: 'Sideboard',
 };
+
+const LEGACY_COMMAND_ZONE = "command" as const;
+
+export const isCommanderZoneType = (zoneType: ZoneType | typeof LEGACY_COMMAND_ZONE) =>
+  zoneType === ZONE.COMMANDER || zoneType === LEGACY_COMMAND_ZONE;

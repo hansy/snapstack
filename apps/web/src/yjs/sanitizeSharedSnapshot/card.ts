@@ -50,6 +50,8 @@ export const sanitizeCard = (value: any, zones: Record<string, Zone>): Card | nu
     scryfallId: typeof value.scryfallId === "string" ? value.scryfallId : undefined,
     scryfall: value.scryfall,
     isToken: value.isToken === true,
+    isCommander: value.isCommander === true,
+    commanderTax: clampNumber(value.commanderTax, 0, 99, 0),
     power: typeof value.power === "string" ? value.power : value.power?.toString(),
     toughness: typeof value.toughness === "string" ? value.toughness : value.toughness?.toString(),
     basePower: typeof value.basePower === "string" ? value.basePower : value.basePower?.toString(),
@@ -60,4 +62,3 @@ export const sanitizeCard = (value: any, zones: Record<string, Zone>): Card | nu
     customText: typeof value.customText === "string" ? value.customText.slice(0, 280) : undefined,
   };
 };
-

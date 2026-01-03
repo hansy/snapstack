@@ -1,7 +1,7 @@
 import type { GameState } from "@/types";
 
 import { getZoneByType } from "@/lib/gameSelectors";
-import { ZONE } from "@/constants/zones";
+import { ZONE, isCommanderZoneType } from "@/constants/zones";
 import { canViewZone } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
 import { resetCardToFrontFace } from "@/lib/cardDisplay";
@@ -21,6 +21,7 @@ export const createResetDeck =
     const role = actor === get().myPlayerId ? get().viewerRole : "player";
     const state = get();
     const libraryZone = getZoneByType(state.zones, playerId, ZONE.LIBRARY);
+    const commanderZone = getZoneByType(state.zones, playerId, ZONE.COMMANDER);
     if (!libraryZone) return;
 
     const viewPermission = canViewZone({ actorId: actor, role }, libraryZone, {
@@ -49,6 +50,11 @@ export const createResetDeck =
         const ownedCards = Object.values(current.cards).filter(
           (card) => card.ownerId === playerId
         );
+        const commanderOwned =
+          commanderZone?.cardIds.filter((id) => nextCards[id]?.ownerId === playerId) ?? [];
+        const commanderKeeps =
+          commanderZone?.cardIds.filter((id) => nextCards[id]?.ownerId !== playerId) ?? [];
+        const toCommander: string[] = [];
         const libraryKeeps =
           nextZones[libraryZone.id]?.cardIds.filter((id) => {
             const card = nextCards[id];
@@ -69,16 +75,12 @@ export const createResetDeck =
 
         ownedCards.forEach((card) => {
           const fromZone = nextZones[card.zoneId];
-          if (fromZone && fromZone.ownerId === playerId) {
-            const fromType: string = fromZone.type;
-            if (
-              fromType === ZONE.COMMANDER ||
-              fromType === "command" ||
-              fromType === ZONE.SIDEBOARD
-            ) {
-              return;
-            }
-          }
+          const inCommanderZone =
+            fromZone && fromZone.ownerId === playerId && isCommanderZoneType(fromZone.type);
+          if (inCommanderZone) return;
+          const inSideboard =
+            fromZone && fromZone.ownerId === playerId && fromZone.type === ZONE.SIDEBOARD;
+          if (inSideboard && !card.isCommander) return;
           if (fromZone) {
             nextZones[card.zoneId] = {
               ...fromZone,
@@ -88,6 +90,27 @@ export const createResetDeck =
 
           if (card.isToken === true) {
             Reflect.deleteProperty(nextCards, card.id);
+            return;
+          }
+
+          if (card.isCommander && commanderZone) {
+            const resetCard = resetCardToFrontFace(card);
+            nextCards[card.id] = {
+              ...resetCard,
+              zoneId: commanderZone.id,
+              tapped: false,
+              faceDown: false,
+              controllerId: card.ownerId,
+              knownToAll: true,
+              revealedToAll: false,
+              revealedTo: [],
+              position: { x: 0, y: 0 },
+              rotation: 0,
+              customText: undefined,
+              counters: enforceZoneCounterRules(resetCard.counters, commanderZone),
+              isCommander: true,
+            };
+            toCommander.push(card.id);
             return;
           }
 
@@ -111,6 +134,12 @@ export const createResetDeck =
 
         const shuffled = [...libraryKeeps, ...toLibrary].sort(() => Math.random() - 0.5);
         nextZones[libraryZone.id] = { ...nextZones[libraryZone.id], cardIds: shuffled };
+        if (commanderZone) {
+          nextZones[commanderZone.id] = {
+            ...nextZones[commanderZone.id],
+            cardIds: [...commanderKeeps, ...commanderOwned, ...toCommander],
+          };
+        }
 
         return { cards: nextCards, zones: nextZones };
       });

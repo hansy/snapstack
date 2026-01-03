@@ -195,6 +195,29 @@ describe('gameStore deck management', () => {
 	    expect(new Set(state.zones[library.id].cardIds)).toEqual(new Set(['c1', 'c2']));
 	  });
 
+	  it('returns commander-marked cards to the commander zone when resetting', () => {
+	    const library = buildZone('lib-me', 'LIBRARY', 'me', ['c1']);
+	    const commander = buildZone('cmd-me', 'COMMANDER', 'me', []);
+	    const battlefield = buildZone('bf-me', 'BATTLEFIELD', 'me', ['c2']);
+
+	    useGameStore.setState((state) => ({
+	      ...state,
+	      zones: { [library.id]: library, [commander.id]: commander, [battlefield.id]: battlefield },
+	      players: { me: { id: 'me', name: 'Me', life: 40, counters: [], commanderDamage: {}, commanderTax: 0, deckLoaded: true } },
+	      cards: {
+	        c1: { id: 'c1', name: 'Card1', ownerId: 'me', controllerId: 'me', zoneId: library.id, tapped: false, faceDown: false, position: { x: 0, y: 0 }, rotation: 0, counters: [] },
+	        c2: { id: 'c2', name: 'Commander', ownerId: 'me', controllerId: 'me', zoneId: battlefield.id, tapped: false, faceDown: false, position: { x: 0, y: 0 }, rotation: 0, counters: [], isCommander: true },
+	      },
+	    }));
+
+	    useGameStore.getState().resetDeck('me', 'me');
+
+	    const state = useGameStore.getState();
+	    expect(state.zones[commander.id].cardIds).toEqual(['c2']);
+	    expect(state.cards.c2.zoneId).toBe(commander.id);
+	    expect(state.zones[library.id].cardIds).toEqual(['c1']);
+	  });
+
 	  it('unloads deck by removing owned cards and marking deck as not loaded', () => {
 	    const library = buildZone('lib-me', 'LIBRARY', 'me', ['c1', 'c2']);
 	    const graveyard = buildZone('gy-me', 'GRAVEYARD', 'me', ['c3']);

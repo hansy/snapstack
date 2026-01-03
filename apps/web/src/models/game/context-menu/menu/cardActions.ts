@@ -207,6 +207,14 @@ export const buildCardActions = ({
     );
   }
 
+  if (card.isCommander && updateCard && card.ownerId === myPlayerId) {
+    items.push({
+      type: "action",
+      label: "Remove Commander status",
+      onSelect: () => updateCard(card.id, { isCommander: false }),
+    });
+  }
+
   if (card.isToken && removeCard) {
     items.push({
       type: "action",

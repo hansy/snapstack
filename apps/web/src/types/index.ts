@@ -51,6 +51,8 @@ export interface Card extends CardIdentity {
   revealedTo?: PlayerId[];
   // 0-based index into the Scryfall card_faces array. Defaults to the front face.
   currentFaceIndex?: number;
+  isCommander?: boolean;
+  commanderTax?: number;
   // Center position relative to the zone (logical/unscaled units)
   position: { x: number; y: number };
   rotation: number; // Degrees

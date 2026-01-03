@@ -6,6 +6,7 @@ import { logPermission } from "@/rules/logger";
 import { emitLog } from "@/logging/logStore";
 import { enforceZoneCounterRules } from "@/lib/counters";
 import { patchCard as yPatchCard } from "@/yjs/yMutations";
+import { syncCommanderDecklistForPlayer } from "@/store/gameStore/actions/deck/commanderDecklist";
 import { buildUpdateCardPatch } from "../cardsModel";
 import type { Deps, GetState, SetState } from "./types";
 
@@ -20,6 +21,10 @@ export const createUpdateCard =
     const role = actor === get().myPlayerId ? get().viewerRole : "player";
     if (role === "spectator") return;
     const cardBefore = get().cards[id];
+    const isCommanderUpdate = Object.prototype.hasOwnProperty.call(updates, "isCommander");
+    const isCommanderTaxUpdate = Object.prototype.hasOwnProperty.call(updates, "commanderTax");
+    const shouldSyncCommander =
+      isCommanderUpdate && cardBefore?.ownerId === actor && actor === get().myPlayerId;
 
     if (
       Object.prototype.hasOwnProperty.call(updates, "zoneId") ||
@@ -63,6 +68,27 @@ export const createUpdateCard =
     }
 
     if (cardBefore) {
+      if (isCommanderUpdate && cardBefore.ownerId !== actor) {
+        logPermission({
+          action: "updateCard",
+          actorId: actor,
+          allowed: false,
+          reason: "Only owner may update commander status",
+          details: { cardId: id, zoneId: cardBefore.zoneId, updates: ["isCommander"] },
+        });
+        return;
+      }
+      if (isCommanderTaxUpdate && cardBefore.ownerId !== actor) {
+        logPermission({
+          action: "updateCard",
+          actorId: actor,
+          allowed: false,
+          reason: "Only owner may update commander tax",
+          details: { cardId: id, zoneId: cardBefore.zoneId, updates: ["commanderTax"] },
+        });
+        return;
+      }
+
       const cardZone = get().zones[cardBefore.zoneId];
       const controlledFields: Array<keyof Card> = [
         "power",
@@ -113,22 +139,35 @@ export const createUpdateCard =
       cardBefore.faceDown === false &&
       zoneTypeBefore === ZONE.BATTLEFIELD;
 
-    if (
-      applyShared((maps) => {
-        if (!cardBefore) return;
-        const { patch } = buildUpdateCardPatch(cardBefore, updates);
-        if (shouldMarkKnownAfterFaceUp) patch.knownToAll = true;
-        if (shouldHideAfterFaceDown) {
-          patch.knownToAll = false;
-          patch.revealedToAll = false;
-          patch.revealedTo = [];
-        }
-        if (Object.keys(patch).length > 0) {
-          yPatchCard(maps, id, patch);
-        }
-      })
-    )
+    const sharedApplied = applyShared((maps) => {
+      if (!cardBefore) return;
+      const { patch } = buildUpdateCardPatch(cardBefore, updates);
+      if (shouldMarkKnownAfterFaceUp) patch.knownToAll = true;
+      if (shouldHideAfterFaceDown) {
+        patch.knownToAll = false;
+        patch.revealedToAll = false;
+        patch.revealedTo = [];
+      }
+      if (Object.keys(patch).length > 0) {
+        yPatchCard(maps, id, patch);
+      }
+    });
+
+    if (sharedApplied) {
+      if (shouldSyncCommander && cardBefore) {
+        syncCommanderDecklistForPlayer({
+          state: get(),
+          playerId: actor,
+          override: {
+            cardId: id,
+            isCommander: updates.isCommander === true,
+            name: cardBefore.name,
+            ownerId: cardBefore.ownerId,
+          },
+        });
+      }
       return;
+    }
 
     set((state) => {
       const current = state.cards[id];
@@ -165,4 +204,17 @@ export const createUpdateCard =
         },
       };
     });
+
+    if (shouldSyncCommander && cardBefore) {
+      syncCommanderDecklistForPlayer({
+        state: get(),
+        playerId: actor,
+        override: {
+          cardId: id,
+          isCommander: updates.isCommander === true,
+          name: cardBefore.name,
+          ownerId: cardBefore.ownerId,
+        },
+      });
+    }
   };

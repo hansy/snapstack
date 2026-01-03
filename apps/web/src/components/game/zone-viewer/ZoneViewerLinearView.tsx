@@ -18,7 +18,7 @@ export interface ZoneViewerLinearViewProps {
   interactionsDisabled: boolean;
   pinnedCardId?: string;
   onCardContextMenu: (e: React.MouseEvent, card: Card) => void;
-  listRef: React.RefObject<HTMLDivElement>;
+  listRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({

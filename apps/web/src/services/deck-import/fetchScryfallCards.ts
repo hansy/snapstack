@@ -67,7 +67,7 @@ const matchesParsedName = (parsed: ParsedCard, scryfallCard: ScryfallCard): bool
 const buildImportedCardPart = (
   scryfallCard: ScryfallCard,
   section: ParsedCard["section"]
-): Partial<Card> & { section: string } => {
+): Partial<Card> & { section: ParsedCard["section"] } => {
   const frontFace = scryfallCard.card_faces?.[0];
   const name = frontFace?.name || scryfallCard.name;
   const power = scryfallCard.power ?? frontFace?.power;
@@ -248,4 +248,3 @@ export const fetchScryfallCards = async (
 
   return { cards: fetchedCards, missing: Array.from(missingMap.values()), warnings };
 };
-

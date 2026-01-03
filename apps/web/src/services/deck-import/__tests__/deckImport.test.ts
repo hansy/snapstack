@@ -116,7 +116,7 @@ const sampleDecklist = `
 1 Caesar, Legion's Emperor
 `.trim();
 
-const makeCards = (count: number): (Partial<Card> & { section: string })[] =>
+const makeCards = (count: number): (Partial<Card> & { section: ParsedCard["section"] })[] =>
     Array.from({ length: count }, (_, idx) => ({
         name: `Card ${idx + 1}`,
         section: 'main',

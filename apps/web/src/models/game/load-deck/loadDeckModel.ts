@@ -97,14 +97,17 @@ export const planDeckImport = async (params: {
           : libraryZoneId;
     const zoneType =
       zoneId === commanderZoneId ? ZONE.COMMANDER : zoneId === sideboardZoneId ? ZONE.SIDEBOARD : ZONE.LIBRARY;
+    const withCommander =
+      cardData.section === "commander"
+        ? ({ ...cardData, isCommander: true, commanderTax: 0 } as DeckImportCardData)
+        : (cardData as DeckImportCardData);
     const withFaceDown =
       zoneId === libraryZoneId
-        ? ({ ...cardData, faceDown: true, deckSection: cardData.section } as DeckImportCardData)
-        : ({ ...cardData, deckSection: cardData.section } as DeckImportCardData);
+        ? ({ ...withCommander, faceDown: true, deckSection: cardData.section } as DeckImportCardData)
+        : ({ ...withCommander, deckSection: cardData.section } as DeckImportCardData);
     return { cardData: withFaceDown, zoneId, zoneType };
   });
 
   const chunks = chunkArray(planned, params.chunkSize ?? 20);
   return { chunks, warnings: validation.warnings };
 };
-

@@ -42,6 +42,17 @@ export function patchCard(maps: SharedMaps, cardId: string, updates: CardPatch) 
   if ("currentFaceIndex" in updates) {
     setIfChanged(target, "currentFaceIndex", updates.currentFaceIndex ?? 0);
   }
+  if ("isCommander" in updates) {
+    setIfChanged(target, "isCommander", updates.isCommander);
+  }
+  if ("commanderTax" in updates) {
+    const value = updates.commanderTax;
+    const next =
+      typeof value === "number" && Number.isFinite(value)
+        ? Math.max(0, Math.min(99, Math.floor(value)))
+        : 0;
+    setIfChanged(target, "commanderTax", next);
+  }
   if ("customText" in updates) {
     setIfChanged(target, "customText", clampString(updates.customText, MAX_CUSTOM_TEXT_LENGTH));
   }
@@ -71,4 +82,3 @@ export function patchCard(maps: SharedMaps, cardId: string, updates: CardPatch) 
     writeCounters(countersMap, nextCounters);
   }
 }
-

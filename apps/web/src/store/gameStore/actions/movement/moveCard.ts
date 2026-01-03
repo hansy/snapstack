@@ -1,6 +1,6 @@
 import type { GameState } from "@/types";
 
-import { ZONE } from "@/constants/zones";
+import { ZONE, isCommanderZoneType } from "@/constants/zones";
 import { canMoveCard } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
 import { emitLog } from "@/logging/logStore";
@@ -15,6 +15,7 @@ import {
   patchCard as yPatchCard,
   removeCard as yRemoveCard,
 } from "@/yjs/yMutations";
+import { syncCommanderDecklistForPlayer } from "@/store/gameStore/actions/deck/commanderDecklist";
 import {
   computeRevealPatchAfterMove,
   normalizeMovePosition,
@@ -65,6 +66,12 @@ export const createMoveCard =
       details: { cardId, fromZoneId, toZoneId },
     });
 
+    const isCommanderDestination = isCommanderZoneType(toZone.type);
+    const shouldMarkCommander =
+      isCommanderDestination && card.ownerId === toZone.ownerId && !card.isCommander && !card.isToken;
+    const shouldSyncCommander =
+      shouldMarkCommander && actor === get().myPlayerId && card.ownerId === actor;
+
     const bothBattlefields =
       fromZone.type === ZONE.BATTLEFIELD && toZone.type === ZONE.BATTLEFIELD;
     const sameBattlefield = bothBattlefields && fromZoneId === toZoneId;
@@ -111,6 +118,10 @@ export const createMoveCard =
         skipCollision: opts?.skipCollision,
         groupCollision: opts?.groupCollision,
       });
+
+      if (shouldMarkCommander) {
+        yPatchCard(maps, cardId, { isCommander: true });
+      }
 
       if (controlWillChange) {
         yPatchCard(maps, cardId, { controllerId: nextControllerId });
@@ -174,6 +185,8 @@ export const createMoveCard =
       }
       const localFaceDown = faceDownResolution.effectiveFaceDown;
 
+      const nextCommanderFlag = shouldMarkCommander ? true : card.isCommander;
+
       if (fromZoneId === toZoneId) {
         const nextCard = leavingBattlefield ? resetToFront : card;
         cardsCopy[cardId] = {
@@ -186,6 +199,7 @@ export const createMoveCard =
           controllerId: controlWillChange
             ? nextControllerId
             : nextCard.controllerId,
+          isCommander: nextCommanderFlag,
         };
         return {
           cards: cardsCopy,
@@ -210,6 +224,7 @@ export const createMoveCard =
         counters: nextCounters,
         faceDown: localFaceDown,
         controllerId: controlWillChange ? nextControllerId : nextCard.controllerId,
+        isCommander: nextCommanderFlag,
       };
 
       return {
@@ -223,4 +238,12 @@ export const createMoveCard =
         }),
       };
     });
+
+    if (shouldSyncCommander) {
+      syncCommanderDecklistForPlayer({
+        state: get(),
+        playerId: actor,
+        override: { cardId: card.id, isCommander: true, name: card.name, ownerId: card.ownerId },
+      });
+    }
   };
