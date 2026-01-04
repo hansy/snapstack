@@ -1,6 +1,5 @@
 import * as React from "react";
 
-import { isTypingTarget } from "../shortcuts/model";
 import { useGameStore } from "@/store/gameStore";
 
 export type UseBattlefieldZoomControlsArgs = {
@@ -35,31 +34,6 @@ export const useBattlefieldZoomControls = ({
     },
     [enabled, isBlocked, playerId, setBattlefieldViewScale]
   );
-
-  React.useEffect(() => {
-    if (!enabled) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.repeat) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (isTypingTarget(event.target)) return;
-      if (isBlocked) return;
-
-      const key = event.key;
-      if (key === "-" || key === "_" || key === "NumpadSubtract") {
-        adjustScale("out");
-        event.preventDefault();
-        event.stopPropagation();
-      } else if (key === "+" || key === "=" || key === "NumpadAdd") {
-        adjustScale("in");
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [adjustScale, enabled, isBlocked]);
 
   React.useEffect(() => {
     if (!enabled || !wheelTarget) return;

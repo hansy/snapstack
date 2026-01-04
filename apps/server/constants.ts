@@ -15,5 +15,15 @@ export const STORAGE_KEY_TIMESTAMP = "yjs:timestamp";
 export const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export const DEBUG_SIGNAL = true;
+export const DEFAULT_DEBUG_SIGNAL = false;
+
+export const resolveDebugSignal = (env?: { DEBUG_SIGNAL?: string }): boolean => {
+  const raw = env?.DEBUG_SIGNAL ?? process.env.DEBUG_SIGNAL;
+  if (!raw) return DEFAULT_DEBUG_SIGNAL;
+
+  const normalized = raw.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+};
+
+export const DEBUG_SIGNAL = DEFAULT_DEBUG_SIGNAL;
 

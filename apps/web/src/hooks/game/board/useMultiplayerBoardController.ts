@@ -20,7 +20,7 @@ import { areShortcutsBlockedByUi } from "../shortcuts/model";
 import { useMultiplayerSync } from "../multiplayer-sync/useMultiplayerSync";
 import { usePlayerLayout, type LayoutMode } from "../player/usePlayerLayout";
 import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
-import { MAX_ROOM_PLAYERS } from "@/lib/room";
+import { MAX_PLAYERS } from "@/lib/room";
 
 const getGridClass = (layoutMode: LayoutMode) => {
   switch (layoutMode) {
@@ -171,7 +171,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   }, [isSpectator]);
 
   const playerCount = Object.keys(players).length;
-  const roomIsFull = playerCount >= MAX_ROOM_PLAYERS;
+  const roomIsFull = playerCount >= MAX_PLAYERS;
   const roomLocked = roomLockedByHost || roomIsFull;
   const isHost = roomHostId === myPlayerId;
   const isJoinBlocked = !isSpectator && joinBlocked && !players[myPlayerId];

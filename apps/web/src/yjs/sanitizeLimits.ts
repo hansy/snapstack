@@ -3,7 +3,9 @@
 // These are intentionally conservative to keep Yjs updates bounded even if UI
 // accidentally passes large blobs.
 
-export const MAX_PLAYERS = 4;
+import { MAX_PLAYERS } from "@/lib/room";
+
+export { MAX_PLAYERS };
 export const MAX_ZONES = MAX_PLAYERS * 10; // 40 zones
 
 export const MAX_COUNTERS = 24;

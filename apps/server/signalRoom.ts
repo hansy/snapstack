@@ -8,7 +8,6 @@ import * as decoding from "lib0/decoding";
 
 import type { Env } from "./env";
 import {
-  DEBUG_SIGNAL,
   DEFAULT_PING_INTERVAL_MS,
   EMPTY_ROOM_GRACE_MS,
   MAX_MESSAGE_BYTES,
@@ -21,6 +20,7 @@ import {
   STORAGE_KEY_DOC,
   STORAGE_KEY_TIMESTAMP,
   UUID_REGEX,
+  resolveDebugSignal,
 } from "./constants";
 
 type RoomName = string;
@@ -58,6 +58,7 @@ export class SignalRoom extends DurableObject {
   emptyTimer: number | null;
   persistTimer: number | null;
   stateRestorePromise: Promise<void>;
+  debugSignalEnabled: boolean;
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
@@ -79,6 +80,7 @@ export class SignalRoom extends DurableObject {
     this.awareness = new awarenessProtocol.Awareness(this.doc);
     this.emptyTimer = null;
     this.persistTimer = null;
+    this.debugSignalEnabled = resolveDebugSignal(this.env);
     // Restore state from storage on initialization - save promise so fetch() can await it
     this.stateRestorePromise = this.restoreFromStorage();
     this.setupDocListeners();
@@ -128,7 +130,7 @@ export class SignalRoom extends DurableObject {
   }
 
   private dbg(...args: any[]) {
-    if (!DEBUG_SIGNAL) return;
+    if (!this.debugSignalEnabled) return;
     try {
       console.log("[signal]", ...args);
     } catch (_err) {}

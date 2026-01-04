@@ -5,7 +5,7 @@ import type { Player, Zone } from "@/types";
 import type { SharedMaps } from "@/yjs/yMutations";
 import { sharedSnapshot, upsertPlayer, upsertZone } from "@/yjs/yMutations";
 import { ZONE } from "@/constants/zones";
-import { MAX_ROOM_PLAYERS } from "@/lib/room";
+import { MAX_PLAYERS } from "@/lib/room";
 
 import {
   ensureLocalPlayerInitialized,
@@ -117,7 +117,7 @@ describe("ensureLocalPlayerInitialized", () => {
     expect(sharedSnapshot(maps).players.p1).toBeUndefined();
 
     maps.meta.set("locked", false);
-    for (let i = 0; i < MAX_ROOM_PLAYERS; i += 1) {
+    for (let i = 0; i < MAX_PLAYERS; i += 1) {
       upsertPlayer(maps, {
         id: `p${i}`,
         name: `P${i}`,

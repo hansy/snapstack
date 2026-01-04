@@ -1,5 +1,5 @@
 import { normalizeUsernameInput } from "@/store/clientPrefsStore";
-import { MAX_ROOM_PLAYERS } from "@/lib/room";
+import { MAX_PLAYERS } from "@/lib/room";
 import type { SharedMaps } from "@/yjs/yMutations";
 import { patchPlayer, patchRoomMeta, sharedSnapshot, upsertPlayer, upsertZone } from "@/yjs/yMutations";
 
@@ -36,8 +36,8 @@ export const ensureLocalPlayerInitialized = (params: {
 
   const playerExists = Boolean(snapshot.players[params.playerId]);
   const playerCount = Object.keys(snapshot.players).length;
-  const roomIsFull = playerCount >= MAX_ROOM_PLAYERS;
-  const roomOverCapacity = playerCount > MAX_ROOM_PLAYERS;
+  const roomIsFull = playerCount >= MAX_PLAYERS;
+  const roomOverCapacity = playerCount > MAX_PLAYERS;
   const rawMeta = snapshot.meta ?? {};
   const roomLockedByHost = rawMeta.locked === true;
   const roomIsLocked = roomLockedByHost || roomIsFull;
