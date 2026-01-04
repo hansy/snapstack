@@ -4,37 +4,22 @@
  * This keeps transport simple and reliable: one server relay, one provider.
  */
 import { useEffect, useRef, useState } from "react";
-import { WebsocketProvider } from "y-websocket";
-import { Awareness, removeAwarenessStates } from "y-protocols/awareness";
+import type { Awareness } from "y-protocols/awareness";
 import { useGameStore } from "@/store/gameStore";
-import { bindSharedLogStore } from "@/logging/logStore";
-import { getOrCreateClientKey } from "@/lib/clientKey";
-import {
-  acquireSession,
-  cleanupStaleSessions,
-  getSessionAwareness,
-  getSessionProvider,
-  releaseSession,
-  setSessionProvider,
-  setSessionAwareness,
-  setActiveSession,
-  flushPendingMutations,
-} from "@/yjs/docManager";
-import { type SharedMaps } from "@/yjs/yMutations";
 import { isApplyingRemoteUpdate } from "@/yjs/sync";
-import { buildSignalingUrlFromEnv } from "@/lib/wsSignaling";
-import { useClientPrefsStore } from "@/store/clientPrefsStore";
-import { createFullSyncToStore } from "./fullSyncToStore";
-import {
-  ensureLocalPlayerInitialized,
-  type LocalPlayerInitResult,
-} from "./ensureLocalPlayerInitialized";
-import { computePeerCounts, type PeerCounts } from "./peerCount";
+import { type LocalPlayerInitResult } from "./ensureLocalPlayerInitialized";
+import { type PeerCounts } from "./peerCount";
 import {
   cancelDebouncedTimeout,
   scheduleDebouncedTimeout,
 } from "./debouncedTimeout";
-import { disposeSessionTransport } from "./disposeSessionTransport";
+import {
+  setupSessionResources,
+  teardownSessionResources,
+  type SessionSetupResult,
+} from "./sessionResources";
+import { createAwarenessLifecycle } from "./awarenessLifecycle";
+import { createAttemptJoin } from "./attemptJoin";
 
 export type SyncStatus = "connecting" | "connected";
 type JoinBlockedReason = NonNullable<LocalPlayerInitResult>["reason"] | null;
@@ -53,7 +38,7 @@ export function useMultiplayerSync(sessionId: string) {
   const [joinBlocked, setJoinBlocked] = useState(false);
   const [joinBlockedReason, setJoinBlockedReason] =
     useState<JoinBlockedReason>(null);
-  const awarenessRef = useRef<Awareness | null>(null);
+  const awarenessRef = useRef<SessionSetupResult["awareness"] | null>(null);
   const localPlayerIdRef = useRef<string | null>(null);
   const fullSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postSyncFullSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,101 +62,27 @@ export function useMultiplayerSync(sessionId: string) {
     setJoinBlocked(false);
     setJoinBlockedReason(null);
 
-    const envUrl = import.meta.env.VITE_WEBSOCKET_SERVER;
-    const signalingUrl = buildSignalingUrlFromEnv(envUrl);
-    if (!signalingUrl) {
-      console.error("[signal] VITE_WEBSOCKET_SERVER is required");
-      return;
-    }
+    const resources = setupSessionResources({
+      sessionId,
+      statusSetter: setStatus,
+    });
 
-    cleanupStaleSessions();
-    const handles = acquireSession(sessionId);
-    setActiveSession(sessionId);
+    if (!resources) return;
 
-    const {
-      doc,
-      players,
-      playerOrder,
-      zones,
-      cards,
-      zoneCardOrders,
-      globalCounters,
-      battlefieldViewScale,
-      logs,
-      meta,
-    } = handles;
-
-    const sharedMaps: SharedMaps = {
-      players,
-      playerOrder,
-      zones,
-      cards,
-      zoneCardOrders,
-      globalCounters,
-      battlefieldViewScale,
-      meta,
-    };
-
-    // Setup store
-    const store = useGameStore.getState();
-    const ensuredPlayerId = store.ensurePlayerIdForSession(sessionId);
-    localPlayerIdRef.current = ensuredPlayerId;
-    const needsReset =
-      store.sessionId !== sessionId || store.myPlayerId !== ensuredPlayerId;
-    if (needsReset) {
-      store.resetSession(sessionId, ensuredPlayerId);
-    } else {
-      useGameStore.setState((state) => ({ ...state, sessionId }));
-    }
-    const sessionVersion = useGameStore.getState().ensureSessionVersion(sessionId);
-
-    bindSharedLogStore(logs);
-
-    const awareness = new Awareness(doc);
+    const { awareness, provider, sharedMaps, ensuredPlayerId, fullSyncToStore, doc } = resources;
     awarenessRef.current = awareness;
-    const clientKey = getOrCreateClientKey({
-      storage: window.sessionStorage,
-      randomUUID:
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID.bind(crypto)
-          : undefined,
-    });
+    localPlayerIdRef.current = ensuredPlayerId;
 
-    const provider = new WebsocketProvider(signalingUrl, sessionId, doc, {
-      awareness,
-      connect: true,
-      params: {
-        userId: ensuredPlayerId,
-        clientKey,
-        sessionVersion: String(sessionVersion),
-        clientVersion: CLIENT_VERSION,
+    const attemptJoin = createAttemptJoin({
+      docTransact: (fn) => doc.transact(fn),
+      sharedMaps,
+      playerId: ensuredPlayerId,
+      setJoinState: (blocked, reason) => {
+        setJoinBlocked(blocked);
+        setJoinBlockedReason(reason);
       },
+      getRole: () => useGameStore.getState().viewerRole,
     });
-
-    setSessionProvider(sessionId, provider);
-    setSessionAwareness(sessionId, awareness);
-
-    const fullSyncToStore = createFullSyncToStore(sharedMaps, (next) => {
-      useGameStore.setState(next);
-    });
-
-    const attemptJoin = () => {
-      const role = useGameStore.getState().viewerRole;
-      if (role === "spectator") {
-        setJoinBlocked(false);
-        setJoinBlockedReason(null);
-        return;
-      }
-      const result = ensureLocalPlayerInitialized({
-        transact: (fn) => doc.transact(fn),
-        sharedMaps,
-        playerId: ensuredPlayerId,
-        preferredUsername: useClientPrefsStore.getState().username,
-      });
-      const blocked = result?.status === "blocked";
-      setJoinBlocked(blocked);
-      setJoinBlockedReason(blocked ? result!.reason : null);
-    };
     attemptJoinRef.current = attemptJoin;
 
     const SYNC_DEBOUNCE_MS = 50;
@@ -185,67 +96,41 @@ export function useMultiplayerSync(sessionId: string) {
     };
     doc.on("update", handleDocUpdate);
 
-    // Awareness
-    const pushLocalAwareness = () => {
-      awareness.setLocalStateField("client", {
-        id: ensuredPlayerId,
-        role: useGameStore.getState().viewerRole,
+    const { pushLocalAwareness, handleAwarenessChange, disposeAwareness } =
+      createAwarenessLifecycle({
+        awareness,
+        playerId: ensuredPlayerId,
+        getViewerRole: () => useGameStore.getState().viewerRole,
+        onPeerCounts: setPeerCounts,
       });
-    };
     pushLocalAwareness();
-
-    const handleAwareness = () => {
-      setPeerCounts(computePeerCounts(awareness.getStates()));
-    };
-    awareness.on("change", handleAwareness);
-    handleAwareness();
+    awareness.on("change", handleAwarenessChange);
+    handleAwarenessChange();
 
     provider.on("status", ({ status: s }: any) => {
       if (s === "connected") {
-        setStatus("connected");
-        flushPendingMutations();
         pushLocalAwareness();
-      }
-      if (s === "disconnected") {
-        setStatus("connecting");
       }
     });
 
     provider.on("sync", (isSynced: boolean) => {
       if (!isSynced) return;
-      flushPendingMutations();
       scheduleDebouncedTimeout(postSyncFullSyncTimer, 50, fullSyncToStore);
       scheduleDebouncedTimeout(postSyncInitTimer, 60, attemptJoin);
     });
 
-    flushPendingMutations();
-
     return () => {
-      awareness.setLocalState(null);
+      disposeAwareness();
       awarenessRef.current = null;
       localPlayerIdRef.current = null;
-      try {
-        removeAwarenessStates(awareness, [awareness.clientID], "disconnect");
-      } catch (_err) {}
 
-      awareness.off("change", handleAwareness);
+      awareness.off("change", handleAwarenessChange);
       doc.off("update", handleDocUpdate);
       cancelDebouncedTimeout(fullSyncTimer);
       cancelDebouncedTimeout(postSyncFullSyncTimer);
       cancelDebouncedTimeout(postSyncInitTimer);
 
-      bindSharedLogStore(null);
-      setActiveSession(null);
-
-      disposeSessionTransport(sessionId, { provider, awareness }, {
-        getSessionProvider,
-        setSessionProvider,
-        getSessionAwareness,
-        setSessionAwareness,
-      });
-
-      releaseSession(sessionId);
-      cleanupStaleSessions();
+      teardownSessionResources(sessionId, { awareness, provider });
 
       attemptJoinRef.current = null;
     };
