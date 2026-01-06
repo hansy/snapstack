@@ -18,7 +18,9 @@ export const UUID_REGEX =
 export const DEFAULT_DEBUG_SIGNAL = false;
 
 export const resolveDebugSignal = (env?: { DEBUG_SIGNAL?: string }): boolean => {
-  const raw = env?.DEBUG_SIGNAL ?? process.env.DEBUG_SIGNAL;
+  const raw =
+    env?.DEBUG_SIGNAL ??
+    (typeof process !== "undefined" ? process.env?.DEBUG_SIGNAL : undefined);
   if (!raw) return DEFAULT_DEBUG_SIGNAL;
 
   const normalized = raw.trim().toLowerCase();
