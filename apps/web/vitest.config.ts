@@ -12,6 +12,7 @@ export default defineConfig({
     test: {
         environment: 'jsdom',
         globals: true,
+        setupFiles: ['./src/test/setup.ts'],
         server: {
             deps: {
                 inline: ['@tanstack/react-router', '@tanstack/router-core', '@tanstack/history', 'tiny-warning', 'tiny-invariant'],
