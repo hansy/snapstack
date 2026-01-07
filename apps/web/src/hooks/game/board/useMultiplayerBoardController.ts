@@ -18,6 +18,11 @@ import { useMultiplayerSync } from "../multiplayer-sync/useMultiplayerSync";
 import { usePlayerLayout, type LayoutMode } from "../player/usePlayerLayout";
 import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
 import { MAX_PLAYERS } from "@/lib/room";
+import {
+  buildSessionLink,
+  ensureSessionAccessKeys,
+  getShareRoleForRoom,
+} from "@/lib/sessionKeys";
 
 const getGridClass = (layoutMode: LayoutMode) => {
   switch (layoutMode) {
@@ -83,13 +88,20 @@ export const useMultiplayerBoardController = (sessionId: string) => {
 
   const handleCopyLink = React.useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const keys = ensureSessionAccessKeys(sessionId);
+      const shareRole = getShareRoleForRoom(roomLockedByHost);
+      const link = buildSessionLink({
+        sessionId,
+        role: shareRole,
+        keys,
+      });
+      await navigator.clipboard.writeText(link);
       toast.success("Link copied to clipboard");
     } catch (err) {
       console.error("Failed to copy link", err);
       toast.error("Failed to copy link");
     }
-  }, []);
+  }, [sessionId, roomLockedByHost]);
 
   const isSpectator = viewerRole === "spectator";
 
