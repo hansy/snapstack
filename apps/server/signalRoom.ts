@@ -18,6 +18,8 @@ import {
   RATE_LIMIT_MAX_MESSAGES,
   RATE_LIMIT_WINDOW_MS,
   STORAGE_KEY_DOC,
+  STORAGE_KEY_PLAYER_KEY_HASH,
+  STORAGE_KEY_SPECTATOR_KEY_HASH,
   STORAGE_KEY_TIMESTAMP,
   UUID_REGEX,
   resolveDebugSignal,
@@ -31,7 +33,12 @@ export class SignalRoom extends DurableObject {
   connClients: Map<WebSocket, Set<number>>;
   connMeta: Map<
     WebSocket,
-    { userId: string; clientKey: string; sessionVersion: number }
+    {
+      userId: string;
+      clientKey: string;
+      sessionVersion: number;
+      role: "player" | "spectator";
+    }
   >;
   userToConn: Map<
     string,
@@ -59,6 +66,8 @@ export class SignalRoom extends DurableObject {
   persistTimer: number | null;
   stateRestorePromise: Promise<void>;
   debugSignalEnabled: boolean;
+  playerKeyHash: string | null;
+  spectatorKeyHash: string | null;
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
@@ -81,6 +90,8 @@ export class SignalRoom extends DurableObject {
     this.emptyTimer = null;
     this.persistTimer = null;
     this.debugSignalEnabled = resolveDebugSignal(this.env);
+    this.playerKeyHash = null;
+    this.spectatorKeyHash = null;
     // Restore state from storage on initialization - save promise so fetch() can await it
     this.stateRestorePromise = this.restoreFromStorage();
     this.setupDocListeners();
@@ -91,7 +102,12 @@ export class SignalRoom extends DurableObject {
       const stored = await this.ctx.storage.get<ArrayBuffer>(STORAGE_KEY_DOC);
       const timestamp =
         await this.ctx.storage.get<number>(STORAGE_KEY_TIMESTAMP);
+      const [playerKeyHash, spectatorKeyHash] = await Promise.all([
+        this.ctx.storage.get<string>(STORAGE_KEY_PLAYER_KEY_HASH),
+        this.ctx.storage.get<string>(STORAGE_KEY_SPECTATOR_KEY_HASH),
+      ]);
 
+      let storageExpired = false;
       if (stored && timestamp) {
         // Check if stored state is still within the grace period
         const age = Date.now() - timestamp;
@@ -106,7 +122,23 @@ export class SignalRoom extends DurableObject {
           // State expired, clear it
           await this.ctx.storage.delete(STORAGE_KEY_DOC);
           await this.ctx.storage.delete(STORAGE_KEY_TIMESTAMP);
+          await this.ctx.storage.delete(STORAGE_KEY_PLAYER_KEY_HASH);
+          await this.ctx.storage.delete(STORAGE_KEY_SPECTATOR_KEY_HASH);
+          this.playerKeyHash = null;
+          this.spectatorKeyHash = null;
+          storageExpired = true;
           this.dbg("storage expired, cleared", { ageMs: age });
+        }
+      }
+      if (!storageExpired) {
+        if (typeof playerKeyHash === "string" && playerKeyHash.length > 0) {
+          this.playerKeyHash = playerKeyHash;
+        }
+        if (
+          typeof spectatorKeyHash === "string" &&
+          spectatorKeyHash.length > 0
+        ) {
+          this.spectatorKeyHash = spectatorKeyHash;
         }
       }
     } catch (err) {
@@ -188,6 +220,8 @@ export class SignalRoom extends DurableObject {
       try {
         await this.ctx.storage.delete(STORAGE_KEY_DOC);
         await this.ctx.storage.delete(STORAGE_KEY_TIMESTAMP);
+        await this.ctx.storage.delete(STORAGE_KEY_PLAYER_KEY_HASH);
+        await this.ctx.storage.delete(STORAGE_KEY_SPECTATOR_KEY_HASH);
         this.dbg("cleared storage on empty room timeout");
       } catch (err) {
         console.error("[signal] failed to clear storage", err);
@@ -207,6 +241,8 @@ export class SignalRoom extends DurableObject {
       this.connMeta.clear();
       this.userToConn.clear();
       this.userToLastVersion.clear();
+      this.playerKeyHash = null;
+      this.spectatorKeyHash = null;
       this.setupDocListeners();
       this.emptyTimer = null;
     }, EMPTY_ROOM_GRACE_MS) as unknown as number;
@@ -229,7 +265,7 @@ export class SignalRoom extends DurableObject {
     if (!UUID_REGEX.test(room)) {
       return new Response("Invalid room name", { status: 400 });
     }
-    this.handleConnection(server, room, url.searchParams);
+    await this.handleConnection(server, room, url.searchParams);
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -245,11 +281,17 @@ export class SignalRoom extends DurableObject {
     });
   }
 
-  private handleConnection(ws: WebSocket, room: RoomName, params: URLSearchParams) {
+  private async handleConnection(
+    ws: WebSocket,
+    room: RoomName,
+    params: URLSearchParams,
+  ) {
     const userId = params.get("userId") || "";
     const clientKey = params.get("clientKey") || "";
     const sessionVersionRaw = params.get("sessionVersion") || "";
     const sessionVersion = Number.parseInt(sessionVersionRaw, 10);
+    const roleRaw = params.get("role") || "";
+    const accessKey = params.get("accessKey");
 
     if (
       !UUID_REGEX.test(userId) ||
@@ -260,6 +302,28 @@ export class SignalRoom extends DurableObject {
       this.dbg("reject handshake invalid", { room, userId, clientKey, sessionVersion });
       try {
         ws.close(1008, "invalid handshake");
+      } catch (_err) {}
+      return;
+    }
+
+    const role =
+      roleRaw === "player" || roleRaw === "spectator" ? roleRaw : null;
+    if (!role) {
+      this.dbg("reject handshake invalid role", { room, userId, roleRaw });
+      try {
+        ws.close(1008, "invalid role");
+      } catch (_err) {}
+      return;
+    }
+
+    if (!this.isValidAccessKey(accessKey)) {
+      this.dbg("reject handshake missing access key", {
+        room,
+        userId,
+        role,
+      });
+      try {
+        ws.close(1008, "missing access key");
       } catch (_err) {}
       return;
     }
@@ -299,6 +363,15 @@ export class SignalRoom extends DurableObject {
       } catch (_err) {}
     }
 
+    const authorized = await this.authorizeAccessKey(role, accessKey);
+    if (!authorized) {
+      this.dbg("reject handshake access denied", { room, userId, role });
+      try {
+        ws.close(1008, "access denied");
+      } catch (_err) {}
+      return;
+    }
+
     ws.accept();
     let closed = false;
     // room name preserved for potential logging
@@ -307,7 +380,7 @@ export class SignalRoom extends DurableObject {
 
     this.conns.add(ws);
     this.connClients.set(ws, new Set());
-    this.connMeta.set(ws, { userId, clientKey, sessionVersion });
+    this.connMeta.set(ws, { userId, clientKey, sessionVersion, role });
     this.userToConn.set(userId, { ws, clientKey, sessionVersion });
     this.userToLastVersion.set(userId, sessionVersion);
     if (this.emptyTimer !== null) {
@@ -352,6 +425,7 @@ export class SignalRoom extends DurableObject {
       snapPlayers,
       snapZones,
       snapCards,
+      role,
     });
 
     ws.addEventListener("close", (evt: CloseEvent) => {
@@ -389,6 +463,7 @@ export class SignalRoom extends DurableObject {
         room,
         userId: meta?.userId,
         clientKey: meta?.clientKey,
+        role: meta?.role,
         connections: this.conns.size,
         code,
         reason,
@@ -518,6 +593,43 @@ export class SignalRoom extends DurableObject {
     ws.send(aware);
   }
 
+  private isValidAccessKey(value: string | null): value is string {
+    if (typeof value !== "string" || value.length === 0) return false;
+    return /^[A-Za-z0-9_-]+$/.test(value);
+  }
+
+  private async hashAccessKey(value: string): Promise<string> {
+    const data = new TextEncoder().encode(value);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    const bytes = new Uint8Array(digest);
+    let hex = "";
+    for (let i = 0; i < bytes.length; i += 1) {
+      hex += bytes[i].toString(16).padStart(2, "0");
+    }
+    return hex;
+  }
+
+  private async authorizeAccessKey(
+    role: "player" | "spectator",
+    accessKey: string,
+  ): Promise<boolean> {
+    const hash = await this.hashAccessKey(accessKey);
+    if (role === "player") {
+      if (this.playerKeyHash && this.playerKeyHash !== hash) return false;
+      if (!this.playerKeyHash) {
+        this.playerKeyHash = hash;
+        await this.ctx.storage.put(STORAGE_KEY_PLAYER_KEY_HASH, hash);
+      }
+      return true;
+    }
+    if (this.spectatorKeyHash && this.spectatorKeyHash !== hash) return false;
+    if (!this.spectatorKeyHash) {
+      this.spectatorKeyHash = hash;
+      await this.ctx.storage.put(STORAGE_KEY_SPECTATOR_KEY_HASH, hash);
+    }
+    return true;
+  }
+
   private consumeRateLimit(ws: WebSocket, size: number) {
     const now = Date.now();
     const stats = this.connStats.get(ws);
@@ -575,4 +687,3 @@ export class SignalRoom extends DurableObject {
     return ids;
   }
 }
-

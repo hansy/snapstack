@@ -11,6 +11,8 @@ export const PERSIST_DEBOUNCE_MS = 1_000; // Debounce storage writes
 
 export const STORAGE_KEY_DOC = "yjs:doc";
 export const STORAGE_KEY_TIMESTAMP = "yjs:timestamp";
+export const STORAGE_KEY_PLAYER_KEY_HASH = "auth:player-key-hash";
+export const STORAGE_KEY_SPECTATOR_KEY_HASH = "auth:spectator-key-hash";
 
 export const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -28,4 +30,3 @@ export const resolveDebugSignal = (env?: { DEBUG_SIGNAL?: string }): boolean => 
 };
 
 export const DEBUG_SIGNAL = DEFAULT_DEBUG_SIGNAL;
-

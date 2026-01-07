@@ -42,6 +42,12 @@ const docManagerMocks = vi.hoisted(() => ({
     globalCounters: new Map(),
     battlefieldViewScale: new Map(),
     logs: new Map(),
+    commands: {
+      length: 0,
+      get: vi.fn(),
+      delete: vi.fn(),
+      push: vi.fn(),
+    },
     meta: new Map(),
   })),
   cleanupStaleSessions: vi.fn(),
@@ -179,12 +185,14 @@ describe("useMultiplayerSync", () => {
     });
 
     await waitFor(() => {
-      expect(ensureLocalPlayerInitialized).toHaveBeenCalledWith({
-        transact: expect.any(Function),
-        sharedMaps: expect.any(Object),
-        playerId: "player-1",
-        preferredUsername: "test-user",
-      });
+      expect(ensureLocalPlayerInitialized).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transact: expect.any(Function),
+          sharedMaps: expect.any(Object),
+          playerId: "player-1",
+          preferredUsername: "test-user",
+        })
+      );
       expect(result.current.joinBlocked).toBe(true);
       expect(result.current.joinBlockedReason).toBe("room-full");
     });

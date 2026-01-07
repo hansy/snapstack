@@ -1,4 +1,5 @@
-import * as Y from 'yjs';
+import * as Y from "yjs";
+import type { CommandEnvelope, SignedSnapshot } from "@/commandLog/types";
 
 // Shared Yjs document factory.
 // We keep this minimal: maps for players, zones, cards, globalCounters, and a generic metadata map
@@ -13,6 +14,8 @@ export type YDocHandles = {
   globalCounters: Y.Map<any>;
   battlefieldViewScale: Y.Map<any>;
   logs: Y.Array<any>;
+  commands: Y.Array<CommandEnvelope>;
+  snapshots: Y.Array<SignedSnapshot>;
   meta: Y.Map<any>;
 };
 
@@ -20,14 +23,16 @@ export function createGameYDoc(): YDocHandles {
   const doc = new Y.Doc();
   return {
     doc,
-    players: doc.getMap('players'),
-    playerOrder: doc.getArray('playerOrder'),
-    zones: doc.getMap('zones'),
-    cards: doc.getMap('cards'),
-    zoneCardOrders: doc.getMap('zoneCardOrders'),
-    globalCounters: doc.getMap('globalCounters'),
-    battlefieldViewScale: doc.getMap('battlefieldViewScale'),
-    logs: doc.getArray('logs'),
-    meta: doc.getMap('meta'),
+    players: doc.getMap("players"),
+    playerOrder: doc.getArray("playerOrder"),
+    zones: doc.getMap("zones"),
+    cards: doc.getMap("cards"),
+    zoneCardOrders: doc.getMap("zoneCardOrders"),
+    globalCounters: doc.getMap("globalCounters"),
+    battlefieldViewScale: doc.getMap("battlefieldViewScale"),
+    logs: doc.getArray("logs"),
+    commands: doc.getArray<CommandEnvelope>("commands"),
+    snapshots: doc.getArray<SignedSnapshot>("snapshots"),
+    meta: doc.getMap("meta"),
   };
 }

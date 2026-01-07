@@ -2,6 +2,9 @@ import { normalizeUsernameInput } from "@/store/clientPrefsStore";
 import { MAX_PLAYERS } from "@/lib/room";
 import type { SharedMaps } from "@/yjs/yMutations";
 import { patchPlayer, patchRoomMeta, sharedSnapshot, upsertPlayer, upsertZone } from "@/yjs/yMutations";
+import type { CommandEnvelope } from "@/commandLog/types";
+import { appendPlayerJoinCommand } from "@/commandLog/localWriter";
+import type * as Y from "yjs";
 
 import { applyLocalPlayerInitPlan } from "./applyLocalPlayerInitPlan";
 import { computeLocalPlayerInitPlan } from "./localPlayerInitPlan";
@@ -29,6 +32,7 @@ export const ensureLocalPlayerInitialized = (params: {
   sharedMaps: SharedMaps;
   playerId: string;
   preferredUsername?: string | null;
+  commandLog?: { sessionId: string; commands: Y.Array<CommandEnvelope> };
 }): LocalPlayerInitResult => {
   const snapshot = sharedSnapshot(params.sharedMaps);
   const defaultName = getDefaultPlayerName(params.playerId);
@@ -66,6 +70,15 @@ export const ensureLocalPlayerInitialized = (params: {
       plan,
       mutations: { upsertPlayer, patchPlayer, upsertZone },
     });
+
+    if (plan.upsertPlayer && params.commandLog) {
+      appendPlayerJoinCommand({
+        sessionId: params.commandLog.sessionId,
+        commands: params.commandLog.commands,
+        name: plan.upsertPlayer.name,
+        color: plan.upsertPlayer.color,
+      });
+    }
   }
 
   const rawHostId =

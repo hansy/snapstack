@@ -9,6 +9,14 @@ This document captures the agreed design and implementation plan for hiding priv
 - Encrypt hidden data (hands, libraries, face-down identities) in command payloads.
 - Use **two URLs** maximum: one for players, one for spectators.
 
+## Progress (2026-01-07)
+
+- **Task 1 (Crypto utilities)**: complete (`apps/web/src/crypto/*`).
+- **Task 2 (Identity + key storage)**: complete (`apps/web/src/lib/sessionIdentity.ts`, `apps/web/src/lib/sessionKeys.ts`).
+- **Task 0 (Flag + compatibility)**: `useCommandLog` now wired into multiplayer sync with a legacy fallback and a one-time warning (`apps/web/src/hooks/game/multiplayer-sync/sessionResources.ts`).
+- **Task 10 (Server gate)**: DO handshake now requires `role` + `accessKey`, with key hashes persisted per room and cleared on expiry (`apps/server/signalRoom.ts`, `apps/server/constants.ts`).
+- **Task 3 (Yjs command log scaffolding)**: complete (added `commands`/`snapshots` arrays, MAC/sign/validation/log hash helpers, and a minimal local append path for `player.join`).
+
 ## Goals
 
 - Hidden information is not readable by unauthorized clients.
@@ -402,14 +410,14 @@ Snapshots are optional but recommended.
 
 1) **Crypto utilities** (complete): add RFC 8785 canonical JSON encoding (use `canonicalize` or `json-canonicalize`), base64url helpers, SHA-256, HKDF, AES-GCM, Ed25519 + X25519 using `@noble/curves`, with unit tests (`apps/web/src/crypto/*`).
 2) **Identity + key storage** (complete): generate signing + encryption keypairs, derive `playerId = hash(signPubKey)`, store per-session in localStorage, parse `#k`/`#s` URL params, cache `playerKey`/`spectatorKey` (`apps/web/src/store/gameStore/actions/session.ts`, URL parsing helpers).
-3) **Yjs command log scaffolding**: add `commands` + `snapshots` arrays to `apps/web/src/yjs/yDoc.ts`, create `appendCommand`, `validateCommand`, MAC/sign helpers, log hash chain (`apps/web/src/commandLog/*`).
+3) **Yjs command log scaffolding** (complete): add `commands` + `snapshots` arrays to `apps/web/src/yjs/yDoc.ts`, create `appendCommand`, `validateCommand`, MAC/sign helpers, log hash chain (`apps/web/src/commandLog/*`).
 4) **Reducer + replay**: implement deterministic replay engine from command log to Zustand state, wire into `fullSyncToStore` / multiplayer sync path behind a feature flag.
 5) **Public commands migration**: move player join/update, public card create/update/move, tap/untap, counters, token creation, global counters into commands; stop direct Yjs mutations when flag on.
 6) **Hidden zones + encryption**: implement encrypted hand/library commands (`zone.set.hidden`, `library.shuffle`, `card.draw`, mulligan flows), and derive counts in public payloads; update UI selectors to use decrypted zones.
 7) **Selective reveals**: implement `card.reveal.set` with per-recipient encryption using X25519 and `payloadRecipientsEnc`; publish `encPubKey` in `player.join`; support revoke.
 8) **Library top reveal**: implement `library.topReveal.set` with `mode: self|all`, and only include identity when `mode === all`.
 9) **Snapshots**: signed snapshot emitter/validator, fast-load path, pruning policy.
-10) **Server gate**: enforce `playerKey` for player connections and `spectatorKey` for spectator connections in `apps/server/signalRoom.ts`/`apps/server/worker.ts`.
+10) **Server gate** (complete): enforce `playerKey` for player connections and `spectatorKey` for spectator connections in `apps/server/signalRoom.ts`/`apps/server/worker.ts`.
 11) **Cleanup + tests**: remove legacy shared maps behind flag, add regression tests for permissions parity, signature/MAC validation, replay determinism, selective reveal, snapshot correctness.
 
 ## Decisions Already Made

@@ -3,9 +3,14 @@ import { Awareness } from "y-protocols/awareness";
 import { WebsocketProvider } from "y-websocket";
 import { bindSharedLogStore } from "@/logging/logStore";
 import { getOrCreateClientKey } from "@/lib/clientKey";
-import { syncSessionAccessKeysFromLocation } from "@/lib/sessionKeys";
+import { useCommandLog } from "@/lib/featureFlags";
+import {
+  getSessionKeyForRole,
+  syncSessionAccessKeysFromLocation,
+} from "@/lib/sessionKeys";
 import { buildSignalingUrlFromEnv } from "@/lib/wsSignaling";
 import { useGameStore } from "@/store/gameStore";
+import type { CommandEnvelope } from "@/commandLog/types";
 import {
   acquireSession,
   cleanupStaleSessions,
@@ -29,6 +34,7 @@ export type SessionSetupResult = {
   sharedMaps: SharedMaps;
   ensuredPlayerId: string;
   fullSyncToStore: () => void;
+  commands: Y.Array<CommandEnvelope>;
 };
 
 export type SessionSetupDeps = {
@@ -63,6 +69,7 @@ export function setupSessionResources({
     globalCounters,
     battlefieldViewScale,
     logs,
+    commands,
     meta,
   } = handles;
 
@@ -95,6 +102,8 @@ export function setupSessionResources({
   } else if (keys.spectatorKey && !keys.playerKey) {
     store.setViewerRole("spectator");
   }
+  const viewerRole = useGameStore.getState().viewerRole;
+  const accessKey = getSessionKeyForRole(keys, viewerRole);
   const sessionVersion = useGameStore.getState().ensureSessionVersion(sessionId);
 
   bindSharedLogStore(logs);
@@ -108,15 +117,21 @@ export function setupSessionResources({
         : undefined,
   });
 
+  const params: Record<string, string> = {
+    userId: ensuredPlayerId,
+    clientKey,
+    sessionVersion: String(sessionVersion),
+    clientVersion: CLIENT_VERSION,
+    role: viewerRole,
+  };
+  if (accessKey) {
+    params.accessKey = accessKey;
+  }
+
   const provider = new WebsocketProvider(signalingUrl, sessionId, doc, {
     awareness,
     connect: true,
-    params: {
-      userId: ensuredPlayerId,
-      clientKey,
-      sessionVersion: String(sessionVersion),
-      clientVersion: CLIENT_VERSION,
-    },
+    params,
   });
 
   provider.on("status", ({ status: s }: any) => {
@@ -132,13 +147,33 @@ export function setupSessionResources({
   setSessionProvider(sessionId, provider);
   setSessionAwareness(sessionId, awareness);
 
-  const fullSyncToStore = createFullSyncToStore(sharedMaps, (next) => {
+  const legacyFullSyncToStore = createFullSyncToStore(sharedMaps, (next) => {
     useGameStore.setState(next);
   });
+  let warned = false;
+  const fullSyncToStore = useCommandLog
+    ? () => {
+        if (!warned) {
+          console.warn(
+            "[command-log] useCommandLog is enabled; falling back to legacy Yjs snapshot sync until command log replay is wired.",
+          );
+          warned = true;
+        }
+        legacyFullSyncToStore();
+      }
+    : legacyFullSyncToStore;
 
   flushPendingMutations();
 
-  return { awareness, provider, doc, sharedMaps, ensuredPlayerId, fullSyncToStore };
+  return {
+    awareness,
+    provider,
+    doc,
+    sharedMaps,
+    ensuredPlayerId,
+    fullSyncToStore,
+    commands,
+  };
 }
 
 export function teardownSessionResources(

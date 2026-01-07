@@ -69,7 +69,15 @@ export function useMultiplayerSync(sessionId: string) {
 
     if (!resources) return;
 
-    const { awareness, provider, sharedMaps, ensuredPlayerId, fullSyncToStore, doc } = resources;
+    const {
+      awareness,
+      provider,
+      sharedMaps,
+      ensuredPlayerId,
+      fullSyncToStore,
+      doc,
+      commands,
+    } = resources;
     awarenessRef.current = awareness;
     localPlayerIdRef.current = ensuredPlayerId;
 
@@ -82,6 +90,8 @@ export function useMultiplayerSync(sessionId: string) {
         setJoinBlockedReason(reason);
       },
       getRole: () => useGameStore.getState().viewerRole,
+      sessionId,
+      commands,
     });
     attemptJoinRef.current = attemptJoin;
 
