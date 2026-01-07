@@ -401,7 +401,7 @@ Snapshots are optional but recommended.
 ## Task Breakdown (Implementation Tickets)
 
 1) **Crypto utilities** (complete): add RFC 8785 canonical JSON encoding (use `canonicalize` or `json-canonicalize`), base64url helpers, SHA-256, HKDF, AES-GCM, Ed25519 + X25519 using `@noble/curves`, with unit tests (`apps/web/src/crypto/*`).
-2) **Identity + key storage**: generate signing + encryption keypairs, derive `playerId = hash(signPubKey)`, store per-session in localStorage, parse `#k`/`#s` URL params, cache `playerKey`/`spectatorKey` (`apps/web/src/store/gameStore/actions/session.ts`, URL parsing helpers).
+2) **Identity + key storage** (complete): generate signing + encryption keypairs, derive `playerId = hash(signPubKey)`, store per-session in localStorage, parse `#k`/`#s` URL params, cache `playerKey`/`spectatorKey` (`apps/web/src/store/gameStore/actions/session.ts`, URL parsing helpers).
 3) **Yjs command log scaffolding**: add `commands` + `snapshots` arrays to `apps/web/src/yjs/yDoc.ts`, create `appendCommand`, `validateCommand`, MAC/sign helpers, log hash chain (`apps/web/src/commandLog/*`).
 4) **Reducer + replay**: implement deterministic replay engine from command log to Zustand state, wire into `fullSyncToStore` / multiplayer sync path behind a feature flag.
 5) **Public commands migration**: move player join/update, public card create/update/move, tap/untap, counters, token creation, global counters into commands; stop direct Yjs mutations when flag on.
