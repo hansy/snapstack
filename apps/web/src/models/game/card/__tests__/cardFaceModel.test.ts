@@ -79,6 +79,40 @@ describe("createCardFaceModel", () => {
     expect(model.toughnessClassName).toBe("text-red-500");
   });
 
+  it("cloaks face-down battlefield stats to 2/2 without color reveals", () => {
+    const card = makeCard({ power: "5", toughness: "6", basePower: "1", baseToughness: "1" });
+    const model = createCardFaceModel({
+      card,
+      zoneType: ZONE.BATTLEFIELD,
+      faceDown: true,
+      myPlayerId: "p1",
+      globalCounters: {},
+      revealToNames: [],
+    });
+    expect(model.showPT).toBe(true);
+    expect(model.displayPower).toBe("2");
+    expect(model.displayToughness).toBe("2");
+    expect(model.powerClassName).toBe("text-white");
+    expect(model.toughnessClassName).toBe("text-white");
+  });
+
+  it("cloaks face-down battlefield stats to 2/2 even without base stats", () => {
+    const card = makeCard({ power: "3", toughness: "4" });
+    const model = createCardFaceModel({
+      card,
+      zoneType: ZONE.BATTLEFIELD,
+      faceDown: true,
+      myPlayerId: "p1",
+      globalCounters: {},
+      revealToNames: [],
+    });
+    expect(model.showPT).toBe(true);
+    expect(model.displayPower).toBe("2");
+    expect(model.displayToughness).toBe("2");
+    expect(model.powerClassName).toBe("text-white");
+    expect(model.toughnessClassName).toBe("text-white");
+  });
+
   it("shows name label only on face-up battlefield", () => {
     const base = {
       myPlayerId: "p1",

@@ -44,6 +44,8 @@ const resolveStatClassName = (display: string | undefined, base: string | undefi
   return "text-white";
 };
 
+const FACE_DOWN_DEFAULT_STAT = "2";
+
 export const createCardFaceModel = (params: {
   card: Card;
   zoneType: ZoneType | undefined;
@@ -61,23 +63,29 @@ export const createCardFaceModel = (params: {
   });
   const displayName = getDisplayName(params.card);
 
+  const isBattlefield = params.zoneType === ZONE.BATTLEFIELD;
+  const shouldCloakPT = Boolean(params.faceDown && isBattlefield);
+
   const showPT =
-    shouldShowPowerToughness(params.card) &&
-    params.zoneType === ZONE.BATTLEFIELD &&
-    !(params.hidePT ?? false);
+    isBattlefield &&
+    !(params.hidePT ?? false) &&
+    (shouldShowPowerToughness(params.card) || shouldCloakPT);
 
-  const displayPower = getDisplayPower(params.card);
-  const displayToughness = getDisplayToughness(params.card);
+  const displayPower = shouldCloakPT ? FACE_DOWN_DEFAULT_STAT : getDisplayPower(params.card);
+  const displayToughness = shouldCloakPT ? FACE_DOWN_DEFAULT_STAT : getDisplayToughness(params.card);
 
-  const powerClassName = resolveStatClassName(displayPower, params.card.basePower);
+  const powerClassName = resolveStatClassName(
+    displayPower,
+    shouldCloakPT ? FACE_DOWN_DEFAULT_STAT : params.card.basePower
+  );
   const toughnessClassName = resolveStatClassName(
     displayToughness,
-    params.card.baseToughness
+    shouldCloakPT ? FACE_DOWN_DEFAULT_STAT : params.card.baseToughness
   );
 
   const showNameLabel =
     (params.showNameLabel ?? true) &&
-    params.zoneType === ZONE.BATTLEFIELD &&
+    isBattlefield &&
     !params.faceDown;
 
   const counters: CardFaceCounterModel[] = params.card.counters.map((counter) => ({
