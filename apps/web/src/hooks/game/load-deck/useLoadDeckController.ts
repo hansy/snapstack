@@ -13,7 +13,12 @@ import { batchSharedMutations, getYDocHandles, getYProvider } from "@/yjs/docMan
 import { useClientPrefsStore } from "@/store/clientPrefsStore";
 import { isMultiplayerProviderReady, planDeckImport } from "@/models/game/load-deck/loadDeckModel";
 import { useCommandLog } from "@/lib/featureFlags";
-import { enqueueLocalCommand, getActiveCommandLog, buildHiddenZonePayloads } from "@/commandLog";
+import {
+  enqueueLocalCommand,
+  getActiveCommandLog,
+  buildHiddenZonePayloads,
+  buildLibraryTopRevealPayload,
+} from "@/commandLog";
 import { ZONE } from "@/constants/zones";
 
 export type LoadDeckControllerInput = {
@@ -40,6 +45,7 @@ export const useLoadDeckController = ({
   const setDeckLoaded = useGameStore((state) => state.setDeckLoaded);
   const shuffleLibrary = useGameStore((state) => state.shuffleLibrary);
   const zones = useGameStore((state) => state.zones);
+  const players = useGameStore((state) => state.players);
   const viewerRole = useGameStore((state) => state.viewerRole);
 
   const lastImportedDeckText = useClientPrefsStore((state) => state.lastImportedDeckText);
@@ -125,6 +131,7 @@ export const useLoadDeckController = ({
 
         if (libraryCards.length) {
           const order = libraryCards.map((card) => card.id);
+          const shuffledOrder = [...order].sort(() => Math.random() - 0.5);
           enqueueLocalCommand({
             sessionId: active.sessionId,
             commands: active.commands,
@@ -135,7 +142,7 @@ export const useLoadDeckController = ({
                 ownerId: playerId,
                 zoneType: ZONE.LIBRARY,
                 cards: libraryCards,
-                order,
+                order: shuffledOrder,
               });
               return {
                 payloadPublic: payloads.payloadPublic,
@@ -144,6 +151,23 @@ export const useLoadDeckController = ({
               };
             },
           });
+
+          if (players[playerId]?.libraryTopReveal === "all") {
+            const cardsById = Object.fromEntries(
+              libraryCards.map((card) => [card.id, card])
+            );
+            enqueueLocalCommand({
+              sessionId: active.sessionId,
+              commands: active.commands,
+              type: "library.topReveal.set",
+              buildPayloads: () =>
+                buildLibraryTopRevealPayload({
+                  ownerId: playerId,
+                  order: shuffledOrder,
+                  cardsById,
+                }),
+            });
+          }
         }
 
         if (sideboardCards.length) {
@@ -181,7 +205,6 @@ export const useLoadDeckController = ({
         });
 
         setDeckLoaded(playerId, true);
-        shuffleLibrary(playerId, playerId);
       } else {
         const missingZones = new Map<string, (typeof planned.chunks)[number][number]["zoneType"]>();
         planned.chunks.forEach((chunk) => {
@@ -227,9 +250,11 @@ export const useLoadDeckController = ({
     }
   }, [
     addCard,
+    addZone,
     importText,
     onClose,
     playerId,
+    players,
     setDeckLoaded,
     setLastImportedDeckText,
     shuffleLibrary,
