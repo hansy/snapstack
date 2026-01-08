@@ -756,6 +756,8 @@ const applyCommandInternal = async (params: {
         encPubKey?: string;
       };
       if (!data.playerId) return params.state;
+      if (data.playerId !== envelope.actorId) return params.state;
+      if (data.signPubKey && data.signPubKey !== envelope.pubKey) return params.state;
 
       const nextPlayers = { ...params.state.players };
       const existing = nextPlayers[data.playerId];
@@ -819,6 +821,7 @@ const applyCommandInternal = async (params: {
       if (!payload || typeof payload !== "object") return params.state;
       const data = payload as { playerId?: string };
       if (!data.playerId) return params.state;
+      if (data.playerId !== envelope.actorId) return params.state;
 
       const nextPlayers = { ...params.state.players };
       delete nextPlayers[data.playerId];
@@ -966,6 +969,7 @@ const applyCommandInternal = async (params: {
       if (!payload || typeof payload !== "object") return params.state;
       const data = payload as { playerId?: string };
       if (!data.playerId) return params.state;
+      if (data.playerId !== envelope.actorId) return params.state;
       const nextCards = { ...params.state.cards };
       Object.values(nextCards).forEach((card) => {
         if (card.controllerId === data.playerId && card.tapped) {
@@ -980,6 +984,7 @@ const applyCommandInternal = async (params: {
       if (!data.ownerId || !data.zoneType || typeof data.count !== "number") {
         return params.state;
       }
+      if (data.ownerId !== envelope.actorId) return params.state;
       if (!isHiddenZoneType(data.zoneType)) return params.state;
 
       let decryptedCards: Card[] | undefined;
@@ -1029,6 +1034,7 @@ const applyCommandInternal = async (params: {
       if (!payload || typeof payload !== "object") return params.state;
       const data = payload as { ownerId?: string; count?: number };
       if (!data.ownerId || typeof data.count !== "number") return params.state;
+      if (data.ownerId !== envelope.actorId) return params.state;
 
       let decryptedOrder: string[] | undefined;
       if (ctx.viewerId === data.ownerId && ctx.ownerAesKey && envelope.payloadOwnerEnc) {
@@ -1056,6 +1062,7 @@ const applyCommandInternal = async (params: {
       if (!payload || typeof payload !== "object") return params.state;
       const data = payload as { ownerId?: string; count?: number };
       if (!data.ownerId || typeof data.count !== "number") return params.state;
+      if (data.ownerId !== envelope.actorId) return params.state;
 
       let handCards: Card[] | undefined;
       let libraryOrder: string[] | undefined;
@@ -1143,6 +1150,16 @@ const applyCommandInternal = async (params: {
       };
       if (!data.cardId) return params.state;
 
+      const existing = params.state.cards[data.cardId];
+      if (existing) {
+        if (existing.ownerId !== envelope.actorId) return params.state;
+      } else if (data.zoneId) {
+        const zone = params.state.zones[data.zoneId];
+        if (!zone || zone.ownerId !== envelope.actorId) return params.state;
+      } else {
+        return params.state;
+      }
+
       let revealedPayload: Partial<Card> | undefined;
       if (data.revealTo && data.revealTo.includes(ctx.viewerId)) {
         const recipientPayload = envelope.payloadRecipientsEnc?.[ctx.viewerId];
@@ -1179,6 +1196,7 @@ const applyCommandInternal = async (params: {
         identity?: Partial<Card>;
       };
       if (!data.ownerId) return params.state;
+      if (data.ownerId !== envelope.actorId) return params.state;
       const mode =
         data.mode === "self" || data.mode === "all" || data.mode === null
           ? data.mode
