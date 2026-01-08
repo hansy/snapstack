@@ -6,6 +6,7 @@ import { utf8ToBytes } from "@/crypto/bytes";
 import { signEd25519, verifyEd25519 } from "@/crypto/ed25519";
 import { hkdfSha256, hmacSha256, sha256Bytes } from "@/crypto/hash";
 import { bytesToHex } from "@/crypto/hex";
+import { deriveRoomSigningKeyPair, deriveRoomSigningPublicKey } from "@/crypto/roomSig";
 import type {
   CommandEnvelope,
   CommandEnvelopeUnsigned,
@@ -129,13 +130,94 @@ export const appendCommand = (params: {
     macKey,
     signPrivateKey: params.signPrivateKey,
   });
+  const roomKeys = deriveRoomSigningKeyPair({
+    sessionId: params.sessionId,
+    playerKey: params.playerKey,
+  });
+  const roomSigningBytes = getCommandSigningBytes({
+    ...params.envelope,
+    mac,
+    sig,
+  } as CommandEnvelope);
+  const roomSig = bytesToBase64Url(
+    signEd25519(roomSigningBytes, roomKeys.privateKey),
+  );
   const signed: CommandEnvelope = {
     ...params.envelope,
     mac,
     sig,
+    roomSig,
   } as CommandEnvelope;
   params.commands.push([signed]);
   return signed;
+};
+
+export const validateCommandRoomSig = (params: {
+  envelope: CommandEnvelope;
+  roomPublicKey: Uint8Array;
+  expectedSeq?: number;
+  expectedActorId?: string;
+}): CommandValidationResult => {
+  const { envelope } = params;
+
+  if (params.expectedSeq !== undefined && envelope.seq !== params.expectedSeq) {
+    return { ok: false, reason: "seq-mismatch" };
+  }
+  if (!envelope.mac) return { ok: false, reason: "missing-mac" };
+  if (!envelope.roomSig) return { ok: false, reason: "missing-room-sig" };
+  if (!envelope.sig) return { ok: false, reason: "missing-sig" };
+
+  let pubKeyBytes: Uint8Array;
+  try {
+    pubKeyBytes = base64UrlToBytes(envelope.pubKey);
+  } catch (_err) {
+    return { ok: false, reason: "invalid-pubkey" };
+  }
+
+  const derivedActorId = deriveActorIdFromPublicKey(pubKeyBytes);
+  if (derivedActorId !== envelope.actorId) {
+    return { ok: false, reason: "actor-id-mismatch" };
+  }
+  if (params.expectedActorId && params.expectedActorId !== envelope.actorId) {
+    return { ok: false, reason: "expected-actor-mismatch" };
+  }
+
+  let roomSigBytes: Uint8Array;
+  try {
+    roomSigBytes = base64UrlToBytes(envelope.roomSig);
+  } catch (_err) {
+    return { ok: false, reason: "room-sig-mismatch" };
+  }
+  let roomSigningBytes: Uint8Array;
+  try {
+    roomSigningBytes = getCommandSigningBytes(envelope);
+  } catch (_err) {
+    return { ok: false, reason: "invalid-envelope" };
+  }
+  const roomSigValid = verifyEd25519(
+    roomSigBytes,
+    roomSigningBytes,
+    params.roomPublicKey,
+  );
+  if (!roomSigValid) return { ok: false, reason: "room-sig-mismatch" };
+
+  let signature: Uint8Array;
+  try {
+    signature = base64UrlToBytes(envelope.sig);
+  } catch (_err) {
+    return { ok: false, reason: "sig-mismatch" };
+  }
+
+  let signingBytes: Uint8Array;
+  try {
+    signingBytes = getCommandSigningBytes(envelope);
+  } catch (_err) {
+    return { ok: false, reason: "invalid-envelope" };
+  }
+  const validSig = verifyEd25519(signature, signingBytes, pubKeyBytes);
+  if (!validSig) return { ok: false, reason: "sig-mismatch" };
+
+  return { ok: true };
 };
 
 export const validateCommand = (params: {
@@ -148,6 +230,7 @@ export const validateCommand = (params: {
   const { envelope } = params;
 
   if (!envelope.mac) return { ok: false, reason: "missing-mac" };
+  if (!envelope.roomSig) return { ok: false, reason: "missing-room-sig" };
   if (!envelope.sig) return { ok: false, reason: "missing-sig" };
 
   let pubKeyBytes: Uint8Array;
@@ -180,6 +263,26 @@ export const validateCommand = (params: {
   }
   if (expectedMac !== envelope.mac) {
     return { ok: false, reason: "mac-mismatch" };
+  }
+
+  const roomPublicKey = deriveRoomSigningPublicKey({
+    sessionId: params.sessionId,
+    playerKey: params.playerKey,
+  });
+  let roomSigBytes: Uint8Array;
+  try {
+    roomSigBytes = base64UrlToBytes(envelope.roomSig);
+  } catch (_err) {
+    return { ok: false, reason: "room-sig-mismatch" };
+  }
+  const roomSigningBytes = getCommandSigningBytes(envelope);
+  const roomSigValid = verifyEd25519(
+    roomSigBytes,
+    roomSigningBytes,
+    roomPublicKey,
+  );
+  if (!roomSigValid) {
+    return { ok: false, reason: "room-sig-mismatch" };
   }
 
   let signature: Uint8Array;

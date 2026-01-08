@@ -8,6 +8,14 @@ export const generateEd25519KeyPair = (): {
   return { publicKey, privateKey: secretKey };
 };
 
+export const deriveEd25519KeyPairFromSeed = (
+  seed: Uint8Array,
+): { publicKey: Uint8Array; privateKey: Uint8Array } => {
+  const privateKey = seed;
+  const publicKey = ed25519.getPublicKey(privateKey);
+  return { publicKey, privateKey };
+};
+
 export const signEd25519 = (
   message: Uint8Array,
   privateKey: Uint8Array,

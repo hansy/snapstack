@@ -12,7 +12,8 @@ import { clampNormalizedPosition } from "@/lib/positions";
 import { canMoveCard, canModifyCardState, canUpdatePlayer } from "@/rules/permissions";
 
 import { base64UrlToBytes } from "@/crypto/base64url";
-import { validateCommand, getCommandSigningBytes, deriveActorIdFromPublicKey } from "./commands";
+import { deriveRoomSigningPublicKey } from "@/crypto/roomSig";
+import { validateCommand, validateCommandRoomSig } from "./commands";
 import { computeNextLogHashHex, INITIAL_LOG_HASH_HEX } from "./logHash";
 import type { CommandEnvelope } from "./types";
 import {
@@ -23,7 +24,6 @@ import {
 } from "./crypto";
 import { getSessionAccessKeys } from "@/lib/sessionKeys";
 import { getSessionIdentityBytes } from "@/lib/sessionIdentity";
-import { verifyEd25519 } from "@/crypto/ed25519";
 import { extractCardIdentity, stripCardIdentity } from "./identity";
 
 export type CommandLogState = {
@@ -52,6 +52,7 @@ type CommandLogContext = {
   spectatorAesKey?: Uint8Array;
   recipientPrivateKey?: Uint8Array;
   playerKey?: Uint8Array;
+  roomSigPublicKey?: Uint8Array;
 };
 
 const HIDDEN_ZONE_TYPES = new Set<ZoneType>([
@@ -299,12 +300,37 @@ const applyCardUpdate = (params: {
   const zone = params.state.zones[card.zoneId];
   if (!zone) return params.state;
 
-  const permission = canModifyCardState(
-    { actorId: params.actorId, role: "player" },
-    card,
-    zone,
+  const isCommanderUpdate = Object.prototype.hasOwnProperty.call(
+    params.updates,
+    "isCommander",
   );
-  if (!permission.allowed) return params.state;
+  const isCommanderTaxUpdate = Object.prototype.hasOwnProperty.call(
+    params.updates,
+    "commanderTax",
+  );
+  if (isCommanderUpdate && card.ownerId !== params.actorId) return params.state;
+  if (isCommanderTaxUpdate && card.ownerId !== params.actorId) return params.state;
+
+  const controlledFields: Array<keyof Card> = [
+    "power",
+    "toughness",
+    "basePower",
+    "baseToughness",
+    "customText",
+    "faceDown",
+    "currentFaceIndex",
+  ];
+  const requiresControl = Object.keys(params.updates).some((key) =>
+    controlledFields.includes(key as keyof Card),
+  );
+  if (requiresControl) {
+    const permission = canModifyCardState(
+      { actorId: params.actorId, role: "player" },
+      card,
+      zone,
+    );
+    if (!permission.allowed) return params.state;
+  }
 
   const { next } = buildUpdateCardPatch(card, params.updates);
   const shouldMarkKnownAfterFaceUp =
@@ -1260,6 +1286,19 @@ export const createCommandLogContext = (params: {
     ? deriveSpectatorAesKey({ spectatorKey: spectatorKeyBytes, sessionId: params.sessionId })
     : undefined;
   const playerKey = keys.playerKey ? base64UrlToBytes(keys.playerKey) : undefined;
+  let roomSigPublicKey: Uint8Array | undefined;
+  if (playerKey) {
+    roomSigPublicKey = deriveRoomSigningPublicKey({
+      sessionId: params.sessionId,
+      playerKey,
+    });
+  } else if (keys.roomSigPubKey) {
+    try {
+      roomSigPublicKey = base64UrlToBytes(keys.roomSigPubKey);
+    } catch (_err) {
+      roomSigPublicKey = undefined;
+    }
+  }
 
   return {
     sessionId: params.sessionId,
@@ -1269,25 +1308,8 @@ export const createCommandLogContext = (params: {
     spectatorAesKey,
     recipientPrivateKey: isSpectator ? undefined : identityBytes.encPrivateKey,
     playerKey,
+    roomSigPublicKey,
   };
-};
-
-const validateSignatureOnly = (params: {
-  envelope: CommandEnvelope;
-}): boolean => {
-  try {
-    const pubKeyBytes = base64UrlToBytes(params.envelope.pubKey);
-    const derivedActorId = deriveActorIdFromPublicKey(pubKeyBytes);
-    if (derivedActorId !== params.envelope.actorId) return false;
-    const signingBytes = getCommandSigningBytes(params.envelope);
-    return verifyEd25519(
-      base64UrlToBytes(params.envelope.sig),
-      signingBytes,
-      pubKeyBytes,
-    );
-  } catch (_err) {
-    return false;
-  }
 };
 
 export const applyCommandLog = async (params: {
@@ -1315,10 +1337,15 @@ export const applyCommandLog = async (params: {
     }
     valid = true;
   } else {
-    if (envelope.seq !== expectedSeq) {
+    if (!ctx.roomSigPublicKey) {
       return { state: params.state, meta };
     }
-    if (!validateSignatureOnly({ envelope })) {
+    const validation = validateCommandRoomSig({
+      envelope,
+      roomPublicKey: ctx.roomSigPublicKey,
+      expectedSeq,
+    });
+    if (!validation.ok) {
       return { state: params.state, meta };
     }
     valid = true;

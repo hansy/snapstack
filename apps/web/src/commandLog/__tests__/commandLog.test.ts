@@ -5,6 +5,7 @@ import { ZONE } from "@/constants/zones";
 import { bytesToBase64Url } from "@/crypto/base64url";
 import { generateEd25519KeyPair } from "@/crypto/ed25519";
 import { generateX25519KeyPair } from "@/crypto/x25519";
+import { deriveRoomSigningPublicKey } from "@/crypto/roomSig";
 
 import { appendCommand, deriveActorIdFromPublicKey } from "../commands";
 import { deriveOwnerAesKey, encryptJsonPayload, encryptPayloadForRecipient } from "../crypto";
@@ -655,5 +656,262 @@ describe("command log", () => {
     const stateWithInvalid = await replay(commands.length);
 
     expect(stateWithInvalid).toEqual(stateValid);
+  });
+
+  it("rejects commands with invalid room signatures for spectators", async () => {
+    const { publicKey, privateKey } = generateEd25519KeyPair();
+    const actorId = deriveActorIdFromPublicKey(publicKey);
+    const sessionId = "session-room-sig";
+    const playerKey = new Uint8Array(32).fill(9);
+
+    const doc = new Y.Doc();
+    const commands = doc.getArray<CommandEnvelope>("commands");
+
+    appendCommand({
+      commands,
+      sessionId,
+      playerKey,
+      signPrivateKey: privateKey,
+      envelope: {
+        v: 1,
+        id: "cmd-rs-1",
+        actorId,
+        seq: 1,
+        ts: 1,
+        type: "player.join",
+        payloadPublic: { playerId: actorId, name: "Player" },
+        pubKey: bytesToBase64Url(publicKey),
+      },
+    });
+
+    const original = commands.get(0) as CommandEnvelope;
+    commands.delete(0, 1);
+    commands.insert(0, [{ ...original, roomSig: "invalid" }]);
+
+    let state = createEmptyCommandLogState();
+    let meta = createCommandLogMeta();
+    const roomSigPublicKey = deriveRoomSigningPublicKey({
+      sessionId,
+      playerKey,
+    });
+    const ctx = {
+      sessionId,
+      viewerId: "spectator",
+      viewerRole: "spectator" as const,
+      playerKey: undefined,
+      roomSigPublicKey,
+      ownerAesKey: undefined,
+      spectatorAesKey: undefined,
+      recipientPrivateKey: undefined,
+    };
+
+    const result = await applyCommandLog({
+      state,
+      meta,
+      envelope: commands.get(0) as CommandEnvelope,
+      ctx,
+    });
+    state = result.state;
+
+    expect(state.players[actorId]).toBeUndefined();
+  });
+
+  it("applies commander tax updates in the commander zone for the owner", async () => {
+    const ownerKeys = generateEd25519KeyPair();
+    const ownerId = deriveActorIdFromPublicKey(ownerKeys.publicKey);
+    const sessionId = "session-commander-tax-owner";
+    const playerKey = new Uint8Array(32).fill(7);
+
+    const doc = new Y.Doc();
+    const commands = doc.getArray<CommandEnvelope>("commands");
+
+    appendCommand({
+      commands,
+      sessionId,
+      playerKey,
+      signPrivateKey: ownerKeys.privateKey,
+      envelope: {
+        v: 1,
+        id: "cmd-ct-1",
+        actorId: ownerId,
+        seq: 1,
+        ts: 1,
+        type: "player.join",
+        payloadPublic: { playerId: ownerId, name: "Owner" },
+        pubKey: bytesToBase64Url(ownerKeys.publicKey),
+      },
+    });
+
+    const commanderZoneId = `${ownerId}-${ZONE.COMMANDER}`;
+
+    appendCommand({
+      commands,
+      sessionId,
+      playerKey,
+      signPrivateKey: ownerKeys.privateKey,
+      envelope: {
+        v: 1,
+        id: "cmd-ct-2",
+        actorId: ownerId,
+        seq: 2,
+        ts: 2,
+        type: "card.create.public",
+        payloadPublic: {
+          card: {
+            id: "cmd-1",
+            ownerId,
+            controllerId: ownerId,
+            zoneId: commanderZoneId,
+            name: "Commander",
+            tapped: false,
+            faceDown: false,
+            position: { x: 0, y: 0 },
+            rotation: 0,
+            counters: [],
+            isCommander: true,
+            commanderTax: 0,
+          },
+        },
+        pubKey: bytesToBase64Url(ownerKeys.publicKey),
+      },
+    });
+
+    appendCommand({
+      commands,
+      sessionId,
+      playerKey,
+      signPrivateKey: ownerKeys.privateKey,
+      envelope: {
+        v: 1,
+        id: "cmd-ct-3",
+        actorId: ownerId,
+        seq: 3,
+        ts: 3,
+        type: "card.update.public",
+        payloadPublic: { cardId: "cmd-1", updates: { commanderTax: 2 } },
+        pubKey: bytesToBase64Url(ownerKeys.publicKey),
+      },
+    });
+
+    let state = createEmptyCommandLogState();
+    let meta = createCommandLogMeta();
+    const ctx = buildContext({ sessionId, viewerId: ownerId, playerKey });
+    for (let i = 0; i < commands.length; i += 1) {
+      const envelope = commands.get(i) as CommandEnvelope;
+      const result = await applyCommandLog({ state, meta, envelope, ctx });
+      state = result.state;
+      meta = result.meta;
+    }
+
+    expect(state.cards["cmd-1"]?.commanderTax).toBe(2);
+  });
+
+  it("rejects commander tax updates from non-owners in the commander zone", async () => {
+    const ownerKeys = generateEd25519KeyPair();
+    const attackerKeys = generateEd25519KeyPair();
+    const ownerId = deriveActorIdFromPublicKey(ownerKeys.publicKey);
+    const attackerId = deriveActorIdFromPublicKey(attackerKeys.publicKey);
+    const sessionId = "session-commander-tax-non-owner";
+    const playerKey = new Uint8Array(32).fill(8);
+
+    const doc = new Y.Doc();
+    const commands = doc.getArray<CommandEnvelope>("commands");
+
+    appendCommand({
+      commands,
+      sessionId,
+      playerKey,
+      signPrivateKey: ownerKeys.privateKey,
+      envelope: {
+        v: 1,
+        id: "cmd-ct2-1",
+        actorId: ownerId,
+        seq: 1,
+        ts: 1,
+        type: "player.join",
+        payloadPublic: { playerId: ownerId, name: "Owner" },
+        pubKey: bytesToBase64Url(ownerKeys.publicKey),
+      },
+    });
+
+    appendCommand({
+      commands,
+      sessionId,
+      playerKey,
+      signPrivateKey: attackerKeys.privateKey,
+      envelope: {
+        v: 1,
+        id: "cmd-ct2-2",
+        actorId: attackerId,
+        seq: 1,
+        ts: 2,
+        type: "player.join",
+        payloadPublic: { playerId: attackerId, name: "Attacker" },
+        pubKey: bytesToBase64Url(attackerKeys.publicKey),
+      },
+    });
+
+    const commanderZoneId = `${ownerId}-${ZONE.COMMANDER}`;
+
+    appendCommand({
+      commands,
+      sessionId,
+      playerKey,
+      signPrivateKey: ownerKeys.privateKey,
+      envelope: {
+        v: 1,
+        id: "cmd-ct2-3",
+        actorId: ownerId,
+        seq: 2,
+        ts: 3,
+        type: "card.create.public",
+        payloadPublic: {
+          card: {
+            id: "cmd-2",
+            ownerId,
+            controllerId: ownerId,
+            zoneId: commanderZoneId,
+            name: "Commander",
+            tapped: false,
+            faceDown: false,
+            position: { x: 0, y: 0 },
+            rotation: 0,
+            counters: [],
+            isCommander: true,
+            commanderTax: 0,
+          },
+        },
+        pubKey: bytesToBase64Url(ownerKeys.publicKey),
+      },
+    });
+
+    appendCommand({
+      commands,
+      sessionId,
+      playerKey,
+      signPrivateKey: attackerKeys.privateKey,
+      envelope: {
+        v: 1,
+        id: "cmd-ct2-4",
+        actorId: attackerId,
+        seq: 2,
+        ts: 4,
+        type: "card.update.public",
+        payloadPublic: { cardId: "cmd-2", updates: { commanderTax: 2 } },
+        pubKey: bytesToBase64Url(attackerKeys.publicKey),
+      },
+    });
+
+    let state = createEmptyCommandLogState();
+    let meta = createCommandLogMeta();
+    const ctx = buildContext({ sessionId, viewerId: ownerId, playerKey });
+    for (let i = 0; i < commands.length; i += 1) {
+      const envelope = commands.get(i) as CommandEnvelope;
+      const result = await applyCommandLog({ state, meta, envelope, ctx });
+      state = result.state;
+      meta = result.meta;
+    }
+
+    expect(state.cards["cmd-2"]?.commanderTax).toBe(0);
   });
 });

@@ -21,14 +21,18 @@ describe("sessionKeys", () => {
 
   it("syncs keys from the URL hash", () => {
     const storage = createMemoryStorage();
-    const location = { hash: "#k=playerKey123&s=spectatorKey456" } as Location;
+    const location = {
+      hash: "#k=playerKey123&s=spectatorKey456&rk=roomSigKey789",
+    } as Location;
 
     const result = syncSessionAccessKeysFromLocation("s2", location, storage);
 
     expect(result.fromHash.playerKey).toBe("playerKey123");
     expect(result.fromHash.spectatorKey).toBe("spectatorKey456");
+    expect(result.fromHash.roomSigPubKey).toBe("roomSigKey789");
     expect(result.keys.playerKey).toBe("playerKey123");
     expect(result.keys.spectatorKey).toBe("spectatorKey456");
+    expect(result.keys.roomSigPubKey).toBe("roomSigKey789");
   });
 
   it("builds session links for the requested role", () => {
@@ -40,6 +44,17 @@ describe("sessionKeys", () => {
     });
 
     expect(link).toBe("http://example.com/game/s3#k=pk");
+  });
+
+  it("builds spectator links with room signatures", () => {
+    const link = buildSessionLink({
+      sessionId: "s4",
+      role: "spectator",
+      keys: { spectatorKey: "sk", roomSigPubKey: "rk" },
+      baseUrl: "http://example.com",
+    });
+
+    expect(link).toBe("http://example.com/game/s4#s=sk&rk=rk");
   });
 
   it("chooses spectator links for locked rooms", () => {

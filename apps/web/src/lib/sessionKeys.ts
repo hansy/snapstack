@@ -1,11 +1,13 @@
-import { bytesToBase64Url } from "@/crypto/base64url";
+import { base64UrlToBytes, bytesToBase64Url } from "@/crypto/base64url";
 import { randomBytes } from "@/crypto/random";
+import { deriveRoomSigningPublicKey } from "@/crypto/roomSig";
 import { createSafeStorage } from "@/lib/safeStorage";
 import type { ViewerRole } from "@/types/ids";
 
 export type SessionAccessKeys = {
   playerKey?: string;
   spectatorKey?: string;
+  roomSigPubKey?: string;
 };
 
 type StoredSessionAccessKeys = SessionAccessKeys & { v: 1 };
@@ -32,9 +34,11 @@ const parseSessionKeysFromHash = (hash: string): SessionAccessKeys => {
   const params = new URLSearchParams(trimmed);
   const playerKey = params.get("k") ?? undefined;
   const spectatorKey = params.get("s") ?? undefined;
+  const roomSigPubKey = params.get("rk") ?? undefined;
   return {
     playerKey: isValidKey(playerKey) ? playerKey : undefined,
     spectatorKey: isValidKey(spectatorKey) ? spectatorKey : undefined,
+    roomSigPubKey: isValidKey(roomSigPubKey) ? roomSigPubKey : undefined,
   };
 };
 
@@ -53,6 +57,9 @@ export const getSessionAccessKeys = (
       spectatorKey: isValidKey(stored.spectatorKey)
         ? stored.spectatorKey
         : undefined,
+      roomSigPubKey: isValidKey(stored.roomSigPubKey)
+        ? stored.roomSigPubKey
+        : undefined,
     };
   } catch (_err) {
     return {};
@@ -68,6 +75,7 @@ export const setSessionAccessKeys = (
     v: STORAGE_VERSION,
     playerKey: keys.playerKey,
     spectatorKey: keys.spectatorKey,
+    roomSigPubKey: keys.roomSigPubKey,
   };
   try {
     storage.setItem(storageKeyForSession(sessionId), JSON.stringify(payload));
@@ -85,10 +93,12 @@ export const mergeSessionAccessKeys = (
   const next: SessionAccessKeys = {
     playerKey: updates.playerKey ?? existing.playerKey,
     spectatorKey: updates.spectatorKey ?? existing.spectatorKey,
+    roomSigPubKey: updates.roomSigPubKey ?? existing.roomSigPubKey,
   };
   if (
     next.playerKey !== existing.playerKey ||
-    next.spectatorKey !== existing.spectatorKey
+    next.spectatorKey !== existing.spectatorKey ||
+    next.roomSigPubKey !== existing.roomSigPubKey
   ) {
     setSessionAccessKeys(sessionId, next, storage);
   }
@@ -103,10 +113,12 @@ export const ensureSessionAccessKeys = (
   const next: SessionAccessKeys = {
     playerKey: existing.playerKey ?? bytesToBase64Url(randomBytes(32)),
     spectatorKey: existing.spectatorKey ?? bytesToBase64Url(randomBytes(32)),
+    roomSigPubKey: existing.roomSigPubKey,
   };
   if (
     next.playerKey !== existing.playerKey ||
-    next.spectatorKey !== existing.spectatorKey
+    next.spectatorKey !== existing.spectatorKey ||
+    next.roomSigPubKey !== existing.roomSigPubKey
   ) {
     setSessionAccessKeys(sessionId, next, storage);
   }
@@ -121,7 +133,7 @@ export const syncSessionAccessKeysFromLocation = (
 ): SessionKeySyncResult => {
   const hash = location?.hash ?? "";
   const parsed = parseSessionKeysFromHash(hash);
-  if (parsed.playerKey || parsed.spectatorKey) {
+  if (parsed.playerKey || parsed.spectatorKey || parsed.roomSigPubKey) {
     return {
       keys: mergeSessionAccessKeys(sessionId, parsed, storage),
       fromHash: parsed,
@@ -152,7 +164,31 @@ export const buildSessionLink = (params: {
     params.baseUrl ??
     (typeof window !== "undefined" ? window.location.origin : "");
 
-  const hash = key ? `${role === "spectator" ? "s" : "k"}=${key}` : "";
+  let hash = "";
+  if (key) {
+    if (role === "spectator") {
+      const hashParams = new URLSearchParams();
+      hashParams.set("s", key);
+      let roomSigPubKey = keys.roomSigPubKey;
+      if (!roomSigPubKey && keys.playerKey) {
+        try {
+          const derived = deriveRoomSigningPublicKey({
+            sessionId,
+            playerKey: base64UrlToBytes(keys.playerKey),
+          });
+          roomSigPubKey = bytesToBase64Url(derived);
+        } catch (_err) {
+          roomSigPubKey = undefined;
+        }
+      }
+      if (roomSigPubKey) {
+        hashParams.set("rk", roomSigPubKey);
+      }
+      hash = hashParams.toString();
+    } else {
+      hash = `k=${key}`;
+    }
+  }
 
   if (!baseUrl) {
     return `/game/${sessionId}${hash ? `#${hash}` : ""}`;

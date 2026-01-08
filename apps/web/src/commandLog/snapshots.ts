@@ -4,6 +4,7 @@ import { base64UrlToBytes, bytesToBase64Url } from "@/crypto/base64url";
 import { canonicalizeJsonBytes } from "@/crypto/canonical";
 import { signEd25519, verifyEd25519 } from "@/crypto/ed25519";
 import { hmacSha256 } from "@/crypto/hash";
+import { deriveRoomSigningKeyPair, deriveRoomSigningPublicKey } from "@/crypto/roomSig";
 
 import type {
   SignedSnapshot,
@@ -107,10 +108,23 @@ export const appendSnapshot = (params: {
     macKey,
     signPrivateKey: params.signPrivateKey,
   });
+  const roomKeys = deriveRoomSigningKeyPair({
+    sessionId: params.sessionId,
+    playerKey: params.playerKey,
+  });
+  const roomSigningBytes = getSnapshotSigningBytes({
+    ...params.snapshot,
+    mac,
+    sig,
+  } as SignedSnapshot);
+  const roomSig = bytesToBase64Url(
+    signEd25519(roomSigningBytes, roomKeys.privateKey),
+  );
   const signed: SignedSnapshot = {
     ...params.snapshot,
     mac,
     sig,
+    roomSig,
   } as SignedSnapshot;
   params.snapshots.push([signed]);
   return signed;
@@ -124,6 +138,7 @@ export const validateSnapshot = (params: {
 }): CommandValidationResult => {
   const { snapshot } = params;
   if (!snapshot.mac) return { ok: false, reason: "missing-mac" };
+  if (!snapshot.roomSig) return { ok: false, reason: "missing-room-sig" };
   if (!snapshot.sig) return { ok: false, reason: "missing-sig" };
 
   let pubKeyBytes: Uint8Array;
@@ -155,6 +170,24 @@ export const validateSnapshot = (params: {
     return { ok: false, reason: "mac-mismatch" };
   }
 
+  const roomPublicKey = deriveRoomSigningPublicKey({
+    sessionId: params.sessionId,
+    playerKey: params.playerKey,
+  });
+  let roomSigBytes: Uint8Array;
+  try {
+    roomSigBytes = base64UrlToBytes(snapshot.roomSig);
+  } catch (_err) {
+    return { ok: false, reason: "room-sig-mismatch" };
+  }
+  const roomSigningBytes = getSnapshotSigningBytes(snapshot);
+  const roomSigValid = verifyEd25519(
+    roomSigBytes,
+    roomSigningBytes,
+    roomPublicKey,
+  );
+  if (!roomSigValid) return { ok: false, reason: "room-sig-mismatch" };
+
   let signature: Uint8Array;
   try {
     signature = base64UrlToBytes(snapshot.sig);
@@ -175,20 +208,39 @@ export const validateSnapshot = (params: {
   return { ok: true };
 };
 
-export const validateSnapshotSignatureOnly = (params: {
+export const validateSnapshotRoomSig = (params: {
   snapshot: SignedSnapshot;
-}): boolean => {
+  roomPublicKey: Uint8Array;
+}): CommandValidationResult => {
   try {
+    if (!params.snapshot.mac) return { ok: false, reason: "missing-mac" };
+    if (!params.snapshot.sig) return { ok: false, reason: "missing-sig" };
+    if (!params.snapshot.roomSig) return { ok: false, reason: "missing-room-sig" };
     const pubKeyBytes = base64UrlToBytes(params.snapshot.pubKey);
     const derivedActorId = deriveActorIdFromPublicKey(pubKeyBytes);
-    if (derivedActorId !== params.snapshot.actorId) return false;
+    if (derivedActorId !== params.snapshot.actorId) {
+      return { ok: false, reason: "actor-id-mismatch" };
+    }
+    let roomSigBytes: Uint8Array;
+    try {
+      roomSigBytes = base64UrlToBytes(params.snapshot.roomSig);
+    } catch (_err) {
+      return { ok: false, reason: "room-sig-mismatch" };
+    }
     const signingBytes = getSnapshotSigningBytes(params.snapshot);
-    return verifyEd25519(
+    const roomSigValid = verifyEd25519(
+      roomSigBytes,
+      signingBytes,
+      params.roomPublicKey,
+    );
+    if (!roomSigValid) return { ok: false, reason: "room-sig-mismatch" };
+    const actorSigValid = verifyEd25519(
       base64UrlToBytes(params.snapshot.sig),
       signingBytes,
       pubKeyBytes,
     );
+    return actorSigValid ? { ok: true } : { ok: false, reason: "sig-mismatch" };
   } catch (_err) {
-    return false;
+    return { ok: false, reason: "invalid-envelope" };
   }
 };

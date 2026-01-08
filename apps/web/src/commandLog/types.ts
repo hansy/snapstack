@@ -18,11 +18,16 @@ export type CommandEnvelope = {
   pubKey: string;
   mac: string;
   sig: string;
+  roomSig: string;
 };
 
-export type CommandEnvelopeUnsigned = Omit<CommandEnvelope, "mac" | "sig"> & {
+export type CommandEnvelopeUnsigned = Omit<
+  CommandEnvelope,
+  "mac" | "sig" | "roomSig"
+> & {
   mac?: string;
   sig?: string;
+  roomSig?: string;
 };
 
 export type SignedSnapshot = {
@@ -39,11 +44,16 @@ export type SignedSnapshot = {
   pubKey: string;
   mac: string;
   sig: string;
+  roomSig: string;
 };
 
-export type SignedSnapshotUnsigned = Omit<SignedSnapshot, "mac" | "sig"> & {
+export type SignedSnapshotUnsigned = Omit<
+  SignedSnapshot,
+  "mac" | "sig" | "roomSig"
+> & {
   mac?: string;
   sig?: string;
+  roomSig?: string;
 };
 
 export type CommandValidationResult =
@@ -59,5 +69,7 @@ export type CommandValidationResult =
         | "seq-mismatch"
         | "sig-mismatch"
         | "invalid-pubkey"
-        | "invalid-envelope";
+        | "invalid-envelope"
+        | "missing-room-sig"
+        | "room-sig-mismatch";
     };

@@ -14,12 +14,14 @@ import {
 import {
   appendSnapshot,
   validateSnapshot,
-  validateSnapshotSignatureOnly,
+  validateSnapshotRoomSig,
 } from "./snapshots";
 import { computeNextLogHashHex, INITIAL_LOG_HASH_HEX } from "./logHash";
-import { validateCommand, deriveActorIdFromPublicKey, getCommandSigningBytes } from "./commands";
+import {
+  validateCommand,
+  validateCommandRoomSig,
+} from "./commands";
 import { base64UrlToBytes } from "@/crypto/base64url";
-import { verifyEd25519 } from "@/crypto/ed25519";
 import { decryptJsonPayload, deriveOwnerAesKey, deriveSpectatorAesKey, encryptJsonPayload } from "./crypto";
 import { getSessionAccessKeys } from "@/lib/sessionKeys";
 import { getOrCreateSessionIdentity, getSessionIdentityBytes } from "@/lib/sessionIdentity";
@@ -34,26 +36,11 @@ type CommandLogSyncParams = {
   setState: (next: CommandLogState) => void;
 };
 
-const validateCommandSignatureOnly = (envelope: CommandEnvelope): boolean => {
-  try {
-    const pubKeyBytes = base64UrlToBytes(envelope.pubKey);
-    const derivedActorId = deriveActorIdFromPublicKey(pubKeyBytes);
-    if (derivedActorId !== envelope.actorId) return false;
-    const signingBytes = getCommandSigningBytes(envelope);
-    return verifyEd25519(
-      base64UrlToBytes(envelope.sig),
-      signingBytes,
-      pubKeyBytes,
-    );
-  } catch (_err) {
-    return false;
-  }
-};
-
 const computeCommandMetaUpToIndex = (params: {
   commands: Y.Array<CommandEnvelope>;
   sessionId: string;
   playerKey?: Uint8Array;
+  roomSigPublicKey?: Uint8Array;
   upToIndex: number;
 }): { logHash: string; lastSeqByActor: Record<string, number> } => {
   const lastSeqByActor: Record<string, number> = {};
@@ -71,8 +58,13 @@ const computeCommandMetaUpToIndex = (params: {
         expectedSeq,
       });
       valid = validation.ok;
-    } else if (envelope.seq === expectedSeq && validateCommandSignatureOnly(envelope)) {
-      valid = true;
+    } else if (params.roomSigPublicKey) {
+      const validation = validateCommandRoomSig({
+        envelope,
+        roomPublicKey: params.roomSigPublicKey,
+        expectedSeq,
+      });
+      valid = validation.ok;
     }
 
     if (valid) {
@@ -153,6 +145,7 @@ export const createCommandLogSync = (params: CommandLogSyncParams) => {
     const viewerId = params.getViewerId();
     const ctx = buildContext();
     const playerKey = ctx.playerKey;
+    const roomSigPublicKey = ctx.roomSigPublicKey;
     const snapshots = params.snapshots.toArray() as SignedSnapshot[];
     const sorted = [...snapshots].sort((a, b) => {
       if (b.upToIndex !== a.upToIndex) return b.upToIndex - a.upToIndex;
@@ -169,8 +162,12 @@ export const createCommandLogSync = (params: CommandLogSyncParams) => {
           playerKey,
         });
         valid = validation.ok;
-      } else {
-        valid = validateSnapshotSignatureOnly({ snapshot });
+      } else if (roomSigPublicKey) {
+        const validation = validateSnapshotRoomSig({
+          snapshot,
+          roomPublicKey: roomSigPublicKey,
+        });
+        valid = validation.ok;
       }
       if (!valid) continue;
 
@@ -178,6 +175,7 @@ export const createCommandLogSync = (params: CommandLogSyncParams) => {
         commands: params.commands,
         sessionId: params.sessionId,
         playerKey,
+        roomSigPublicKey,
         upToIndex: snapshot.upToIndex,
       });
       if (metaAtIndex.logHash !== snapshot.logHash) continue;
