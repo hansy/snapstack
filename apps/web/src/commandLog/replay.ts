@@ -299,12 +299,37 @@ const applyCardUpdate = (params: {
   const zone = params.state.zones[card.zoneId];
   if (!zone) return params.state;
 
-  const permission = canModifyCardState(
-    { actorId: params.actorId, role: "player" },
-    card,
-    zone,
+  const isCommanderUpdate = Object.prototype.hasOwnProperty.call(
+    params.updates,
+    "isCommander",
   );
-  if (!permission.allowed) return params.state;
+  const isCommanderTaxUpdate = Object.prototype.hasOwnProperty.call(
+    params.updates,
+    "commanderTax",
+  );
+  if (isCommanderUpdate && card.ownerId !== params.actorId) return params.state;
+  if (isCommanderTaxUpdate && card.ownerId !== params.actorId) return params.state;
+
+  const controlledFields: Array<keyof Card> = [
+    "power",
+    "toughness",
+    "basePower",
+    "baseToughness",
+    "customText",
+    "faceDown",
+    "currentFaceIndex",
+  ];
+  const requiresControl = Object.keys(params.updates).some((key) =>
+    controlledFields.includes(key as keyof Card),
+  );
+  if (requiresControl) {
+    const permission = canModifyCardState(
+      { actorId: params.actorId, role: "player" },
+      card,
+      zone,
+    );
+    if (!permission.allowed) return params.state;
+  }
 
   const { next } = buildUpdateCardPatch(card, params.updates);
   const shouldMarkKnownAfterFaceUp =
