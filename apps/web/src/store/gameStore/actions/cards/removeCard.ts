@@ -73,7 +73,7 @@ export const createRemoveCard =
           commands: active.commands,
           type: "card.remove.public",
           buildPayloads: () => ({
-            payloadPublic: { cardId },
+            payloadPublic: { cardId, zoneId: card.zoneId },
           }),
         });
         return;

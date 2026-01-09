@@ -154,6 +154,13 @@ export const createMoveCard =
           zoneType === ZONE.HAND || zoneType === ZONE.LIBRARY || zoneType === ZONE.SIDEBOARD;
         const fromHidden = isHidden(fromZone.type);
         const toHidden = isHidden(toZone.type);
+        const shouldRevealToAllInHand =
+          toHidden &&
+          !fromHidden &&
+          toZone.type === ZONE.HAND &&
+          card.faceDown === false;
+
+        let revealCardId: string | null = null;
 
         const resolvedPosition = normalizeMovePosition(position, card.position);
 
@@ -175,16 +182,35 @@ export const createMoveCard =
           if (toHidden) {
             const shouldResetIdentity = !fromHidden;
             const nextCardId = shouldResetIdentity ? uuidv4() : cardId;
+            if (shouldRevealToAllInHand) {
+              revealCardId = nextCardId;
+            }
             const toOrder = [...toZone.cardIds.filter((id) => id !== cardId), nextCardId];
+            const visibility = {
+              knownToAll: card.knownToAll ?? false,
+              revealedToAll: card.revealedToAll ?? false,
+              revealedTo: card.revealedTo ?? [],
+            };
+            if (revealPatch) {
+              if ("knownToAll" in revealPatch) {
+                visibility.knownToAll = revealPatch.knownToAll ?? false;
+              }
+              if ("revealedToAll" in revealPatch) {
+                visibility.revealedToAll = revealPatch.revealedToAll ?? false;
+              }
+              if ("revealedTo" in revealPatch) {
+                visibility.revealedTo = revealPatch.revealedTo ?? [];
+              }
+            }
             const movingCard = {
               ...resetCardToFrontFace(card),
               zoneId: toZone.id,
               id: nextCardId,
               controllerId: card.ownerId,
               faceDown: false,
-              knownToAll: false,
-              revealedToAll: false,
-              revealedTo: [],
+              knownToAll: visibility.knownToAll,
+              revealedToAll: visibility.revealedToAll,
+              revealedTo: visibility.revealedTo,
               counters: enforceZoneCounterRules(card.counters, toZone),
               position: { x: 0, y: 0 },
               rotation: 0,
@@ -286,7 +312,23 @@ export const createMoveCard =
               commands: active.commands,
               type: "card.remove.public",
               buildPayloads: () => ({
-                payloadPublic: { cardId },
+                payloadPublic: { cardId, zoneId: fromZoneId },
+              }),
+            });
+          }
+
+          if (shouldRevealToAllInHand && revealCardId) {
+            enqueueLocalCommand({
+              sessionId: active.sessionId,
+              commands: active.commands,
+              type: "card.reveal.set",
+              buildPayloads: () => ({
+                payloadPublic: {
+                  cardId: revealCardId,
+                  zoneId: toZone.id,
+                  revealToAll: true,
+                  identity: { ...extractCardIdentity(card), knownToAll: true },
+                },
               }),
             });
           }

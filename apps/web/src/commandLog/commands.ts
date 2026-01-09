@@ -194,11 +194,16 @@ export const validateCommandRoomSig = (params: {
   } catch (_err) {
     return { ok: false, reason: "invalid-envelope" };
   }
-  const roomSigValid = verifyEd25519(
-    roomSigBytes,
-    roomSigningBytes,
-    params.roomPublicKey,
-  );
+  let roomSigValid = false;
+  try {
+    roomSigValid = verifyEd25519(
+      roomSigBytes,
+      roomSigningBytes,
+      params.roomPublicKey,
+    );
+  } catch (_err) {
+    return { ok: false, reason: "room-sig-mismatch" };
+  }
   if (!roomSigValid) return { ok: false, reason: "room-sig-mismatch" };
 
   let signature: Uint8Array;
@@ -214,7 +219,12 @@ export const validateCommandRoomSig = (params: {
   } catch (_err) {
     return { ok: false, reason: "invalid-envelope" };
   }
-  const validSig = verifyEd25519(signature, signingBytes, pubKeyBytes);
+  let validSig = false;
+  try {
+    validSig = verifyEd25519(signature, signingBytes, pubKeyBytes);
+  } catch (_err) {
+    return { ok: false, reason: "sig-mismatch" };
+  }
   if (!validSig) return { ok: false, reason: "sig-mismatch" };
 
   return { ok: true };
@@ -276,11 +286,16 @@ export const validateCommand = (params: {
     return { ok: false, reason: "room-sig-mismatch" };
   }
   const roomSigningBytes = getCommandSigningBytes(envelope);
-  const roomSigValid = verifyEd25519(
-    roomSigBytes,
-    roomSigningBytes,
-    roomPublicKey,
-  );
+  let roomSigValid = false;
+  try {
+    roomSigValid = verifyEd25519(
+      roomSigBytes,
+      roomSigningBytes,
+      roomPublicKey,
+    );
+  } catch (_err) {
+    return { ok: false, reason: "room-sig-mismatch" };
+  }
   if (!roomSigValid) {
     return { ok: false, reason: "room-sig-mismatch" };
   }
@@ -299,7 +314,12 @@ export const validateCommand = (params: {
     return { ok: false, reason: "invalid-envelope" };
   }
 
-  const validSig = verifyEd25519(signature, signingBytes, pubKeyBytes);
+  let validSig = false;
+  try {
+    validSig = verifyEd25519(signature, signingBytes, pubKeyBytes);
+  } catch (_err) {
+    return { ok: false, reason: "sig-mismatch" };
+  }
   if (!validSig) return { ok: false, reason: "sig-mismatch" };
 
   return { ok: true };

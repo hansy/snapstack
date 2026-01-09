@@ -28,6 +28,78 @@ const buildContext = (params: { sessionId: string; viewerId: string; playerKey: 
   recipientPrivateKey: undefined as Uint8Array | undefined,
 });
 
+const buildOwnerContext = (params: {
+  sessionId: string;
+  viewerId: string;
+  playerKey: Uint8Array;
+  ownerAesKey: Uint8Array;
+}) => ({
+  sessionId: params.sessionId,
+  viewerId: params.viewerId,
+  viewerRole: "player" as const,
+  playerKey: params.playerKey,
+  ownerAesKey: params.ownerAesKey,
+  spectatorAesKey: undefined,
+  recipientPrivateKey: undefined as Uint8Array | undefined,
+});
+
+const replayCommands = async (
+  commands: Y.Array<CommandEnvelope>,
+  ctx: ReturnType<typeof buildContext> | ReturnType<typeof buildOwnerContext>,
+) => {
+  let state = createEmptyCommandLogState();
+  let meta = createCommandLogMeta();
+  for (let i = 0; i < commands.length; i += 1) {
+    const envelope = commands.get(i) as CommandEnvelope;
+    const result = await applyCommandLog({ state, meta, envelope, ctx });
+    state = result.state;
+    meta = result.meta;
+  }
+  return state;
+};
+
+const buildSignedCommands = (params: {
+  sessionId: string;
+  playerKey: Uint8Array;
+  actorId: string;
+  publicKey: Uint8Array;
+  privateKey: Uint8Array;
+  entries: Array<{
+    type: string;
+    payloadPublic?: unknown;
+    payloadOwnerEnc?: string;
+    payloadSpectatorEnc?: string;
+    payloadRecipientsEnc?: Record<string, unknown>;
+  }>;
+}) => {
+  const doc = new Y.Doc();
+  const commands = doc.getArray<CommandEnvelope>("commands");
+  let seq = 1;
+  params.entries.forEach((entry) => {
+    appendCommand({
+      commands,
+      sessionId: params.sessionId,
+      playerKey: params.playerKey,
+      signPrivateKey: params.privateKey,
+      envelope: {
+        v: 1,
+        id: `cmd-${seq}`,
+        actorId: params.actorId,
+        seq,
+        ts: seq,
+        type: entry.type,
+        payloadPublic: entry.payloadPublic,
+        payloadOwnerEnc: entry.payloadOwnerEnc,
+        payloadSpectatorEnc: entry.payloadSpectatorEnc,
+        payloadRecipientsEnc: entry.payloadRecipientsEnc,
+        pubKey: bytesToBase64Url(params.publicKey),
+      },
+    });
+    seq += 1;
+  });
+  return commands;
+};
+
 describe("command log", () => {
   it("replays deterministically from the same log", async () => {
     const { publicKey, privateKey } = generateEd25519KeyPair();
@@ -913,5 +985,177 @@ describe("command log", () => {
     }
 
     expect(state.cards["cmd-2"]?.commanderTax).toBe(0);
+  });
+
+  it("keeps public-to-hidden moves consistent across command ordering", async () => {
+    const { publicKey, privateKey } = generateEd25519KeyPair();
+    const actorId = deriveActorIdFromPublicKey(publicKey);
+    const sessionId = "session-ordering-public-hidden";
+    const playerKey = new Uint8Array(32).fill(10);
+    const ownerKey = new Uint8Array(32).fill(11);
+    const ownerAesKey = deriveOwnerAesKey({ ownerKey, sessionId });
+
+    const battlefieldZoneId = `${actorId}-${ZONE.BATTLEFIELD}`;
+    const handZoneId = `${actorId}-${ZONE.HAND}`;
+    const cardId = "card-ph-1";
+    const hiddenCardId = "card-ph-hidden";
+
+    const cardBase = {
+      id: cardId,
+      ownerId: actorId,
+      controllerId: actorId,
+      name: "Ordering Card",
+      tapped: false,
+      faceDown: false,
+      position: { x: 0, y: 0 },
+      rotation: 0,
+      counters: [],
+    };
+
+    const publicCard = { ...cardBase, zoneId: battlefieldZoneId, knownToAll: true };
+    const handCard = { ...cardBase, id: hiddenCardId, zoneId: handZoneId, knownToAll: true };
+
+    const ownerEncToHand = await encryptJsonPayload(ownerAesKey, {
+      cards: [handCard],
+      order: [hiddenCardId],
+    });
+
+    const baseEntries = [
+      {
+        type: "player.join",
+        payloadPublic: { playerId: actorId, name: "Owner" },
+      },
+      {
+        type: "card.create.public",
+        payloadPublic: { card: publicCard },
+      },
+    ];
+
+    const hiddenEntry = {
+      type: "zone.set.hidden",
+      payloadPublic: { ownerId: actorId, zoneType: ZONE.HAND, count: 1 },
+      payloadOwnerEnc: ownerEncToHand,
+    };
+
+    const removeEntry = {
+      type: "card.remove.public",
+      payloadPublic: { cardId, zoneId: battlefieldZoneId },
+    };
+
+    const orders: Array<Array<"hidden" | "remove">> = [
+      ["hidden", "remove"],
+      ["remove", "hidden"],
+    ];
+
+    const ctx = buildOwnerContext({ sessionId, viewerId: actorId, playerKey, ownerAesKey });
+    const states = [];
+    for (const order of orders) {
+      const moveEntries = order.map((step) => (step === "hidden" ? hiddenEntry : removeEntry));
+      const commands = buildSignedCommands({
+        sessionId,
+        playerKey,
+        actorId,
+        publicKey,
+        privateKey,
+        entries: [...baseEntries, ...moveEntries],
+      });
+      states.push(await replayCommands(commands, ctx));
+    }
+
+    expect(states[0]).toEqual(states[1]);
+
+    const finalState = states[0];
+    expect(finalState.zones[battlefieldZoneId]?.cardIds).not.toContain(cardId);
+    expect(finalState.zones[handZoneId]?.cardIds).toContain(hiddenCardId);
+    expect(finalState.zones[handZoneId]?.cardIds).not.toContain(cardId);
+    expect(finalState.cards[cardId]).toBeUndefined();
+    expect(finalState.cards[hiddenCardId]?.zoneId).toBe(handZoneId);
+  });
+
+  it("keeps hidden-to-public moves consistent across command ordering", async () => {
+    const { publicKey, privateKey } = generateEd25519KeyPair();
+    const actorId = deriveActorIdFromPublicKey(publicKey);
+    const sessionId = "session-ordering-hidden-public";
+    const playerKey = new Uint8Array(32).fill(12);
+    const ownerKey = new Uint8Array(32).fill(13);
+    const ownerAesKey = deriveOwnerAesKey({ ownerKey, sessionId });
+
+    const battlefieldZoneId = `${actorId}-${ZONE.BATTLEFIELD}`;
+    const handZoneId = `${actorId}-${ZONE.HAND}`;
+    const cardId = "card-hp-1";
+
+    const cardBase = {
+      id: cardId,
+      ownerId: actorId,
+      controllerId: actorId,
+      name: "Ordering Card",
+      tapped: false,
+      faceDown: false,
+      position: { x: 0, y: 0 },
+      rotation: 0,
+      counters: [],
+    };
+
+    const publicCard = { ...cardBase, zoneId: battlefieldZoneId, knownToAll: true };
+    const handCard = { ...cardBase, zoneId: handZoneId, knownToAll: false };
+
+    const ownerEncInHand = await encryptJsonPayload(ownerAesKey, {
+      cards: [handCard],
+      order: [cardId],
+    });
+    const ownerEncEmptyHand = await encryptJsonPayload(ownerAesKey, {
+      cards: [],
+      order: [],
+    });
+
+    const baseEntries = [
+      {
+        type: "player.join",
+        payloadPublic: { playerId: actorId, name: "Owner" },
+      },
+      {
+        type: "zone.set.hidden",
+        payloadPublic: { ownerId: actorId, zoneType: ZONE.HAND, count: 1 },
+        payloadOwnerEnc: ownerEncInHand,
+      },
+    ];
+
+    const hiddenEntry = {
+      type: "zone.set.hidden",
+      payloadPublic: { ownerId: actorId, zoneType: ZONE.HAND, count: 0 },
+      payloadOwnerEnc: ownerEncEmptyHand,
+    };
+
+    const createEntry = {
+      type: "card.create.public",
+      payloadPublic: { card: publicCard },
+    };
+
+    const orders: Array<Array<"hidden" | "create">> = [
+      ["hidden", "create"],
+      ["create", "hidden"],
+    ];
+
+    const ctx = buildOwnerContext({ sessionId, viewerId: actorId, playerKey, ownerAesKey });
+    const states = [];
+    for (const order of orders) {
+      const moveEntries = order.map((step) => (step === "hidden" ? hiddenEntry : createEntry));
+      const commands = buildSignedCommands({
+        sessionId,
+        playerKey,
+        actorId,
+        publicKey,
+        privateKey,
+        entries: [...baseEntries, ...moveEntries],
+      });
+      states.push(await replayCommands(commands, ctx));
+    }
+
+    expect(states[0]).toEqual(states[1]);
+
+    const finalState = states[0];
+    expect(finalState.zones[handZoneId]?.cardIds).not.toContain(cardId);
+    expect(finalState.zones[battlefieldZoneId]?.cardIds).toContain(cardId);
+    expect(finalState.cards[cardId]?.zoneId).toBe(battlefieldZoneId);
   });
 });

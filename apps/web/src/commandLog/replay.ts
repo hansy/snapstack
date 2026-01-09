@@ -269,10 +269,13 @@ const applyPublicCardCreate = (params: {
 const applyPublicCardRemove = (params: {
   state: CommandLogState;
   cardId: string;
+  zoneId?: string;
 }): CommandLogState => {
   const card = params.state.cards[params.cardId];
-  if (!card) return params.state;
-  const zone = params.state.zones[card.zoneId];
+  const zone =
+    (params.zoneId ? params.state.zones[params.zoneId] : undefined) ??
+    (card ? params.state.zones[card.zoneId] : undefined);
+  if (!card && !zone) return params.state;
 
   const nextCards = { ...params.state.cards };
   delete nextCards[params.cardId];
@@ -574,8 +577,8 @@ const applyReveal = (params: {
 }): CommandLogState => {
   let existing = params.state.cards[params.cardId];
   let zone = existing ? params.state.zones[existing.zoneId] : undefined;
-  let nextZones = params.state.zones;
-  let nextCards = params.state.cards;
+  let nextZones = { ...params.state.zones };
+  let nextCards = { ...params.state.cards };
 
   if (!existing && params.zoneId) {
     const targetZone = params.state.zones[params.zoneId];
@@ -588,8 +591,8 @@ const applyReveal = (params: {
     const updatedIds = targetZone.cardIds.includes(params.cardId)
       ? targetZone.cardIds
       : [...targetZone.cardIds, params.cardId];
-    nextZones = { ...params.state.zones, [targetZone.id]: { ...targetZone, cardIds: updatedIds } };
-    nextCards = { ...params.state.cards, [params.cardId]: existing };
+    nextZones[targetZone.id] = { ...targetZone, cardIds: updatedIds };
+    nextCards[params.cardId] = existing;
     zone = targetZone;
   }
 
@@ -601,13 +604,43 @@ const applyReveal = (params: {
   );
 
   let updated = { ...existing, ...updates };
+  const identityKnown =
+    Boolean(params.revealToAll) && params.identity && typeof params.identity.knownToAll === "boolean"
+      ? params.identity.knownToAll
+      : undefined;
 
   if (params.identity && params.revealToAll) {
-    updated = { ...updated, ...params.identity, knownToAll: updated.knownToAll ?? false };
+    const { knownToAll, ...identity } = params.identity;
+    updated = { ...updated, ...identity };
+    if (typeof knownToAll === "boolean") {
+      updated.knownToAll = knownToAll;
+    } else if (updated.knownToAll === undefined) {
+      updated.knownToAll = false;
+    }
   }
 
   if (params.revealedPayload) {
     updated = { ...updated, ...params.revealedPayload };
+  }
+
+  if (identityKnown === true) {
+    updated.revealedToAll = false;
+    updated.revealedTo = [];
+  }
+
+  if (isHiddenZoneType(zone.type) && !zone.cardIds.includes(params.cardId)) {
+    const placeholderIndex = zone.cardIds.findIndex((id) => id.startsWith(`hidden:${zone.id}:`));
+    if (placeholderIndex >= 0) {
+      const updatedIds = [...zone.cardIds];
+      const placeholderId = updatedIds[placeholderIndex];
+      updatedIds[placeholderIndex] = params.cardId;
+      nextZones[zone.id] = { ...zone, cardIds: updatedIds };
+      if (placeholderId !== params.cardId) {
+        delete nextCards[placeholderId];
+      }
+    } else {
+      nextZones[zone.id] = { ...zone, cardIds: [...zone.cardIds, params.cardId] };
+    }
   }
 
   nextCards[params.cardId] = updated;
@@ -942,9 +975,13 @@ const applyCommandInternal = async (params: {
     }
     case "card.remove.public": {
       if (!payload || typeof payload !== "object") return params.state;
-      const data = payload as { cardId?: string };
+      const data = payload as { cardId?: string; zoneId?: string };
       if (!data.cardId) return params.state;
-      return applyPublicCardRemove({ state: params.state, cardId: data.cardId });
+      return applyPublicCardRemove({
+        state: params.state,
+        cardId: data.cardId,
+        zoneId: data.zoneId,
+      });
     }
     case "card.update.public": {
       if (!payload || typeof payload !== "object") return params.state;

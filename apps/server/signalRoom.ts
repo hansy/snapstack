@@ -577,7 +577,15 @@ export class SignalRoom extends DurableObject {
     syncProtocol.writeSyncStep1(encoder, this.doc);
     const step1 = encoding.toUint8Array(encoder);
     this.dbg("send sync step1 bytes", step1.byteLength, "to", userId);
-    ws.send(step1);
+    try {
+      ws.send(step1);
+    } catch (err) {
+      this.dbg("send sync step1 failed", { err, bytes: step1.byteLength, userId });
+      try {
+        ws.close(1009, "message too large");
+      } catch (_err) {}
+      return;
+    }
 
     // Send current awareness states
     const awarenessStates = encoding.createEncoder();
@@ -591,7 +599,14 @@ export class SignalRoom extends DurableObject {
     );
     const aware = encoding.toUint8Array(awarenessStates);
     this.dbg("send awareness snapshot bytes", aware.byteLength, "to", userId);
-    ws.send(aware);
+    try {
+      ws.send(aware);
+    } catch (err) {
+      this.dbg("send awareness snapshot failed", { err, bytes: aware.byteLength, userId });
+      try {
+        ws.close(1009, "message too large");
+      } catch (_err) {}
+    }
   }
 
   private isValidAccessKey(value: string | null): value is string {
