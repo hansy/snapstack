@@ -5,6 +5,7 @@ import { ZONE } from "@/constants/zones";
 import { canViewZone } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
 import { emitLog } from "@/logging/logStore";
+import { shuffle } from "@/lib/shuffle";
 import {
   patchCard as yPatchCard,
   reorderZoneCards as yReorderZoneCards,
@@ -43,7 +44,7 @@ export const createShuffleLibrary =
       const snapshot = sharedSnapshot(maps);
       const zone = snapshot.zones[libraryZone.id];
       if (!zone) return;
-      const shuffledIds = [...zone.cardIds].sort(() => Math.random() - 0.5);
+      const shuffledIds = shuffle(zone.cardIds);
       yReorderZoneCards(maps, libraryZone.id, shuffledIds);
       zone.cardIds.forEach((id) => {
         yPatchCard(maps, id, { knownToAll: false, revealedToAll: false, revealedTo: [] });
@@ -52,9 +53,7 @@ export const createShuffleLibrary =
 
     if (!sharedApplied) {
       set((state) => {
-        const shuffledIds = [...(state.zones[libraryZone.id]?.cardIds || [])].sort(
-          () => Math.random() - 0.5
-        );
+        const shuffledIds = shuffle(state.zones[libraryZone.id]?.cardIds || []);
         const cardsCopy = { ...state.cards };
         shuffledIds.forEach((id) => {
           const card = cardsCopy[id];

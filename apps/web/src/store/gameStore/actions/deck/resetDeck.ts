@@ -6,6 +6,7 @@ import { canViewZone } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
 import { resetCardToFrontFace } from "@/lib/cardDisplay";
 import { enforceZoneCounterRules } from "@/lib/counters";
+import { shuffle } from "@/lib/shuffle";
 import { emitLog } from "@/logging/logStore";
 import { resetDeck as yResetDeck } from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
@@ -132,7 +133,7 @@ export const createResetDeck =
           toLibrary.push(card.id);
         });
 
-        const shuffled = [...libraryKeeps, ...toLibrary].sort(() => Math.random() - 0.5);
+        const shuffled = shuffle([...libraryKeeps, ...toLibrary]);
         nextZones[libraryZone.id] = { ...nextZones[libraryZone.id], cardIds: shuffled };
         if (commanderZone) {
           nextZones[commanderZone.id] = {

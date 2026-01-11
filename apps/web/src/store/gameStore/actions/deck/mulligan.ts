@@ -2,6 +2,7 @@ import type { GameState } from "@/types";
 
 import { enforceZoneCounterRules } from "@/lib/counters";
 import { resetCardToFrontFace } from "@/lib/cardDisplay";
+import { shuffle } from "@/lib/shuffle";
 import { getZoneByType } from "@/lib/gameSelectors";
 import { ZONE } from "@/constants/zones";
 import { canViewZone } from "@/rules/permissions";
@@ -184,9 +185,7 @@ export const createMulligan =
           toLibrary.push(card.id);
         });
 
-        const shuffled = [...localKeeps, ...toLibrary].sort(
-          () => Math.random() - 0.5
-        );
+        const shuffled = shuffle([...localKeeps, ...toLibrary]);
         const drawIds = drawCount > 0 ? shuffled.slice(-drawCount) : [];
         localDrawCount = drawIds.length;
 

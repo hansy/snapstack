@@ -1,6 +1,7 @@
 import { enforceZoneCounterRules } from '@/lib/counters';
 import { resetCardToFrontFace } from '@/lib/cardDisplay';
 import { ZONE } from '@/constants/zones';
+import { shuffle } from '@/lib/shuffle';
 
 import type { SharedMaps } from './shared';
 import { ensureZoneOrder, removeFromOrder } from './shared';
@@ -100,7 +101,7 @@ export function resetDeck(maps: SharedMaps, playerId: string) {
     toLibrary.push(card.id);
   });
 
-  const shuffled = [...libraryKeeps, ...toLibrary].sort(() => Math.random() - 0.5);
+  const shuffled = shuffle([...libraryKeeps, ...toLibrary]);
   reorderZoneCards(maps, libraryZone.id, shuffled);
   patchPlayer(maps, playerId, { libraryTopReveal: undefined });
 }
