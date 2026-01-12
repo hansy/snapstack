@@ -11,6 +11,8 @@ import type {
 
 import { ZONE } from "@/constants/zones";
 import { canModifyCardState, canTapCard } from "@/rules/permissions";
+import { canViewerSeeCardIdentity } from "@/lib/reveal";
+import { canToggleCardPreviewLock } from "@/models/game/card/cardModel";
 import {
   getNextTransformFace,
   getTransformVerb,
@@ -62,6 +64,8 @@ interface CardActionBuilderParams {
     cardId: CardId,
     reveal: { toAll?: boolean; to?: PlayerId[] } | null
   ) => void;
+  lockPreview?: (card: Card, anchorEl: HTMLElement) => void;
+  previewAnchorEl?: HTMLElement | null;
   /** Pre-fetched related parts from full Scryfall data (tokens, meld parts, etc.) */
   relatedParts?: ScryfallRelatedCard[];
 }
@@ -86,6 +90,8 @@ export const buildCardActions = ({
   updateCard,
   openTextPrompt,
   setCardReveal,
+  lockPreview,
+  previewAnchorEl,
   relatedParts: preloadedRelatedParts,
 }: CardActionBuilderParams): ContextMenuItem[] => {
   const items: ContextMenuItem[] = [];
@@ -95,6 +101,12 @@ export const buildCardActions = ({
     { actorId: myPlayerId, role: viewerRole },
     card,
     currentZone
+  );
+  const canPeek = canViewerSeeCardIdentity(
+    card,
+    currentZone?.type,
+    myPlayerId,
+    viewerRole
   );
 
   if (
@@ -119,6 +131,24 @@ export const buildCardActions = ({
       type: "action",
       label: "Tap/Untap",
       onSelect: () => tapCard(card.id),
+    });
+  }
+
+  if (
+    currentZone?.type === ZONE.BATTLEFIELD &&
+    lockPreview &&
+    previewAnchorEl &&
+    canToggleCardPreviewLock({
+      zoneType: currentZone?.type,
+      canPeek,
+      faceDown: card.faceDown,
+      isDragging: false,
+    })
+  ) {
+    items.push({
+      type: "action",
+      label: "Modify",
+      onSelect: () => lockPreview(card, previewAnchorEl),
     });
   }
 

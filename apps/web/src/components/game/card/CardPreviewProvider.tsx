@@ -1,6 +1,8 @@
 import React from "react";
 import { Card as CardType } from "@/types";
 import { useDragStore } from "@/store/dragStore";
+import { useGameStore } from "@/store/gameStore";
+import { setCardPreviewLockHandler } from "@/lib/cardPreviewLock";
 import { CardPreview } from "./CardPreview";
 
 type PreviewState = {
@@ -61,6 +63,22 @@ export const CardPreviewProvider: React.FC<{ children: React.ReactNode }> = ({
       setPreview(null);
     }
   }, [activeCardId]);
+
+  React.useEffect(() => {
+    setCardPreviewLockHandler(({ cardId, anchorEl }) => {
+      const card = useGameStore.getState().cards[cardId];
+      if (!card) return;
+      const resolvedAnchor =
+        anchorEl && anchorEl.isConnected
+          ? anchorEl
+          : (document.querySelector(`[data-card-id="${cardId}"]`) as HTMLElement | null);
+      if (!resolvedAnchor) return;
+      toggleLock(card, resolvedAnchor);
+    });
+    return () => {
+      setCardPreviewLockHandler(null);
+    };
+  }, [toggleLock]);
 
   const value = React.useMemo(
     () => ({ showPreview, hidePreview, toggleLock, unlockPreview, isLocked: !!preview?.locked }),

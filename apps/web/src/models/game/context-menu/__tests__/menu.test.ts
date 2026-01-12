@@ -65,10 +65,24 @@ describe("buildZoneMoveActions", () => {
     expect(labels).toContain(`Move to ${ZONE_LABEL.graveyard}`);
     expect(labels).toContain(`Move to ${ZONE_LABEL.exile}`);
     expect(labels).toContain(`Move to ${ZONE_LABEL.hand}`);
-    expect(labels).toContain(`Move to ${ZONE_LABEL.battlefield} (face-up)`);
-    expect(labels).toContain(`Move to ${ZONE_LABEL.battlefield} (face-down)`);
-    expect(labels).toContain(`Move to bottom of ${ZONE_LABEL.library}`);
-    expect(labels).toContain(`Move to top of ${ZONE_LABEL.library}`);
+
+    const battlefieldMenu = actions.find(
+      (a): a is Extract<typeof a, { type: "action" }> =>
+        a.type === "action" && a.label === `Move to ${ZONE_LABEL.battlefield} ...`
+    );
+    const battlefieldLabels =
+      battlefieldMenu?.submenu?.map((a) => (a.type === "action" ? a.label : "")) ?? [];
+    expect(battlefieldLabels).toContain("Face up");
+    expect(battlefieldLabels).toContain("Face down");
+
+    const libraryMenu = actions.find(
+      (a): a is Extract<typeof a, { type: "action" }> =>
+        a.type === "action" && a.label === `Move to ${ZONE_LABEL.library} ...`
+    );
+    const libraryLabels =
+      libraryMenu?.submenu?.map((a) => (a.type === "action" ? a.label : "")) ?? [];
+    expect(libraryLabels).toContain("Top");
+    expect(libraryLabels).toContain("Bottom");
   });
 
   it("includes bottom-of-library moves for graveyard and exile", () => {

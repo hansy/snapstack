@@ -39,4 +39,5 @@ export interface CardViewProps {
   highlightColor?: string;
   disableHoverAnimation?: boolean;
   isSelected?: boolean;
+  showCommanderBadge?: boolean;
 }

@@ -41,7 +41,8 @@ export function setupSessionResources({
   sessionId,
   statusSetter,
 }: SessionSetupDeps): SessionSetupResult | null {
-  const envUrl = import.meta.env.VITE_WEBSOCKET_SERVER;
+  const envUrl =
+    import.meta.env.VITE_WEBSOCKET_SERVER || "http://localhost:8787";
   const signalingUrl = buildSignalingUrlFromEnv(envUrl);
   if (!signalingUrl) {
     console.error("[signal] VITE_WEBSOCKET_SERVER is required");
@@ -79,13 +80,16 @@ export function setupSessionResources({
   // Setup store
   const store = useGameStore.getState();
   const ensuredPlayerId = store.ensurePlayerIdForSession(sessionId);
-  const needsReset = store.sessionId !== sessionId || store.myPlayerId !== ensuredPlayerId;
+  const needsReset =
+    store.sessionId !== sessionId || store.myPlayerId !== ensuredPlayerId;
   if (needsReset) {
     store.resetSession(sessionId, ensuredPlayerId);
   } else {
     useGameStore.setState((state) => ({ ...state, sessionId }));
   }
-  const sessionVersion = useGameStore.getState().ensureSessionVersion(sessionId);
+  const sessionVersion = useGameStore
+    .getState()
+    .ensureSessionVersion(sessionId);
 
   bindSharedLogStore(logs);
 
@@ -128,12 +132,19 @@ export function setupSessionResources({
 
   flushPendingMutations();
 
-  return { awareness, provider, doc, sharedMaps, ensuredPlayerId, fullSyncToStore };
+  return {
+    awareness,
+    provider,
+    doc,
+    sharedMaps,
+    ensuredPlayerId,
+    fullSyncToStore,
+  };
 }
 
 export function teardownSessionResources(
   sessionId: string,
-  resources: Pick<SessionSetupResult, "awareness" | "provider">,
+  resources: Pick<SessionSetupResult, "awareness" | "provider">
 ) {
   bindSharedLogStore(null);
   setActiveSession(null);
@@ -145,7 +156,7 @@ export function teardownSessionResources(
       setSessionProvider,
       getSessionAwareness,
       setSessionAwareness,
-    },
+    }
   );
   releaseSession(sessionId);
   cleanupStaleSessions();

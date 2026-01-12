@@ -62,8 +62,12 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   }, [card.id]);
 
   const calculatePosition = React.useCallback(() => {
-    if (!anchorEl.isConnected) return;
-    const anchorRect = anchorEl.getBoundingClientRect();
+    const resolvedAnchor =
+      anchorEl && anchorEl.isConnected
+        ? anchorEl
+        : (document.querySelector(`[data-card-id="${card.id}"]`) as HTMLElement | null);
+    if (!resolvedAnchor || !resolvedAnchor.isConnected) return;
+    const anchorRect = resolvedAnchor.getBoundingClientRect();
     const calculatedHeight = width * 1.4;
     const { top, left } = computeCardPreviewPosition({
       anchorRect,
@@ -75,7 +79,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
     });
     setStyle({ top, left, opacity: 1 });
     setIsPositioned(true);
-  }, [anchorEl, width]);
+  }, [anchorEl, card.id, width]);
 
   useEffect(() => {
     setIsPositioned(false);
@@ -92,6 +96,15 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       window.removeEventListener("scroll", calculatePosition, true);
     };
   }, [calculatePosition]);
+
+  useEffect(() => {
+    calculatePosition();
+  }, [
+    calculatePosition,
+    currentCard.zoneId,
+    currentCard.position?.x,
+    currentCard.position?.y,
+  ]);
 
   useEffect(() => {
     if (!locked || !onClose) return;

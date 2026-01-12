@@ -20,6 +20,7 @@ import { getPlayerZones } from "@/lib/gameSelectors";
 import { ZONE } from "@/constants/zones";
 import { getShortcutLabel } from "@/models/game/shortcuts/gameShortcuts";
 import type { ContextMenuItem } from "@/models/game/context-menu/menu/types";
+import { requestCardPreviewLock } from "@/lib/cardPreviewLock";
 
 import { fetchBattlefieldRelatedParts } from "./relatedParts";
 import { createCardActionAdapters, createZoneActionAdapters } from "./actionAdapters";
@@ -71,7 +72,11 @@ export const useGameContextMenu = (
     const contextMenuRequestRef = React.useRef(0);
 
     const buildCardMenuItems = React.useCallback(
-        (card: Card, relatedParts?: ScryfallRelatedCard[]) => {
+        (
+            card: Card,
+            relatedParts?: ScryfallRelatedCard[],
+            previewAnchorEl?: HTMLElement | null
+        ) => {
             const store = useGameStore.getState();
             return actionRegistry.buildCardActions({
                 card,
@@ -81,6 +86,9 @@ export const useGameContextMenu = (
                 viewerRole,
                 globalCounters: store.globalCounters,
                 relatedParts,
+                previewAnchorEl,
+                lockPreview: (targetCard, anchorEl) =>
+                    requestCardPreviewLock({ cardId: targetCard.id, anchorEl }),
                 ...createCardActionAdapters({
                     store,
                     myPlayerId,
@@ -106,7 +114,8 @@ export const useGameContextMenu = (
             useSelectionStore.getState().selectOnly(card.id, card.zoneId);
         }
 
-        const cardActions = buildCardMenuItems(card);
+        const previewAnchorEl = e.currentTarget as HTMLElement;
+        const cardActions = buildCardMenuItems(card, undefined, previewAnchorEl);
         openContextMenu(e, cardActions, getDisplayName(card));
 
         const requestId = ++contextMenuRequestRef.current;
@@ -125,7 +134,10 @@ export const useGameContextMenu = (
             const latest = useGameStore.getState().cards[card.id] ?? card;
             updateContextMenu((current) => {
                 if (!current) return current;
-                return { ...current, items: buildCardMenuItems(latest, relatedParts) };
+                return {
+                    ...current,
+                    items: buildCardMenuItems(latest, relatedParts, previewAnchorEl),
+                };
             });
         })();
     }, [buildCardMenuItems, isSpectator, myPlayerId, openContextMenu, seatHasDeckLoaded, updateContextMenu]);

@@ -153,9 +153,11 @@ describe("useZoneViewerController", () => {
 
     await waitFor(() => expect(latestController?.contextMenu).not.toBeNull());
     const menu = latestController!.contextMenu!;
-    const moveItem = menu.items.find(
-      (item) =>
-        item.type === "action" && item.label === "Move to bottom of Library"
+    const moveMenu = menu.items.find(
+      (item) => item.type === "action" && item.label === "Move to Library ..."
+    );
+    const moveItem = moveMenu?.submenu?.find(
+      (item) => item.type === "action" && item.label === "Bottom"
     );
     expect(moveItem && moveItem.type === "action").toBe(true);
 
@@ -225,9 +227,11 @@ describe("useZoneViewerController", () => {
 
     await waitFor(() => expect(latestController?.contextMenu).not.toBeNull());
     const menu = latestController!.contextMenu!;
-    const moveItem = menu.items.find(
-      (item) =>
-        item.type === "action" && item.label === "Move to bottom of Library"
+    const moveMenu = menu.items.find(
+      (item) => item.type === "action" && item.label === "Move to Library ..."
+    );
+    const moveItem = moveMenu?.submenu?.find(
+      (item) => item.type === "action" && item.label === "Bottom"
     );
     expect(moveItem && moveItem.type === "action").toBe(true);
 
@@ -299,9 +303,11 @@ describe("useZoneViewerController", () => {
 
     await waitFor(() => expect(latestController?.contextMenu).not.toBeNull());
     const menu = latestController!.contextMenu!;
-    const moveItem = menu.items.find(
-      (item) =>
-        item.type === "action" && item.label === "Move to bottom of Library"
+    const moveMenu = menu.items.find(
+      (item) => item.type === "action" && item.label === "Move to Library ..."
+    );
+    const moveItem = moveMenu?.submenu?.find(
+      (item) => item.type === "action" && item.label === "Bottom"
     );
     expect(moveItem && moveItem.type === "action").toBe(true);
 
@@ -373,9 +379,11 @@ describe("useZoneViewerController", () => {
 
     await waitFor(() => expect(latestController?.contextMenu).not.toBeNull());
     const menu = latestController!.contextMenu!;
-    const moveItem = menu.items.find(
-      (item) =>
-        item.type === "action" && item.label === "Move to bottom of Library"
+    const moveMenu = menu.items.find(
+      (item) => item.type === "action" && item.label === "Move to Library ..."
+    );
+    const moveItem = moveMenu?.submenu?.find(
+      (item) => item.type === "action" && item.label === "Bottom"
     );
     expect(moveItem && moveItem.type === "action").toBe(true);
 

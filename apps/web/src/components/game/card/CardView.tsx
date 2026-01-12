@@ -1,4 +1,5 @@
 import React from "react";
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CARD_HEIGHT_CLASS, CARD_ASPECT_CLASS } from "@/lib/constants";
 
@@ -26,6 +27,7 @@ export const CardView = React.memo(
         highlightColor,
         disableHoverAnimation,
         isSelected,
+        showCommanderBadge,
         ...props
       },
       ref
@@ -75,6 +77,11 @@ export const CardView = React.memo(
           onMouseLeave={onMouseLeave}
           onDragStart={(e) => e.preventDefault()}
         >
+          {showCommanderBadge && (
+            <div className="absolute left-1 top-1 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-amber-400/70 bg-zinc-950/80 text-amber-300 shadow-sm pointer-events-none">
+              <Star className="h-3.5 w-3.5 fill-amber-400" />
+            </div>
+          )}
           <CardFace
             card={card}
             faceDown={faceDown}

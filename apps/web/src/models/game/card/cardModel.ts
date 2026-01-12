@@ -36,6 +36,8 @@ export const getCardHoverPreviewPolicy = (params: {
   canPeek: boolean;
   faceDown?: boolean;
   isDragging: boolean;
+  isZoneTopCard?: boolean;
+  allowLibraryTopPreview?: boolean;
 }): CardHoverPreviewPolicy => {
   if (params.isDragging) return { kind: "none" };
   if (!params.zoneType) return { kind: "none" };
@@ -45,6 +47,19 @@ export const getCardHoverPreviewPolicy = (params: {
     return params.canPeek ? { kind: "immediate" } : { kind: "none" };
   }
   if (params.zoneType === ZONE.COMMANDER) return { kind: "immediate" };
+  if (
+    (params.zoneType === ZONE.GRAVEYARD || params.zoneType === ZONE.EXILE) &&
+    params.isZoneTopCard
+  ) {
+    return { kind: "immediate" };
+  }
+  if (
+    params.zoneType === ZONE.LIBRARY &&
+    params.isZoneTopCard &&
+    params.allowLibraryTopPreview
+  ) {
+    return { kind: "immediate" };
+  }
   if (params.zoneType === ZONE.BATTLEFIELD) {
     return { kind: "delayed", delayMs: BATTLEFIELD_HOVER_PREVIEW_DELAY_MS };
   }
@@ -73,4 +88,3 @@ export const shouldDisableHoverAnimation = (params: {
 }) => {
   return params.zoneType === ZONE.HAND && params.ownerId !== params.viewerId;
 };
-

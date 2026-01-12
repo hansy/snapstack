@@ -104,6 +104,62 @@ describe("cardModel", () => {
         })
       ).toEqual({ kind: "delayed", delayMs: BATTLEFIELD_HOVER_PREVIEW_DELAY_MS });
     });
+
+    it("shows immediate preview for top graveyard/exile cards", () => {
+      expect(
+        getCardHoverPreviewPolicy({
+          zoneType: ZONE.GRAVEYARD,
+          canPeek: true,
+          faceDown: false,
+          isDragging: false,
+          isZoneTopCard: true,
+        })
+      ).toEqual({ kind: "immediate" });
+
+      expect(
+        getCardHoverPreviewPolicy({
+          zoneType: ZONE.EXILE,
+          canPeek: true,
+          faceDown: false,
+          isDragging: false,
+          isZoneTopCard: true,
+        })
+      ).toEqual({ kind: "immediate" });
+
+      expect(
+        getCardHoverPreviewPolicy({
+          zoneType: ZONE.GRAVEYARD,
+          canPeek: true,
+          faceDown: false,
+          isDragging: false,
+          isZoneTopCard: false,
+        })
+      ).toEqual({ kind: "none" });
+    });
+
+    it("shows immediate preview for revealed top library cards", () => {
+      expect(
+        getCardHoverPreviewPolicy({
+          zoneType: ZONE.LIBRARY,
+          canPeek: true,
+          faceDown: false,
+          isDragging: false,
+          isZoneTopCard: true,
+          allowLibraryTopPreview: true,
+        })
+      ).toEqual({ kind: "immediate" });
+
+      expect(
+        getCardHoverPreviewPolicy({
+          zoneType: ZONE.LIBRARY,
+          canPeek: true,
+          faceDown: false,
+          isDragging: false,
+          isZoneTopCard: true,
+          allowLibraryTopPreview: false,
+        })
+      ).toEqual({ kind: "none" });
+    });
   });
 
   describe("canToggleCardPreviewLock", () => {
@@ -169,4 +225,3 @@ describe("cardModel", () => {
     });
   });
 });
-
