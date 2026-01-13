@@ -63,7 +63,7 @@ describe("logDrawerModel", () => {
     ).toBe("a card");
   });
 
-  it("keeps face-down move entries redacted", () => {
+  it("keeps forced-hidden move entries redacted", () => {
     const logContext: LogContext = {
       players: {},
       cards: {
@@ -97,7 +97,7 @@ describe("logDrawerModel", () => {
         fromZoneId: "z1",
         toZoneId: "z2",
         cardName: "a card",
-        faceDown: true,
+        forceHidden: true,
       },
     };
 

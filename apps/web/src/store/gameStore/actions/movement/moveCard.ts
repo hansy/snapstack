@@ -83,6 +83,13 @@ export const createMoveCard =
       currentFaceDown: card.faceDown,
       requestedFaceDown: opts?.faceDown,
     });
+    const leavingFaceDownBattlefield =
+      fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD && card.faceDown;
+    const enteringFaceDownBattlefield =
+      toZone.type === ZONE.BATTLEFIELD && faceDownResolution.effectiveFaceDown;
+    const toPublicZone = toZone.type !== ZONE.HAND && toZone.type !== ZONE.LIBRARY;
+    const shouldHideMoveName =
+      enteringFaceDownBattlefield || (leavingFaceDownBattlefield && !toPublicZone);
     const revealPatch = computeRevealPatchAfterMove({
       fromZoneType: fromZone.type,
       toZoneType: toZone.type,
@@ -95,13 +102,11 @@ export const createMoveCard =
         cardId,
         fromZoneId,
         toZoneId,
-        cardName:
-          toZone.type === ZONE.BATTLEFIELD && faceDownResolution.effectiveFaceDown
-            ? "a card"
-            : card.name,
+        cardName: shouldHideMoveName ? "a card" : card.name,
         fromZoneType: fromZone.type,
         toZoneType: toZone.type,
         faceDown: faceDownResolution.effectiveFaceDown,
+        forceHidden: shouldHideMoveName,
       };
       if (controlShift) movePayload.gainsControlBy = nextControllerId;
       emitLog("card.move", movePayload, buildLogContext());

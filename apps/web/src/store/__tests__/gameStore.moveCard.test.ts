@@ -1,8 +1,16 @@
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '../gameStore';
 import { ZONE } from '@/constants/zones';
 import { GRID_STEP_X, GRID_STEP_Y } from '@/lib/positions';
 import { ensureLocalStorage } from '../testUtils';
+import { emitLog } from '@/logging/logStore';
+
+vi.mock('@/logging/logStore', () => ({
+  emitLog: vi.fn(),
+  clearLogs: vi.fn(),
+}));
+
+const emitLogMock = vi.mocked(emitLog);
 
 const makeZone = (id: string, type: keyof typeof ZONE, ownerId: string, cardIds: string[] = []) => ({
   id,
@@ -31,6 +39,7 @@ describe('gameStore move/tap interactions', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    emitLogMock.mockClear();
     useGameStore.setState({
       cards: {},
       zones: {},
@@ -136,6 +145,81 @@ describe('gameStore move/tap interactions', () => {
     const moved = useGameStore.getState().cards[card.id];
     expect(moved.zoneId).toBe(hand.id);
     expect(moved.faceDown).toBe(false);
+  });
+
+  it('logs face-down battlefield exits to public zones with card name', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['cFaceDown']);
+    const exile = makeZone('exile-me', 'EXILE', 'me', []);
+
+    const card = { ...makeCard('cFaceDown', battlefield.id, 'me', false), faceDown: true };
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [battlefield.id]: battlefield, [exile.id]: exile },
+      cards: { ...state.cards, [card.id]: card },
+    }));
+
+    useGameStore.getState().moveCard(card.id, exile.id, undefined, 'me');
+
+    const moveCall = emitLogMock.mock.calls.find(([eventId]) => eventId === 'card.move');
+    expect(moveCall).toBeTruthy();
+    const [, payload] = moveCall as [
+      string,
+      { cardName?: string; faceDown?: boolean; forceHidden?: boolean },
+      unknown,
+    ];
+    expect(payload.cardName).toBe('Test Card');
+    expect(payload.faceDown).toBe(false);
+    expect(payload.forceHidden).toBe(false);
+  });
+
+  it('keeps face-down battlefield exits to hidden zones redacted', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['cFaceDown']);
+    const hand = makeZone('hand-me', 'HAND', 'me', []);
+
+    const card = { ...makeCard('cFaceDown', battlefield.id, 'me', false), faceDown: true };
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [battlefield.id]: battlefield, [hand.id]: hand },
+      cards: { ...state.cards, [card.id]: card },
+    }));
+
+    useGameStore.getState().moveCard(card.id, hand.id, undefined, 'me');
+
+    const moveCall = emitLogMock.mock.calls.find(([eventId]) => eventId === 'card.move');
+    expect(moveCall).toBeTruthy();
+    const [, payload] = moveCall as [
+      string,
+      { cardName?: string; faceDown?: boolean; forceHidden?: boolean },
+      unknown,
+    ];
+    expect(payload.cardName).toBe('a card');
+    expect(payload.faceDown).toBe(false);
+    expect(payload.forceHidden).toBe(true);
+  });
+
+  it('logs face-down battlefield exits to public zones when moving to bottom', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['cBottom']);
+    const graveyard = makeZone('gy-me', 'GRAVEYARD', 'me', []);
+
+    const card = { ...makeCard('cBottom', battlefield.id, 'me', false), faceDown: true };
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [battlefield.id]: battlefield, [graveyard.id]: graveyard },
+      cards: { ...state.cards, [card.id]: card },
+    }));
+
+    useGameStore.getState().moveCardToBottom(card.id, graveyard.id, 'me');
+
+    const moveCall = emitLogMock.mock.calls.find(([eventId]) => eventId === 'card.move');
+    expect(moveCall).toBeTruthy();
+    const [, payload] = moveCall as [
+      string,
+      { cardName?: string; faceDown?: boolean; forceHidden?: boolean },
+      unknown,
+    ];
+    expect(payload.cardName).toBe('Test Card');
+    expect(payload.faceDown).toBe(false);
+    expect(payload.forceHidden).toBe(false);
   });
 
   it('denies tapping a card that is not on the battlefield', () => {

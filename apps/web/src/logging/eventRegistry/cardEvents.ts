@@ -11,6 +11,7 @@ export type MovePayload = {
   fromZoneType?: string;
   toZoneType?: string;
   faceDown?: boolean;
+  forceHidden?: boolean;
 };
 
 export type TapPayload = {

@@ -78,6 +78,21 @@ export const createPlayerActions = (
     }
 
     if (
+      "libraryTopReveal" in updates &&
+      updates.libraryTopReveal !== player.libraryTopReveal
+    ) {
+      const enabled = Boolean(updates.libraryTopReveal);
+      const mode = enabled ? updates.libraryTopReveal : player.libraryTopReveal;
+      if (mode) {
+        emitLog(
+          "library.topReveal",
+          { actorId: actor, playerId: id, enabled, mode },
+          buildLogContext()
+        );
+      }
+    }
+
+    if (
       applyShared((maps) => {
         yPatchPlayer(maps, id, updates);
       })

@@ -29,7 +29,7 @@ export const resolveLogCardContext = (
       fromZoneType: entry.payload.fromZoneType,
       toZoneType: entry.payload.toZoneType,
       cardName: entry.payload.cardName,
-      forceHidden: entry.payload.faceDown,
+      forceHidden: entry.payload.forceHidden ?? entry.payload.faceDown,
     };
   }
 
