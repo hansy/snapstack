@@ -24,51 +24,43 @@ export const LogDrawerView: React.FC<LogDrawerController> = ({
   scrollRef,
 }) => {
   return (
-    <>
-      <div
-        className={cn(
-          "fixed inset-0 bg-black/10 z-40 transition-opacity duration-300",
-          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        )}
-        onClick={handleClose}
-      />
-
-      <div
-        className={cn(
-          "fixed left-12 top-0 bottom-0 w-80 bg-zinc-950/70 border-r border-zinc-800 z-50 transition-transform duration-300 ease-in-out flex flex-col shadow-2xl backdrop-blur-md",
-          isOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
-        )}
-      >
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800/50 bg-zinc-900/50">
-          <h2 className="font-bold text-zinc-100 uppercase tracking-wider text-sm">Game Log</h2>
-          <button
-            onClick={handleClose}
-            className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-100 transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent"
+    <aside
+      className={cn(
+        "h-full bg-zinc-950/70 transition-[width,opacity,transform] duration-300 ease-in-out flex flex-col shadow-2xl backdrop-blur-md overflow-hidden shrink-0",
+        isOpen
+          ? "w-50 opacity-100 translate-x-0 pointer-events-auto border-l border-zinc-800"
+          : "w-0 opacity-0 translate-x-2 pointer-events-none"
+      )}
+    >
+      <div className="flex items-center justify-between p-4 border-b border-zinc-800/50 bg-zinc-900/50">
+        <h2 className="font-bold text-zinc-100 uppercase tracking-wider text-sm">Game Log</h2>
+        <button
+          onClick={handleClose}
+          className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-100 transition-colors"
         >
-          {entries.length === 0 ? (
-            <div className="text-zinc-500 text-xs text-center italic py-4">No events yet</div>
-          ) : (
-            entries.map((entry) => (
-              <LogEntryItem
-                key={entry.id}
-                entry={entry}
-                playerColors={playerColors}
-                selfPlayerId={selfPlayerId}
-                logContext={logContext}
-              />
-            ))
-          )}
-        </div>
+          <X size={18} />
+        </button>
       </div>
-    </>
+
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent"
+      >
+        {entries.length === 0 ? (
+          <div className="text-zinc-500 text-xs text-center italic py-4">No events yet</div>
+        ) : (
+          entries.map((entry) => (
+            <LogEntryItem
+              key={entry.id}
+              entry={entry}
+              playerColors={playerColors}
+              selfPlayerId={selfPlayerId}
+              logContext={logContext}
+            />
+          ))
+        )}
+      </div>
+    </aside>
   );
 };
 
@@ -87,12 +79,9 @@ const LogEntryItem: React.FC<{
 
   return (
     <div
-      className={cn(
-        "text-sm bg-zinc-900/40 rounded p-2 border-l-2",
-        getBorderColorClass(actorColor)
-      )}
+      className={cn("text-xs px-3 py-2 border-l-2", getBorderColorClass(actorColor))}
     >
-      <div className="flex flex-wrap gap-1 items-baseline leading-relaxed text-zinc-300">
+      <div className="flex flex-wrap gap-1 items-baseline leading-snug text-zinc-300">
         {entry.parts.map((part, idx) => (
           <LogPartRenderer
             key={idx}

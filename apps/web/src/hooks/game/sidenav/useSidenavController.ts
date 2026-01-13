@@ -9,6 +9,7 @@ export type SidenavControllerInput = {
   onCreateToken?: () => void;
   onOpenDiceRoller?: () => void;
   onToggleLog?: () => void;
+  isLogOpen?: boolean;
   onToggleRoomLock?: () => void;
   onCopyLink?: () => void;
   onLeaveGame?: () => void;
@@ -25,6 +26,7 @@ export const useSidenavController = ({
   onCreateToken,
   onOpenDiceRoller,
   onToggleLog,
+  isLogOpen = false,
   onToggleRoomLock,
   onCopyLink,
   onLeaveGame,
@@ -58,6 +60,7 @@ export const useSidenavController = ({
     onCreateToken,
     onOpenDiceRoller,
     onToggleLog,
+    isLogOpen,
     onToggleRoomLock,
     onCopyLink,
     onLeaveGame,

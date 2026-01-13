@@ -114,7 +114,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const [isLoadDeckModalOpen, setIsLoadDeckModalOpen] = React.useState(false);
   const [isTokenModalOpen, setIsTokenModalOpen] = React.useState(false);
   const [isDiceRollerOpen, setIsDiceRollerOpen] = React.useState(false);
-  const [isLogOpen, setIsLogOpen] = React.useState(false);
+  const [isLogOpen, setIsLogOpen] = React.useState(true);
   const [isShortcutsOpen, setIsShortcutsOpen] = React.useState(false);
   const [isEditUsernameOpen, setIsEditUsernameOpen] = React.useState(false);
   const [revealedLibraryZoneId, setRevealedLibraryZoneId] = React.useState<

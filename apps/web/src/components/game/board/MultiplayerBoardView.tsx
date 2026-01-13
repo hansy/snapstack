@@ -123,6 +123,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
             onCreateToken={() => setIsTokenModalOpen(true)}
             onOpenDiceRoller={handleOpenDiceRoller}
             onToggleLog={() => setIsLogOpen(!isLogOpen)}
+            isLogOpen={isLogOpen}
             onToggleRoomLock={onToggleRoomLock}
             onCopyLink={handleCopyLink}
             onLeaveGame={handleLeave}
@@ -135,56 +136,63 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
             isSpectator={viewerRole === "spectator"}
           />
 
-          <div className={`w-full h-full grid ${gridClass} pl-12`}>
-            {slots.map((slot, index) => {
-              const seatPlayer = slot.player;
-              return (
-                <div key={index} className="relative border-zinc-800/50">
-                  {seatPlayer ? (
-                  <Seat
-                    player={seatPlayer}
-                    position={slot.position}
-                    color={slot.color}
-                    zones={zones}
-                    cards={cards}
-                    isMe={seatPlayer.id === myPlayerId}
-                    viewerPlayerId={myPlayerId}
-                    viewerRole={viewerRole}
-                    onCardContextMenu={handleCardContextMenu}
-                    onZoneContextMenu={handleZoneContextMenu}
-                    onBattlefieldContextMenu={(e) =>
-                      handleBattlefieldContextMenu(e, {
-                        onCreateToken: () => setIsTokenModalOpen(true),
-                        onOpenDiceRoller: handleOpenDiceRoller,
-                      })
-                    }
-                    onLoadDeck={() => setIsLoadDeckModalOpen(true)}
-                    onEditUsername={
-                      seatPlayer.id === myPlayerId
-                        ? () => setIsEditUsernameOpen(true)
-                        : undefined
-                    }
-                    opponentColors={playerColors}
-                    scale={scale}
-                    battlefieldScale={battlefieldViewScale[seatPlayer.id] ?? 1}
-                    onViewZone={handleViewZone}
-                    onDrawCard={handleDrawCard}
-                    onOpponentLibraryReveals={(zoneId) =>
-                      setRevealedLibraryZoneId(zoneId)
-                    }
-                    zoomControlsDisabled={zoomControlsBlocked}
-                    onLifeContextMenu={(e) =>
-                      handleLifeContextMenu?.(e, seatPlayer)
-                    }
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
-                    Empty Seat
+          <div className="flex h-full w-full">
+            <div className={`flex-1 min-w-0 h-full grid ${gridClass} pl-12`}>
+              {slots.map((slot, index) => {
+                const seatPlayer = slot.player;
+                return (
+                  <div key={index} className="relative border-zinc-800/50">
+                    {seatPlayer ? (
+                      <Seat
+                        player={seatPlayer}
+                        position={slot.position}
+                        color={slot.color}
+                        zones={zones}
+                        cards={cards}
+                        isMe={seatPlayer.id === myPlayerId}
+                        viewerPlayerId={myPlayerId}
+                        viewerRole={viewerRole}
+                        onCardContextMenu={handleCardContextMenu}
+                        onZoneContextMenu={handleZoneContextMenu}
+                        onBattlefieldContextMenu={(e) =>
+                          handleBattlefieldContextMenu(e, {
+                            onCreateToken: () => setIsTokenModalOpen(true),
+                            onOpenDiceRoller: handleOpenDiceRoller,
+                          })
+                        }
+                        onLoadDeck={() => setIsLoadDeckModalOpen(true)}
+                        onEditUsername={
+                          seatPlayer.id === myPlayerId
+                            ? () => setIsEditUsernameOpen(true)
+                            : undefined
+                        }
+                        opponentColors={playerColors}
+                        scale={scale}
+                        battlefieldScale={battlefieldViewScale[seatPlayer.id] ?? 1}
+                        onViewZone={handleViewZone}
+                        onDrawCard={handleDrawCard}
+                        onOpponentLibraryReveals={(zoneId) =>
+                          setRevealedLibraryZoneId(zoneId)
+                        }
+                        zoomControlsDisabled={zoomControlsBlocked}
+                        onLifeContextMenu={(e) =>
+                          handleLifeContextMenu?.(e, seatPlayer)
+                        }
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
+                        Empty Seat
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            <LogDrawer
+              isOpen={isLogOpen}
+              onClose={() => setIsLogOpen(false)}
+              playerColors={playerColors}
+            />
           </div>
         </div>
         {contextMenu && (
@@ -251,11 +259,6 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
           }
           zoneId={zoneViewerState.zoneId}
           count={zoneViewerState.count}
-        />
-        <LogDrawer
-          isOpen={isLogOpen}
-          onClose={() => setIsLogOpen(false)}
-          playerColors={playerColors}
         />
         <OpponentLibraryRevealsModal
           isOpen={Boolean(revealedLibraryZoneId)}

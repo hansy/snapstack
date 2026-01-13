@@ -58,6 +58,7 @@ export const SidenavView: React.FC<SidenavController> = ({
   onLeaveGame,
   syncStatus,
   peerCounts,
+  isLogOpen,
   isMenuOpen,
   openMenu,
   closeMenu,
@@ -119,7 +120,10 @@ export const SidenavView: React.FC<SidenavController> = ({
           icon={<ScrollText size={20} />}
           label="Game Log"
           onClick={onToggleLog}
-          className="hover:text-amber-400"
+          className={cn(
+            "hover:text-amber-400",
+            isLogOpen && "text-amber-400 bg-amber-500/10"
+          )}
         />
 
         <div className="flex-1" />
