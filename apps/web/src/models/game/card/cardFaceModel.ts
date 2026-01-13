@@ -5,7 +5,10 @@ import {
   getDisplayName,
   getDisplayPower,
   getDisplayToughness,
+  getMorphDisplayStat,
+  isMorphFaceDown,
   shouldShowPowerToughness,
+  FACE_DOWN_MORPH_STAT,
 } from "@/lib/cardDisplay";
 import { resolveCounterColor } from "@/lib/counters";
 import { ZONE } from "@/constants/zones";
@@ -44,8 +47,6 @@ const resolveStatClassName = (display: string | undefined, base: string | undefi
   return "text-white";
 };
 
-const FACE_DOWN_DEFAULT_STAT = "2";
-
 export const createCardFaceModel = (params: {
   card: Card;
   zoneType: ZoneType | undefined;
@@ -64,23 +65,32 @@ export const createCardFaceModel = (params: {
   const displayName = getDisplayName(params.card);
 
   const isBattlefield = params.zoneType === ZONE.BATTLEFIELD;
-  const shouldCloakPT = Boolean(params.faceDown && isBattlefield);
+  const isFaceDown = Boolean(params.faceDown && isBattlefield);
+  const morphFaceDown = isMorphFaceDown(params.card, isFaceDown);
 
   const showPT =
     isBattlefield &&
     !(params.hidePT ?? false) &&
-    (shouldShowPowerToughness(params.card) || shouldCloakPT);
+    (isFaceDown ? morphFaceDown : shouldShowPowerToughness(params.card));
 
-  const displayPower = shouldCloakPT ? FACE_DOWN_DEFAULT_STAT : getDisplayPower(params.card);
-  const displayToughness = shouldCloakPT ? FACE_DOWN_DEFAULT_STAT : getDisplayToughness(params.card);
+  const displayPower = isFaceDown
+    ? morphFaceDown
+      ? getMorphDisplayStat(params.card, "power")
+      : undefined
+    : getDisplayPower(params.card);
+  const displayToughness = isFaceDown
+    ? morphFaceDown
+      ? getMorphDisplayStat(params.card, "toughness")
+      : undefined
+    : getDisplayToughness(params.card);
 
   const powerClassName = resolveStatClassName(
     displayPower,
-    shouldCloakPT ? FACE_DOWN_DEFAULT_STAT : params.card.basePower
+    morphFaceDown ? FACE_DOWN_MORPH_STAT : params.card.basePower
   );
   const toughnessClassName = resolveStatClassName(
     displayToughness,
-    shouldCloakPT ? FACE_DOWN_DEFAULT_STAT : params.card.baseToughness
+    morphFaceDown ? FACE_DOWN_MORPH_STAT : params.card.baseToughness
   );
 
   const showNameLabel =

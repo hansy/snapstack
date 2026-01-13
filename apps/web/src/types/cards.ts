@@ -16,6 +16,8 @@ export interface CardIdentity {
   isToken?: boolean;
 }
 
+export type FaceDownMode = "morph";
+
 export interface Card extends CardIdentity {
   id: CardId;
   ownerId: PlayerId;
@@ -26,6 +28,8 @@ export interface Card extends CardIdentity {
   // State
   tapped: boolean;
   faceDown: boolean;
+  // Optional face-down presentation mode (e.g., morph as 2/2).
+  faceDownMode?: FaceDownMode;
   /**
    * Reveal/visibility metadata (best-effort UX only; not cryptographically private).
    *

@@ -23,6 +23,7 @@ export function patchCard(maps: SharedMaps, cardId: string, updates: CardPatch) 
 
   if ("tapped" in updates) setIfChanged(target, "tapped", updates.tapped);
   if ("faceDown" in updates) setIfChanged(target, "faceDown", updates.faceDown);
+  if ("faceDownMode" in updates) setIfChanged(target, "faceDownMode", updates.faceDownMode);
   if ("knownToAll" in updates) setIfChanged(target, "knownToAll", updates.knownToAll);
   if ("revealedToAll" in updates) setIfChanged(target, "revealedToAll", updates.revealedToAll);
   if ("revealedTo" in updates) {

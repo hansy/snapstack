@@ -1,6 +1,7 @@
 import type {
   Card,
   CardId,
+  FaceDownMode,
   Player,
   PlayerId,
   ViewerRole,
@@ -23,7 +24,7 @@ export const buildZoneMoveActions = (
   moveCard: (
     cardId: CardId,
     toZoneId: ZoneId,
-    opts?: { faceDown?: boolean }
+    opts?: { faceDown?: boolean; faceDownMode?: FaceDownMode }
   ) => void,
   moveCardToBottom?: (cardId: CardId, toZoneId: ZoneId) => void,
   players?: Record<PlayerId, Player>,
@@ -69,13 +70,36 @@ export const buildZoneMoveActions = (
 
     const battlefieldItems: ContextMenuItem[] = [];
     if (battlefield) {
-      addIfAllowed(battlefield, "Face up", () => moveCard(card.id, battlefield!.id), battlefieldItems);
-      addIfAllowed(
-        battlefield,
-        "Face down",
-        () => moveCard(card.id, battlefield!.id, { faceDown: true }),
-        battlefieldItems
-      );
+      const permission = canMoveCard({
+        actorId,
+        role: viewerRole,
+        card,
+        fromZone: currentZone,
+        toZone: battlefield,
+      });
+      if (permission.allowed) {
+        battlefieldItems.push(
+          { type: "action", label: "Face up", onSelect: () => moveCard(card.id, battlefield.id) },
+          {
+            type: "action",
+            label: "Face down ...",
+            onSelect: () => {},
+            submenu: [
+              {
+                type: "action",
+                label: "with morph (2/2)",
+                onSelect: () =>
+                  moveCard(card.id, battlefield.id, { faceDown: true, faceDownMode: "morph" }),
+              },
+              {
+                type: "action",
+                label: "without morph",
+                onSelect: () => moveCard(card.id, battlefield.id, { faceDown: true }),
+              },
+            ],
+          }
+        );
+      }
     }
     if (battlefieldItems.length > 0) {
       items.push({

@@ -73,7 +73,16 @@ describe("buildZoneMoveActions", () => {
     const battlefieldLabels =
       battlefieldMenu?.submenu?.map((a) => (a.type === "action" ? a.label : "")) ?? [];
     expect(battlefieldLabels).toContain("Face up");
-    expect(battlefieldLabels).toContain("Face down");
+    expect(battlefieldLabels).toContain("Face down ...");
+
+    const faceDownMenu = battlefieldMenu?.submenu?.find(
+      (a): a is Extract<typeof a, { type: "action" }> =>
+        a.type === "action" && a.label === "Face down ..."
+    );
+    const faceDownLabels =
+      faceDownMenu?.submenu?.map((a) => (a.type === "action" ? a.label : "")) ?? [];
+    expect(faceDownLabels).toContain("with morph (2/2)");
+    expect(faceDownLabels).toContain("without morph");
 
     const libraryMenu = actions.find(
       (a): a is Extract<typeof a, { type: "action" }> =>

@@ -36,6 +36,13 @@ export const buildUpdateCardPatch = (cardBefore: Card, updates: Partial<Card>): 
   };
 
   const merged = { ...cardBefore, ...updates };
+  const hasFaceDownModeUpdate = Object.prototype.hasOwnProperty.call(updates, "faceDownMode");
+  if (updates.faceDown === false) {
+    merged.faceDownMode = undefined;
+  }
+  if (updates.faceDown === true && !hasFaceDownModeUpdate) {
+    merged.faceDownMode = undefined;
+  }
   const commanderTax = normalizeCommanderTax(merged.commanderTax);
   const faces = getCardFaces(merged);
   const normalizedFaceIndex = faces.length
@@ -57,6 +64,7 @@ export const buildUpdateCardPatch = (cardBefore: Card, updates: Partial<Card>): 
   if (next.baseToughness !== cardBefore.baseToughness) patch.baseToughness = next.baseToughness;
   if (next.customText !== cardBefore.customText) patch.customText = next.customText;
   if (next.faceDown !== cardBefore.faceDown) patch.faceDown = next.faceDown;
+  if (next.faceDownMode !== cardBefore.faceDownMode) patch.faceDownMode = next.faceDownMode;
   if (next.currentFaceIndex !== cardBefore.currentFaceIndex) patch.currentFaceIndex = next.currentFaceIndex;
   if (next.rotation !== cardBefore.rotation) patch.rotation = next.rotation;
   if (next.isCommander !== cardBefore.isCommander) patch.isCommander = next.isCommander;

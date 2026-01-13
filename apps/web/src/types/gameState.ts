@@ -1,4 +1,4 @@
-import type { Card } from "./cards";
+import type { Card, FaceDownMode } from "./cards";
 import type { Counter } from "./counters";
 import type { Player } from "./players";
 import type { CardId, PlayerId, ViewerRole, ZoneId } from "./ids";
@@ -50,6 +50,7 @@ export interface GameState {
     opts?: {
       suppressLog?: boolean;
       faceDown?: boolean;
+      faceDownMode?: FaceDownMode;
       skipCollision?: boolean;
       groupCollision?: {
         movingCardIds: CardId[];

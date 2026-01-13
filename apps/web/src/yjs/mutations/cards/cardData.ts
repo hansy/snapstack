@@ -61,6 +61,8 @@ export const writeCard = (maps: SharedMaps, card: Card) => {
   target.set("zoneId", card.zoneId);
   target.set("tapped", card.tapped);
   target.set("faceDown", card.faceDown);
+  if (card.faceDownMode === undefined) target.delete("faceDownMode");
+  else target.set("faceDownMode", card.faceDownMode);
   target.set("knownToAll", Boolean(card.knownToAll));
   target.set("revealedToAll", Boolean(card.revealedToAll));
   const revealedTo = Array.isArray(card.revealedTo)
@@ -108,6 +110,8 @@ export const readCard = (maps: SharedMaps, cardId: string): Card | null => {
         : clampNormalizedPosition(rawPosition)
       : { x: 0.5, y: 0.5 };
   const rawCommanderTax = getVal("commanderTax");
+  const rawFaceDownMode = getVal("faceDownMode");
+  const faceDownMode = rawFaceDownMode === "morph" ? "morph" : undefined;
   const commanderTax =
     typeof rawCommanderTax === "number" && Number.isFinite(rawCommanderTax)
       ? Math.max(0, Math.min(99, Math.floor(rawCommanderTax)))
@@ -120,6 +124,7 @@ export const readCard = (maps: SharedMaps, cardId: string): Card | null => {
     zoneId: getVal("zoneId"),
     tapped: getVal("tapped"),
     faceDown: getVal("faceDown"),
+    faceDownMode,
     knownToAll: getVal("knownToAll"),
     revealedToAll: getVal("revealedToAll"),
     revealedTo: getVal("revealedTo"),
@@ -149,6 +154,7 @@ export type CardPatch = Partial<
     Card,
     | "tapped"
     | "faceDown"
+    | "faceDownMode"
     | "knownToAll"
     | "revealedToAll"
     | "revealedTo"

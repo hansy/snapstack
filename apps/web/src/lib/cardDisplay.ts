@@ -11,6 +11,36 @@ const TRANSFORM_LAYOUTS = new Set([
   "meld",
 ]);
 
+export const FACE_DOWN_MORPH_STAT = "2";
+
+const parseStat = (value: string | undefined): number | null => {
+  if (value === undefined) return null;
+  if (value === "*") return 0;
+  const parsed = parseInt(value, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+export const isMorphFaceDown = (
+  card: Pick<Card, "faceDown" | "faceDownMode">,
+  faceDownOverride?: boolean
+): boolean => {
+  const faceDown = faceDownOverride ?? card.faceDown;
+  return Boolean(faceDown && card.faceDownMode === "morph");
+};
+
+export const getMorphDisplayStat = (
+  card: Pick<Card, "power" | "toughness" | "basePower" | "baseToughness">,
+  type: "power" | "toughness"
+): string => {
+  const current = parseStat(card[type]);
+  const base = parseStat(type === "power" ? card.basePower : card.baseToughness);
+  const delta =
+    current === null || base === null
+      ? 0
+      : current - base;
+  return (2 + delta).toString();
+};
+
 export const getCardFaces = (card: Card): ScryfallCardFaceLite[] => card.scryfall?.card_faces ?? [];
 
 export const getCurrentFaceIndex = (card: Card): number => {

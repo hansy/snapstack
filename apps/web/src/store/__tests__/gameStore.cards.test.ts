@@ -201,6 +201,39 @@ describe("gameStore card actions", () => {
     expect(useGameStore.getState().cards.c1.knownToAll).toBe(true);
   });
 
+  it("clears faceDownMode when setting face-down without a mode", () => {
+    const battlefield = { id: "bf-me", type: ZONE.BATTLEFIELD, ownerId: "me", cardIds: ["c1"] };
+
+    useGameStore.setState((state) => ({
+      ...state,
+      zones: { ...state.zones, [battlefield.id]: battlefield },
+      cards: {
+        ...state.cards,
+        c1: {
+          id: "c1",
+          name: "Hidden",
+          ownerId: "me",
+          controllerId: "me",
+          zoneId: battlefield.id,
+          tapped: false,
+          faceDown: true,
+          faceDownMode: "morph",
+          knownToAll: false,
+          revealedToAll: false,
+          revealedTo: [],
+          position: { x: 0.1, y: 0.2 },
+          rotation: 0,
+          counters: [],
+          currentFaceIndex: 0,
+        } as any,
+      },
+    }));
+
+    useGameStore.getState().updateCard("c1", { faceDown: true }, "me");
+    expect(useGameStore.getState().cards.c1.faceDown).toBe(true);
+    expect(useGameStore.getState().cards.c1.faceDownMode).toBeUndefined();
+  });
+
   it("flipping a face-up battlefield card face-down clears known/reveal metadata", () => {
     const battlefield = { id: "bf-me", type: ZONE.BATTLEFIELD, ownerId: "me", cardIds: ["c1"] };
     const hand = { id: "hand-me", type: ZONE.HAND, ownerId: "me", cardIds: [] as string[] };

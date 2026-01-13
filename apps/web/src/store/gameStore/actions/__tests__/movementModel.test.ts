@@ -10,9 +10,16 @@ describe("movementModel", () => {
           fromZoneType: ZONE.HAND,
           toZoneType: ZONE.BATTLEFIELD,
           currentFaceDown: false,
+          currentFaceDownMode: undefined,
           requestedFaceDown: true,
+          requestedFaceDownMode: undefined,
         })
-      ).toEqual({ effectiveFaceDown: true, patchFaceDown: true });
+      ).toEqual({
+        effectiveFaceDown: true,
+        patchFaceDown: true,
+        effectiveFaceDownMode: undefined,
+        patchFaceDownMode: null,
+      });
     });
 
     it("preserves faceDown between battlefields when not specified", () => {
@@ -21,9 +28,16 @@ describe("movementModel", () => {
           fromZoneType: ZONE.BATTLEFIELD,
           toZoneType: ZONE.BATTLEFIELD,
           currentFaceDown: true,
+          currentFaceDownMode: "morph",
           requestedFaceDown: undefined,
+          requestedFaceDownMode: undefined,
         })
-      ).toEqual({ effectiveFaceDown: true, patchFaceDown: undefined });
+      ).toEqual({
+        effectiveFaceDown: true,
+        patchFaceDown: undefined,
+        effectiveFaceDownMode: "morph",
+        patchFaceDownMode: undefined,
+      });
     });
 
     it("defaults to face-up outside battlefield-to-battlefield moves", () => {
@@ -32,9 +46,16 @@ describe("movementModel", () => {
           fromZoneType: ZONE.BATTLEFIELD,
           toZoneType: ZONE.GRAVEYARD,
           currentFaceDown: true,
+          currentFaceDownMode: "morph",
           requestedFaceDown: undefined,
+          requestedFaceDownMode: undefined,
         })
-      ).toEqual({ effectiveFaceDown: false, patchFaceDown: false });
+      ).toEqual({
+        effectiveFaceDown: false,
+        patchFaceDown: false,
+        effectiveFaceDownMode: undefined,
+        patchFaceDownMode: null,
+      });
     });
   });
 
@@ -92,4 +113,3 @@ describe("movementModel", () => {
     });
   });
 });
-

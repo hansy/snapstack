@@ -97,6 +97,7 @@ export const createUpdateCard =
         "baseToughness",
         "customText",
         "faceDown",
+        "faceDownMode",
         "currentFaceIndex",
       ];
       const requiresControl = Object.keys(updates).some((key) =>

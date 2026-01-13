@@ -1,4 +1,4 @@
-import type { Card, Zone } from "@/types";
+import type { Card, FaceDownMode, Zone } from "@/types";
 import type { CardPatch } from "@/yjs/yMutations";
 
 import { ZONE } from "@/constants/zones";
@@ -29,29 +29,55 @@ export type FaceDownMoveResolution = {
    * `undefined` means "do not write/patch faceDown" (battlefield-to-battlefield default behavior).
    */
   patchFaceDown?: boolean;
+  effectiveFaceDownMode?: FaceDownMode;
+  /**
+   * `undefined` means "do not write/patch faceDownMode".
+   * `null` means "clear faceDownMode".
+   */
+  patchFaceDownMode?: FaceDownMode | null;
 };
 
 export const resolveFaceDownAfterMove = ({
   fromZoneType,
   toZoneType,
   currentFaceDown,
+  currentFaceDownMode,
   requestedFaceDown,
+  requestedFaceDownMode,
 }: {
   fromZoneType: string;
   toZoneType: string;
   currentFaceDown: boolean;
+  currentFaceDownMode?: FaceDownMode;
   requestedFaceDown: boolean | undefined;
+  requestedFaceDownMode?: FaceDownMode;
 }): FaceDownMoveResolution => {
   if (requestedFaceDown !== undefined) {
-    return { effectiveFaceDown: requestedFaceDown, patchFaceDown: requestedFaceDown };
+    const nextMode = requestedFaceDown ? requestedFaceDownMode : undefined;
+    return {
+      effectiveFaceDown: requestedFaceDown,
+      patchFaceDown: requestedFaceDown,
+      effectiveFaceDownMode: nextMode,
+      patchFaceDownMode: requestedFaceDown ? (requestedFaceDownMode ?? null) : currentFaceDownMode ? null : undefined,
+    };
   }
 
   const battlefieldToBattlefield = fromZoneType === ZONE.BATTLEFIELD && toZoneType === ZONE.BATTLEFIELD;
   if (battlefieldToBattlefield) {
-    return { effectiveFaceDown: currentFaceDown, patchFaceDown: undefined };
+    return {
+      effectiveFaceDown: currentFaceDown,
+      patchFaceDown: undefined,
+      effectiveFaceDownMode: currentFaceDown ? currentFaceDownMode : undefined,
+      patchFaceDownMode: currentFaceDown ? undefined : currentFaceDownMode ? null : undefined,
+    };
   }
 
-  return { effectiveFaceDown: false, patchFaceDown: false };
+  return {
+    effectiveFaceDown: false,
+    patchFaceDown: false,
+    effectiveFaceDownMode: undefined,
+    patchFaceDownMode: currentFaceDownMode ? null : undefined,
+  };
 };
 
 export const computeRevealPatchAfterMove = ({
@@ -77,4 +103,3 @@ export const computeRevealPatchAfterMove = ({
 
   return null;
 };
-

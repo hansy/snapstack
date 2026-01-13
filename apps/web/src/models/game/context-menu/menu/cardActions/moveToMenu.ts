@@ -1,4 +1,4 @@
-import type { Card, CardId, PlayerId, ViewerRole, Zone, ZoneId } from "@/types";
+import type { Card, CardId, FaceDownMode, PlayerId, ViewerRole, Zone, ZoneId } from "@/types";
 
 import { ZONE, ZONE_LABEL } from "@/constants/zones";
 import { getPlayerZones } from "@/lib/gameSelectors";
@@ -12,7 +12,12 @@ type MoveCardFn = (
   position?: { x: number; y: number },
   actorId?: PlayerId,
   isRemote?: boolean,
-  opts?: { suppressLog?: boolean; faceDown?: boolean; skipCollision?: boolean }
+  opts?: {
+    suppressLog?: boolean;
+    faceDown?: boolean;
+    faceDownMode?: FaceDownMode;
+    skipCollision?: boolean;
+  }
 ) => void;
 
 type BuildMoveToMenuParams = {

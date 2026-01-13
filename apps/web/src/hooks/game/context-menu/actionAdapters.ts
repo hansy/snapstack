@@ -1,4 +1,4 @@
-import type { Card, CardId, GameState, PlayerId, ZoneId } from "@/types";
+import type { Card, CardId, FaceDownMode, GameState, PlayerId, ZoneId } from "@/types";
 import type { ScryfallRelatedCard } from "@/types/scryfall";
 import { useSelectionStore } from "@/store/selectionStore";
 import { batchSharedMutations } from "@/yjs/docManager";
@@ -10,7 +10,12 @@ type MoveCardFn = (
   position?: { x: number; y: number },
   actorId?: PlayerId,
   isRemote?: boolean,
-  opts?: { suppressLog?: boolean; faceDown?: boolean; skipCollision?: boolean }
+  opts?: {
+    suppressLog?: boolean;
+    faceDown?: boolean;
+    faceDownMode?: FaceDownMode;
+    skipCollision?: boolean;
+  }
 ) => void;
 
 type OpenTextPromptFn = (opts: {

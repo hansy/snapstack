@@ -28,6 +28,7 @@ export const sanitizeCard = (value: any, zones: Record<string, Zone>): Card | nu
     typeof value.currentFaceIndex === "number" && Number.isFinite(value.currentFaceIndex)
       ? Math.max(0, Math.floor(value.currentFaceIndex))
       : 0;
+  const faceDownMode = value.faceDownMode === "morph" ? "morph" : undefined;
 
   return {
     id: value.id,
@@ -36,6 +37,7 @@ export const sanitizeCard = (value: any, zones: Record<string, Zone>): Card | nu
     zoneId: value.zoneId,
     tapped: Boolean(value.tapped),
     faceDown: Boolean(value.faceDown),
+    faceDownMode,
     knownToAll: Boolean(value.knownToAll),
     revealedToAll: Boolean(value.revealedToAll),
     revealedTo,

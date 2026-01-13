@@ -1,4 +1,4 @@
-import type { Card, CardId, PlayerId, ViewerRole, Zone, ZoneId } from "@/types";
+import type { Card, CardId, FaceDownMode, PlayerId, ViewerRole, Zone, ZoneId } from "@/types";
 
 import { getPlayerZones } from "@/lib/gameSelectors";
 import { ZONE } from "@/constants/zones";
@@ -12,7 +12,12 @@ type MoveCardFn = (
   position?: { x: number; y: number },
   actorId?: PlayerId,
   isRemote?: boolean,
-  opts?: { suppressLog?: boolean; faceDown?: boolean; skipCollision?: boolean }
+  opts?: {
+    suppressLog?: boolean;
+    faceDown?: boolean;
+    faceDownMode?: FaceDownMode;
+    skipCollision?: boolean;
+  }
 ) => void;
 
 type BuildHandZoneMenuItemsParams = {
@@ -53,11 +58,28 @@ export const buildHandZoneMenuItems = ({
       });
       items.push({
         type: "action",
-        label: "Play facedown",
-        onSelect: () =>
-          moveCard(card.id, playerZones.battlefield!.id, undefined, undefined, undefined, {
-            faceDown: true,
-          }),
+        label: "Play facedown ...",
+        onSelect: () => {},
+        submenu: [
+          {
+            type: "action",
+            label: "with morph (2/2)",
+            onSelect: () =>
+              moveCard(card.id, playerZones.battlefield!.id, undefined, undefined, undefined, {
+                faceDown: true,
+                faceDownMode: "morph",
+              }),
+          },
+          {
+            type: "action",
+            label: "without morph",
+            onSelect: () =>
+              moveCard(card.id, playerZones.battlefield!.id, undefined, undefined, undefined, {
+                faceDown: true,
+                faceDownMode: undefined,
+              }),
+          },
+        ],
       });
     }
   }

@@ -1,6 +1,7 @@
 import type {
   Card,
   CardId,
+  FaceDownMode,
   Player,
   PlayerId,
   ViewerRole,
@@ -38,7 +39,12 @@ interface CardActionBuilderParams {
     position?: { x: number; y: number },
     actorId?: PlayerId,
     isRemote?: boolean,
-    opts?: { suppressLog?: boolean; faceDown?: boolean; skipCollision?: boolean }
+    opts?: {
+      suppressLog?: boolean;
+      faceDown?: boolean;
+      faceDownMode?: FaceDownMode;
+      skipCollision?: boolean;
+    }
   ) => void;
   moveCardToBottom?: (cardId: CardId, toZoneId: ZoneId) => void;
   tapCard: (cardId: CardId) => void;
@@ -309,7 +315,7 @@ export const buildCardActions = ({
       label: "Flip Face Up",
       onSelect: () => {
         if (updateCard) {
-          updateCard(card.id, { faceDown: false });
+          updateCard(card.id, { faceDown: false, faceDownMode: undefined });
         }
       },
     });

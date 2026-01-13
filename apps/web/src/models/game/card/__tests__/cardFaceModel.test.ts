@@ -14,6 +14,7 @@ const makeCard = (overrides: Partial<Card>): Card =>
     zoneId: overrides.zoneId ?? "battlefield-p1",
     tapped: overrides.tapped ?? false,
     faceDown: overrides.faceDown ?? false,
+    faceDownMode: overrides.faceDownMode,
     position: overrides.position ?? { x: 0.5, y: 0.5 },
     rotation: overrides.rotation ?? 0,
     counters: overrides.counters ?? [],
@@ -79,7 +80,7 @@ describe("createCardFaceModel", () => {
     expect(model.toughnessClassName).toBe("text-red-500");
   });
 
-  it("cloaks face-down battlefield stats to 2/2 without color reveals", () => {
+  it("hides PT for face-down battlefield cards without morph", () => {
     const card = makeCard({ power: "5", toughness: "6", basePower: "1", baseToughness: "1" });
     const model = createCardFaceModel({
       card,
@@ -89,15 +90,34 @@ describe("createCardFaceModel", () => {
       globalCounters: {},
       revealToNames: [],
     });
-    expect(model.showPT).toBe(true);
-    expect(model.displayPower).toBe("2");
-    expect(model.displayToughness).toBe("2");
-    expect(model.powerClassName).toBe("text-white");
-    expect(model.toughnessClassName).toBe("text-white");
+    expect(model.showPT).toBe(false);
   });
 
-  it("cloaks face-down battlefield stats to 2/2 even without base stats", () => {
-    const card = makeCard({ power: "3", toughness: "4" });
+  it("shows morph face-down battlefield stats as 2/2 without color reveals", () => {
+    const card = makeCard({
+      power: "5",
+      toughness: "6",
+      basePower: "1",
+      baseToughness: "1",
+      faceDownMode: "morph",
+    });
+    const model = createCardFaceModel({
+      card,
+      zoneType: ZONE.BATTLEFIELD,
+      faceDown: true,
+      myPlayerId: "p1",
+      globalCounters: {},
+      revealToNames: [],
+    });
+    expect(model.showPT).toBe(true);
+    expect(model.displayPower).toBe("6");
+    expect(model.displayToughness).toBe("7");
+    expect(model.powerClassName).toBe("text-green-500");
+    expect(model.toughnessClassName).toBe("text-green-500");
+  });
+
+  it("shows morph face-down battlefield stats as 2/2 even without base stats", () => {
+    const card = makeCard({ power: "3", toughness: "4", faceDownMode: "morph" });
     const model = createCardFaceModel({
       card,
       zoneType: ZONE.BATTLEFIELD,

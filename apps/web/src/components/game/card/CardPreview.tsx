@@ -17,6 +17,9 @@ import {
   getDisplayPower,
   getDisplayToughness,
   getFlipRotation,
+  getMorphDisplayStat,
+  isMorphFaceDown,
+  FACE_DOWN_MORPH_STAT,
   shouldShowPowerToughness,
 } from "@/lib/cardDisplay";
 import { CardPreviewView } from "./CardPreviewView";
@@ -48,11 +51,26 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
 
   // Use liveCard if available, otherwise fallback to the prop (snapshot)
   const currentCard = liveCard || card;
-  const showPT = shouldShowPowerToughness(currentCard);
-  const displayPower = getDisplayPower(currentCard);
-  const displayToughness = getDisplayToughness(currentCard);
-  const flipRotation = getFlipRotation(currentCard);
   const zoneType = useGameStore((state) => state.zones[currentCard.zoneId]?.type);
+  const faceDownOnBattlefield = zoneType === ZONE.BATTLEFIELD && currentCard.faceDown;
+  const morphFaceDown = isMorphFaceDown(currentCard, faceDownOnBattlefield);
+  const showPT = faceDownOnBattlefield
+    ? morphFaceDown
+    : shouldShowPowerToughness(currentCard);
+  const displayPower = faceDownOnBattlefield
+    ? morphFaceDown
+      ? getMorphDisplayStat(currentCard, "power")
+      : undefined
+    : getDisplayPower(currentCard);
+  const displayToughness = faceDownOnBattlefield
+    ? morphFaceDown
+      ? getMorphDisplayStat(currentCard, "toughness")
+      : undefined
+    : getDisplayToughness(currentCard);
+  const ptBasePower = faceDownOnBattlefield && morphFaceDown ? FACE_DOWN_MORPH_STAT : currentCard.basePower;
+  const ptBaseToughness =
+    faceDownOnBattlefield && morphFaceDown ? FACE_DOWN_MORPH_STAT : currentCard.baseToughness;
+  const flipRotation = getFlipRotation(currentCard);
 
   // Local face override for previewing DFCs
   const [overrideFaceIndex, setOverrideFaceIndex] = useState<number | null>(null);
@@ -196,6 +214,8 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
       showPT={showPT}
       displayPower={displayPower}
       displayToughness={displayToughness}
+      ptBasePower={ptBasePower}
+      ptBaseToughness={ptBaseToughness}
       onPTDelta={handleUpdatePT}
     />
   );

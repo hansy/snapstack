@@ -1,6 +1,6 @@
 export type { PlayerId, CardId, ZoneId, ViewerRole } from "./ids";
 export type { CounterType, Counter } from "./counters";
-export type { CardIdentity, Card, TokenCard } from "./cards";
+export type { CardIdentity, Card, FaceDownMode, TokenCard } from "./cards";
 export { isTokenCard } from "./cards";
 export type { ZoneType, Zone } from "./zones";
 export type { Player, LibraryTopRevealMode } from "./players";

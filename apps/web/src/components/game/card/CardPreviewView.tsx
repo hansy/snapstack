@@ -26,6 +26,8 @@ interface CardPreviewViewProps {
   showPT: boolean;
   displayPower?: string;
   displayToughness?: string;
+  ptBasePower?: string;
+  ptBaseToughness?: string;
   onPTDelta: (type: "power" | "toughness", delta: number) => void;
 }
 
@@ -49,10 +51,14 @@ export const CardPreviewView = React.forwardRef<HTMLDivElement, CardPreviewViewP
       showPT,
       displayPower,
       displayToughness,
+      ptBasePower,
+      ptBaseToughness,
       onPTDelta,
     },
     ref
   ) => {
+    const comparisonPower = ptBasePower ?? currentCard.basePower;
+    const comparisonToughness = ptBaseToughness ?? currentCard.baseToughness;
     return (
       <div
         ref={ref}
@@ -173,10 +179,10 @@ export const CardPreviewView = React.forwardRef<HTMLDivElement, CardPreviewViewP
               className={cn(
                 "text-2xl font-bold text-center z-0",
                 parseInt(displayPower || "0") >
-                  parseInt(currentCard.basePower || "0")
+                  parseInt(comparisonPower || "0")
                   ? "text-green-500"
                   : parseInt(displayPower || "0") <
-                    parseInt(currentCard.basePower || "0")
+                    parseInt(comparisonPower || "0")
                     ? "text-red-500"
                     : "text-white"
               )}
@@ -217,10 +223,10 @@ export const CardPreviewView = React.forwardRef<HTMLDivElement, CardPreviewViewP
               className={cn(
                 "text-2xl font-bold text-center z-0",
                 parseInt(displayToughness || "0") >
-                  parseInt(currentCard.baseToughness || "0")
+                  parseInt(comparisonToughness || "0")
                   ? "text-green-500"
                   : parseInt(displayToughness || "0") <
-                    parseInt(currentCard.baseToughness || "0")
+                    parseInt(comparisonToughness || "0")
                     ? "text-red-500"
                     : "text-white"
               )}
