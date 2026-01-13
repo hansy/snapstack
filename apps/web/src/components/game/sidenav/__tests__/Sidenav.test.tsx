@@ -29,4 +29,13 @@ describe("Sidenav", () => {
     expect(untapAll).toHaveBeenCalledTimes(1);
     expect(untapAll).toHaveBeenCalledWith("me");
   });
+
+  it("opens the share dialog from the share button", () => {
+    const onOpenShareDialog = vi.fn();
+
+    render(<Sidenav onOpenShareDialog={onOpenShareDialog} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Share room" }));
+    expect(onOpenShareDialog).toHaveBeenCalledTimes(1);
+  });
 });

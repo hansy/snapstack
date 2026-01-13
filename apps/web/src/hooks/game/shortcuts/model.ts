@@ -57,6 +57,8 @@ export type CloseTopmostUiArgs = {
   setDiceRollerOpen: (open: boolean) => void;
   loadDeckModalOpen: boolean;
   setLoadDeckModalOpen: (open: boolean) => void;
+  shareDialogOpen: boolean;
+  setShareDialogOpen: (open: boolean) => void;
   zoneViewerOpen: boolean;
   closeZoneViewer: () => void;
   opponentRevealsOpen: boolean;
@@ -86,6 +88,10 @@ export const closeTopmostUi = (args: CloseTopmostUiArgs): boolean => {
   }
   if (args.activeModalOpen) {
     args.closeActiveModal();
+    return true;
+  }
+  if (args.shareDialogOpen) {
+    args.setShareDialogOpen(false);
     return true;
   }
   if (args.tokenModalOpen) {
@@ -128,6 +134,7 @@ export const areShortcutsBlockedByUi = (args: {
   tokenModalOpen: boolean;
   diceRollerOpen: boolean;
   loadDeckModalOpen: boolean;
+  shareDialogOpen: boolean;
   zoneViewerOpen: boolean;
   opponentRevealsOpen: boolean;
 }): boolean => {
@@ -140,6 +147,7 @@ export const areShortcutsBlockedByUi = (args: {
     args.tokenModalOpen ||
     args.diceRollerOpen ||
     args.loadDeckModalOpen ||
+    args.shareDialogOpen ||
     args.zoneViewerOpen ||
     args.opponentRevealsOpen
   );

@@ -26,6 +26,7 @@ import { TopCardRevealDialog } from "../prompts/TopCardRevealDialog";
 import { TokenCreationModal } from "../token-creation/TokenCreationModal";
 import { ZoneViewerModal } from "../zone-viewer/ZoneViewerModal";
 import { EditUsernameDialog } from "@/components/username/EditUsernameDialog";
+import { ShareRoomDialog } from "@/components/game/share/ShareRoomDialog";
 
 import type { MultiplayerBoardController } from "@/hooks/game/board/useMultiplayerBoardController";
 
@@ -59,7 +60,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   syncStatus,
   peerCounts,
   isHost,
-  roomLocked,
+  roomLockedByHost,
   roomIsFull,
   onToggleRoomLock,
   handleViewZone,
@@ -86,6 +87,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   setIsLogOpen,
   isShortcutsOpen,
   setIsShortcutsOpen,
+  isShareDialogOpen,
+  setIsShareDialogOpen,
   zoomControlsBlocked,
   isEditUsernameOpen,
   setIsEditUsernameOpen,
@@ -97,8 +100,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   handleUsernameSubmit,
   handleDrawCard,
   handleRollDice,
-  handleCopyLink,
   handleLeave,
+  shareLinks,
 }) => {
   const suppressSingleOverlay = isGroupDragging && !showGroupDragOverlay;
 
@@ -124,15 +127,11 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
             onOpenDiceRoller={handleOpenDiceRoller}
             onToggleLog={() => setIsLogOpen(!isLogOpen)}
             isLogOpen={isLogOpen}
-            onToggleRoomLock={onToggleRoomLock}
-            onCopyLink={handleCopyLink}
+            onOpenShareDialog={() => setIsShareDialogOpen(true)}
             onLeaveGame={handleLeave}
             onOpenShortcuts={() => setIsShortcutsOpen(true)}
             syncStatus={syncStatus}
             peerCounts={peerCounts}
-            isHost={isHost}
-            roomLocked={roomLocked}
-            roomIsFull={roomIsFull}
             isSpectator={viewerRole === "spectator"}
           />
 
@@ -274,6 +273,17 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
           onClose={() => setIsEditUsernameOpen(false)}
           initialValue={players[myPlayerId]?.name ?? preferredUsername ?? ""}
           onSubmit={handleUsernameSubmit}
+        />
+        <ShareRoomDialog
+          open={isShareDialogOpen}
+          onClose={() => setIsShareDialogOpen(false)}
+          playerLink={shareLinks.players}
+          spectatorLink={shareLinks.spectators}
+          players={players}
+          isHost={isHost}
+          roomLockedByHost={roomLockedByHost}
+          roomIsFull={roomIsFull}
+          onToggleRoomLock={onToggleRoomLock}
         />
         <DragOverlay dropAnimation={null}>
           {showGroupDragOverlay

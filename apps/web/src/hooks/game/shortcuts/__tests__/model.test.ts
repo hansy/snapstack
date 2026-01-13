@@ -31,6 +31,8 @@ describe("gameShortcuts/model", () => {
       setDiceRollerOpen: vi.fn(),
       loadDeckModalOpen: false,
       setLoadDeckModalOpen: vi.fn(),
+      shareDialogOpen: false,
+      setShareDialogOpen: vi.fn(),
       zoneViewerOpen: false,
       closeZoneViewer: vi.fn(),
       opponentRevealsOpen: false,
@@ -46,6 +48,44 @@ describe("gameShortcuts/model", () => {
     expect(closeCountPrompt).toHaveBeenCalledTimes(0);
   });
 
+  it("closes the share dialog before lower-priority modals", () => {
+    const setShareDialogOpen = vi.fn();
+    const setTokenModalOpen = vi.fn();
+
+    const closed = closeTopmostUi({
+      contextMenuOpen: false,
+      closeContextMenu: vi.fn(),
+      countPromptOpen: false,
+      closeCountPrompt: vi.fn(),
+      textPromptOpen: false,
+      closeTextPrompt: vi.fn(),
+      topCardRevealPromptOpen: false,
+      closeTopCardRevealPrompt: vi.fn(),
+      activeModalOpen: false,
+      closeActiveModal: vi.fn(),
+      tokenModalOpen: true,
+      setTokenModalOpen,
+      diceRollerOpen: false,
+      setDiceRollerOpen: vi.fn(),
+      loadDeckModalOpen: false,
+      setLoadDeckModalOpen: vi.fn(),
+      shareDialogOpen: true,
+      setShareDialogOpen,
+      zoneViewerOpen: false,
+      closeZoneViewer: vi.fn(),
+      opponentRevealsOpen: false,
+      closeOpponentReveals: vi.fn(),
+      logOpen: false,
+      setLogOpen: vi.fn(),
+      shortcutsOpen: false,
+      setShortcutsOpen: vi.fn(),
+    });
+
+    expect(closed).toBe(true);
+    expect(setShareDialogOpen).toHaveBeenCalledWith(false);
+    expect(setTokenModalOpen).not.toHaveBeenCalled();
+  });
+
   it("reports when shortcuts are blocked by open UI", () => {
     expect(
       areShortcutsBlockedByUi({
@@ -57,6 +97,7 @@ describe("gameShortcuts/model", () => {
         tokenModalOpen: false,
         diceRollerOpen: false,
         loadDeckModalOpen: false,
+        shareDialogOpen: false,
         zoneViewerOpen: false,
         opponentRevealsOpen: false,
       })
@@ -72,6 +113,23 @@ describe("gameShortcuts/model", () => {
         tokenModalOpen: false,
         diceRollerOpen: false,
         loadDeckModalOpen: false,
+        shareDialogOpen: false,
+        zoneViewerOpen: false,
+        opponentRevealsOpen: false,
+      })
+    ).toBe(true);
+
+    expect(
+      areShortcutsBlockedByUi({
+        contextMenuOpen: false,
+        countPromptOpen: false,
+        textPromptOpen: false,
+        topCardRevealPromptOpen: false,
+        activeModalOpen: false,
+        tokenModalOpen: false,
+        diceRollerOpen: false,
+        loadDeckModalOpen: false,
+        shareDialogOpen: true,
         zoneViewerOpen: false,
         opponentRevealsOpen: false,
       })

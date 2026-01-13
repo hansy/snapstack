@@ -3,13 +3,11 @@ import {
   Dice5,
   Keyboard,
   Loader2,
-  Lock,
   LogOut,
   Plus,
   CornerUpLeft,
   ScrollText,
   Share2,
-  Unlock,
   Wifi,
 } from "lucide-react";
 
@@ -53,8 +51,7 @@ export const SidenavView: React.FC<SidenavController> = ({
   onCreateToken,
   onOpenDiceRoller,
   onToggleLog,
-  onToggleRoomLock,
-  onCopyLink,
+  onOpenShareDialog,
   onLeaveGame,
   syncStatus,
   peerCounts,
@@ -64,9 +61,6 @@ export const SidenavView: React.FC<SidenavController> = ({
   closeMenu,
   handleUntapAll,
   handleOpenShortcuts,
-  isHost,
-  roomLocked,
-  roomIsFull,
   isSpectator,
 }) => {
   const peerCountLabel = React.useMemo(() => {
@@ -129,30 +123,10 @@ export const SidenavView: React.FC<SidenavController> = ({
         <div className="flex-1" />
 
         <div className="flex flex-col items-center gap-2">
-          {isHost && !isSpectator && (
-            <NavIcon
-              icon={roomLocked ? <Lock size={20} /> : <Unlock size={20} />}
-              label={
-                roomIsFull
-                  ? "Room is full (spectators can still join)"
-                  : roomLocked
-                    ? "Unlock room (players can join)"
-                    : "Lock room (nobody can join except spectators)"
-              }
-              onClick={onToggleRoomLock}
-              disabled={roomIsFull}
-              className={
-                roomLocked
-                  ? "text-amber-400 hover:text-amber-300"
-                  : "hover:text-emerald-400"
-              }
-            />
-          )}
-
           <NavIcon
             icon={<Share2 size={20} />}
-            label="Click to copy room link and share with others"
-            onClick={onCopyLink}
+            label="Share room"
+            onClick={onOpenShareDialog}
             className="hover:text-indigo-400"
           />
 

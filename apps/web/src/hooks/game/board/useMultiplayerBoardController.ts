@@ -1,5 +1,4 @@
 import * as React from "react";
-import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 
 import { useDragStore } from "@/store/dragStore";
@@ -81,16 +80,6 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     navigate({ to: "/" });
   }, [navigate]);
 
-  const handleCopyLink = React.useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      toast.success("Link copied to clipboard");
-    } catch (err) {
-      console.error("Failed to copy link", err);
-      toast.error("Failed to copy link");
-    }
-  }, []);
-
   const isSpectator = viewerRole === "spectator";
 
   const {
@@ -116,10 +105,22 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const [isDiceRollerOpen, setIsDiceRollerOpen] = React.useState(false);
   const [isLogOpen, setIsLogOpen] = React.useState(true);
   const [isShortcutsOpen, setIsShortcutsOpen] = React.useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
   const [isEditUsernameOpen, setIsEditUsernameOpen] = React.useState(false);
   const [revealedLibraryZoneId, setRevealedLibraryZoneId] = React.useState<
     string | null
   >(null);
+  const [shareLinks, setShareLinks] = React.useState({
+    players: "",
+    spectators: "",
+  });
+
+  React.useEffect(() => {
+    if (!isShareDialogOpen) return;
+    if (typeof window === "undefined") return;
+    const href = window.location.href;
+    setShareLinks({ players: href, spectators: href });
+  }, [isShareDialogOpen]);
 
   const preferredUsername = useClientPrefsStore((state) => state.username);
   const setPreferredUsername = useClientPrefsStore(
@@ -189,6 +190,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     tokenModalOpen: isTokenModalOpen,
     diceRollerOpen: isDiceRollerOpen,
     loadDeckModalOpen: isLoadDeckModalOpen,
+    shareDialogOpen: isShareDialogOpen,
     zoneViewerOpen: zoneViewerState.isOpen,
     opponentRevealsOpen: Boolean(revealedLibraryZoneId),
   });
@@ -214,6 +216,8 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     setDiceRollerOpen: setIsDiceRollerOpen,
     loadDeckModalOpen: isLoadDeckModalOpen,
     setLoadDeckModalOpen: setIsLoadDeckModalOpen,
+    shareDialogOpen: isShareDialogOpen,
+    setShareDialogOpen: setIsShareDialogOpen,
     zoneViewerOpen: zoneViewerState.isOpen,
     closeZoneViewer: () =>
       setZoneViewerState((prev) => ({ ...prev, isOpen: false })),
@@ -310,6 +314,8 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     setIsLogOpen,
     isShortcutsOpen,
     setIsShortcutsOpen,
+    isShareDialogOpen,
+    setIsShareDialogOpen,
     zoomControlsBlocked,
     isEditUsernameOpen,
     setIsEditUsernameOpen,
@@ -321,9 +327,10 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     handleUsernameSubmit,
     handleDrawCard,
     handleRollDice,
-    handleCopyLink,
     handleLeave,
+    shareLinks,
     isHost,
+    roomLockedByHost,
     roomLocked,
     roomIsFull,
     onToggleRoomLock: handleToggleRoomLock,

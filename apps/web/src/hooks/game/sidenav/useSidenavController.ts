@@ -10,15 +10,11 @@ export type SidenavControllerInput = {
   onOpenDiceRoller?: () => void;
   onToggleLog?: () => void;
   isLogOpen?: boolean;
-  onToggleRoomLock?: () => void;
-  onCopyLink?: () => void;
+  onOpenShareDialog?: () => void;
   onLeaveGame?: () => void;
   onOpenShortcuts?: () => void;
   syncStatus?: SyncStatus;
   peerCounts?: PeerCounts;
-  isHost?: boolean;
-  roomLocked?: boolean;
-  roomIsFull?: boolean;
   isSpectator?: boolean;
 };
 
@@ -27,15 +23,11 @@ export const useSidenavController = ({
   onOpenDiceRoller,
   onToggleLog,
   isLogOpen = false,
-  onToggleRoomLock,
-  onCopyLink,
+  onOpenShareDialog,
   onLeaveGame,
   onOpenShortcuts,
   syncStatus = "connecting",
   peerCounts = { total: 1, players: 1, spectators: 0 },
-  isHost = false,
-  roomLocked = false,
-  roomIsFull = false,
   isSpectator = false,
 }: SidenavControllerInput) => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -61,14 +53,10 @@ export const useSidenavController = ({
     onOpenDiceRoller,
     onToggleLog,
     isLogOpen,
-    onToggleRoomLock,
-    onCopyLink,
+    onOpenShareDialog,
     onLeaveGame,
     syncStatus,
     peerCounts,
-    isHost,
-    roomLocked,
-    roomIsFull,
     isSpectator,
     isMenuOpen,
     openMenu,

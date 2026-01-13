@@ -33,6 +33,8 @@ const TestHarness = () => {
     setDiceRollerOpen: noop,
     loadDeckModalOpen: false,
     setLoadDeckModalOpen: noop,
+    shareDialogOpen: false,
+    setShareDialogOpen: noop,
     zoneViewerOpen: false,
     closeZoneViewer: noop,
     opponentRevealsOpen: false,
