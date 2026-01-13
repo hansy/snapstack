@@ -34,7 +34,8 @@ export const computeBattlefieldCardLayout = (params: {
   const top = y - baseHeight / 2;
 
   const highlightColor = card.ownerId !== zoneOwnerId ? playerColors[card.ownerId] : undefined;
-  const disableDrag = card.controllerId !== viewerPlayerId;
+  const canDrag = card.controllerId === viewerPlayerId || card.ownerId === viewerPlayerId;
+  const disableDrag = !canDrag;
 
   return { left, top, highlightColor, disableDrag };
 };

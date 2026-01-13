@@ -108,6 +108,47 @@ export const buildCardActions = ({
     myPlayerId,
     viewerRole
   );
+  const isNonControllerBattlefield =
+    currentZone?.type === ZONE.BATTLEFIELD &&
+    card.controllerId !== myPlayerId;
+  const addInspectAction = () => {
+    if (
+      currentZone?.type === ZONE.BATTLEFIELD &&
+      lockPreview &&
+      previewAnchorEl &&
+      canToggleCardPreviewLock({
+        zoneType: currentZone?.type,
+        canPeek,
+        faceDown: card.faceDown,
+        isDragging: false,
+      })
+    ) {
+      items.push({
+        type: "action",
+        label: "Inspect",
+        onSelect: () => lockPreview(card, previewAnchorEl),
+      });
+    }
+  };
+
+  if (isNonControllerBattlefield) {
+    addInspectAction();
+    if (card.ownerId === myPlayerId) {
+      const moveToMenu = buildMoveToMenuItem({
+        card,
+        currentZone,
+        zones,
+        myPlayerId,
+        viewerRole,
+        moveCard,
+        moveCardToBottom,
+      });
+      if (moveToMenu) {
+        items.push(moveToMenu);
+      }
+    }
+    return items;
+  }
 
   if (
     setCardReveal &&
@@ -134,23 +175,7 @@ export const buildCardActions = ({
     });
   }
 
-  if (
-    currentZone?.type === ZONE.BATTLEFIELD &&
-    lockPreview &&
-    previewAnchorEl &&
-    canToggleCardPreviewLock({
-      zoneType: currentZone?.type,
-      canPeek,
-      faceDown: card.faceDown,
-      isDragging: false,
-    })
-  ) {
-    items.push({
-      type: "action",
-      label: "Modify",
-      onSelect: () => lockPreview(card, previewAnchorEl),
-    });
-  }
+  addInspectAction();
 
   if (
     currentZone?.type === ZONE.BATTLEFIELD &&

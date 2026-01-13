@@ -63,7 +63,7 @@ describe('battlefieldModel', () => {
 
   it('disables drag when the viewer is not the controller', () => {
     const layout = computeBattlefieldCardLayout({
-      card: createCard({ controllerId: 'p2' }),
+      card: createCard({ ownerId: 'p2', controllerId: 'p3' }),
       zoneOwnerId: 'p1',
       viewerPlayerId: 'p1',
       zoneWidth: 100,
@@ -73,5 +73,19 @@ describe('battlefieldModel', () => {
     });
 
     expect(layout.disableDrag).toBe(true);
+  });
+
+  it('allows drag for the owner even when another player controls the card', () => {
+    const layout = computeBattlefieldCardLayout({
+      card: createCard({ ownerId: 'p1', controllerId: 'p2' }),
+      zoneOwnerId: 'p2',
+      viewerPlayerId: 'p1',
+      zoneWidth: 100,
+      zoneHeight: 200,
+      mirrorBattlefieldY: false,
+      playerColors: {},
+    });
+
+    expect(layout.disableDrag).toBe(false);
   });
 });

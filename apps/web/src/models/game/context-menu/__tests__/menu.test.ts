@@ -262,6 +262,106 @@ describe("buildZoneViewActions", () => {
 });
 
 describe("buildCardActions", () => {
+  it("limits battlefield actions to Inspect only for non-controllers", () => {
+    const otherBattlefield = makeZone("bf-other", ZONE.BATTLEFIELD, "p2");
+    const zones = { [otherBattlefield.id]: otherBattlefield };
+    const actions = buildCardActions({
+      card: {
+        ...baseCard,
+        ownerId: "p2",
+        controllerId: "p2",
+        zoneId: otherBattlefield.id,
+      },
+      zones,
+      myPlayerId: "p1",
+      viewerRole: "player",
+      moveCard: vi.fn(),
+      tapCard: vi.fn(),
+      transformCard: vi.fn(),
+      duplicateCard: vi.fn(),
+      createRelatedCard: vi.fn(),
+      addCounter: vi.fn(),
+      removeCounter: vi.fn(),
+      openAddCounterModal: vi.fn(),
+      globalCounters: {},
+      lockPreview: vi.fn(),
+      previewAnchorEl: document.createElement("div"),
+    });
+
+    const labels = actions.map((a) => (a.type === "action" ? a.label : ""));
+    expect(labels).toEqual(["Inspect"]);
+  });
+
+  it("limits battlefield actions to Inspect and Move for owners without control", () => {
+    const otherBattlefield = makeZone("bf-other", ZONE.BATTLEFIELD, "p2");
+    const hand = makeZone("hand-owner", ZONE.HAND, "p1");
+    const graveyard = makeZone("gy-owner", ZONE.GRAVEYARD, "p1");
+    const exile = makeZone("exile-owner", ZONE.EXILE, "p1");
+    const library = makeZone("lib-owner", ZONE.LIBRARY, "p1");
+    const zones = {
+      [otherBattlefield.id]: otherBattlefield,
+      [hand.id]: hand,
+      [graveyard.id]: graveyard,
+      [exile.id]: exile,
+      [library.id]: library,
+    };
+    const actions = buildCardActions({
+      card: {
+        ...baseCard,
+        ownerId: "p1",
+        controllerId: "p2",
+        zoneId: otherBattlefield.id,
+      },
+      zones,
+      myPlayerId: "p1",
+      viewerRole: "player",
+      moveCard: vi.fn(),
+      moveCardToBottom: vi.fn(),
+      tapCard: vi.fn(),
+      transformCard: vi.fn(),
+      duplicateCard: vi.fn(),
+      createRelatedCard: vi.fn(),
+      addCounter: vi.fn(),
+      removeCounter: vi.fn(),
+      openAddCounterModal: vi.fn(),
+      globalCounters: {},
+      lockPreview: vi.fn(),
+      previewAnchorEl: document.createElement("div"),
+    });
+
+    const labels = actions.map((a) => (a.type === "action" ? a.label : ""));
+    expect(labels).toEqual(["Inspect", "Move to..."]);
+  });
+
+  it("allows controller actions on another player's battlefield", () => {
+    const otherBattlefield = makeZone("bf-other", ZONE.BATTLEFIELD, "p2");
+    const zones = { [otherBattlefield.id]: otherBattlefield };
+    const actions = buildCardActions({
+      card: {
+        ...baseCard,
+        ownerId: "p1",
+        controllerId: "p1",
+        zoneId: otherBattlefield.id,
+      },
+      zones,
+      myPlayerId: "p1",
+      viewerRole: "player",
+      moveCard: vi.fn(),
+      tapCard: vi.fn(),
+      transformCard: vi.fn(),
+      duplicateCard: vi.fn(),
+      createRelatedCard: vi.fn(),
+      addCounter: vi.fn(),
+      removeCounter: vi.fn(),
+      openAddCounterModal: vi.fn(),
+      globalCounters: {},
+    });
+
+    expect(
+      actions.some((a) => a.type === "action" && a.label === "Tap/Untap")
+    ).toBe(true);
+  });
+
   it("includes tap/untap on battlefield", () => {
     const battlefield = makeZone("bf", ZONE.BATTLEFIELD, "p1");
     const zones = { [battlefield.id]: battlefield };
