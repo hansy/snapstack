@@ -56,11 +56,16 @@ export const useTokenCreationController = ({
   }, [isOpen, resetState]);
 
   React.useEffect(() => {
+    let isCurrent = true;
+
     if (!query.trim()) {
       setResults([]);
       setIsLoading(false);
       setHasSearched(false);
-      return;
+      return () => {
+        isCurrent = false;
+        debouncedSearch.cancel();
+      };
     }
 
     setIsLoading(true);
@@ -69,6 +74,7 @@ export const useTokenCreationController = ({
     debouncedSearch
       .search(query)
       .then((data) => {
+        if (!isCurrent) return;
         if (data && data.data) {
           setResults(data.data);
         } else {
@@ -77,15 +83,18 @@ export const useTokenCreationController = ({
         setHasSearched(true);
       })
       .catch((err) => {
+        if (!isCurrent) return;
         if (isAbortError(err)) return;
         console.error("[TokenCreationModal] Token search error:", err);
         setHasSearched(true);
       })
       .finally(() => {
+        if (!isCurrent) return;
         setIsLoading(false);
       });
 
     return () => {
+      isCurrent = false;
       debouncedSearch.cancel();
     };
   }, [query, debouncedSearch]);
