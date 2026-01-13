@@ -91,6 +91,49 @@ describe("logEventRegistry", () => {
     expect(parts.map((p) => p.text).join("")).toBe("Alice life -2 (20 -> 18)");
   });
 
+  it("formats commander tax changes as added/removed", () => {
+    const commanderZone = makeZone("cz", "commander", "p1", ["c1"]);
+    const commanderCard = makeCard("c1", "Commander", "cz", "p1");
+    const ctx: LogContext = {
+      players: { p1: makePlayer("p1", "Alice") },
+      cards: { c1: commanderCard },
+      zones: { cz: commanderZone },
+    };
+
+    const added = logEventRegistry["player.commanderTax"].format(
+      {
+        playerId: "p1",
+        from: 0,
+        to: 2,
+        delta: 2,
+        cardId: "c1",
+        zoneId: "cz",
+        cardName: "Commander",
+      },
+      ctx
+    );
+
+    const removed = logEventRegistry["player.commanderTax"].format(
+      {
+        playerId: "p1",
+        from: 2,
+        to: 0,
+        delta: -2,
+        cardId: "c1",
+        zoneId: "cz",
+        cardName: "Commander",
+      },
+      ctx
+    );
+
+    expect(added.map((p) => p.text).join("")).toBe(
+      "Alice added 2 commander tax to Commander"
+    );
+    expect(removed.map((p) => p.text).join("")).toBe(
+      "Alice removed 2 commander tax from Commander"
+    );
+  });
+
   it("formats card moves to battlefield as played-from", () => {
     const hand = makeZone("hand", "hand", "p1", ["c1"]);
     const battlefield = makeZone("bf", "battlefield", "p1", []);

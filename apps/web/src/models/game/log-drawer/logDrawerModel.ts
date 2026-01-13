@@ -39,11 +39,12 @@ export const resolveLogCardContext = (
       isLogEvent(entry, "card.duplicate") ||
       isLogEvent(entry, "card.remove") ||
       isLogEvent(entry, "card.pt") ||
+      isLogEvent(entry, "player.commanderTax") ||
       isLogEvent(entry, "counter.add") ||
       isLogEvent(entry, "counter.remove")) &&
     entry.payload
   ) {
-    const zone = ctx.zones[entry.payload.zoneId];
+    const zone = entry.payload.zoneId ? ctx.zones[entry.payload.zoneId] : undefined;
     return {
       fromZone: zone,
       toZone: zone,

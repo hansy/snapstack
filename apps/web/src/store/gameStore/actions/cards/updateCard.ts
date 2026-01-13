@@ -125,6 +125,33 @@ export const createUpdateCard =
       }
     }
 
+    const commanderTaxLog = (() => {
+      if (!cardBefore || !isCommanderTaxUpdate) return null;
+      const { next } = buildUpdateCardPatch(cardBefore, updates);
+      const from = cardBefore.commanderTax ?? 0;
+      const to = next.commanderTax ?? 0;
+      const delta = to - from;
+      if (delta === 0) return null;
+      return { from, to, delta };
+    })();
+
+    if (commanderTaxLog && cardBefore) {
+      emitLog(
+        "player.commanderTax",
+        {
+          actorId: actor,
+          playerId: cardBefore.ownerId,
+          cardId: cardBefore.id,
+          zoneId: cardBefore.zoneId,
+          cardName: cardBefore.name,
+          from: commanderTaxLog.from,
+          to: commanderTaxLog.to,
+          delta: commanderTaxLog.delta,
+        },
+        buildLogContext()
+      );
+    }
+
     const zoneTypeBefore = cardBefore
       ? get().zones[cardBefore.zoneId]?.type
       : undefined;

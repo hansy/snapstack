@@ -32,12 +32,6 @@ export interface GameState {
     actorId?: PlayerId,
     isRemote?: boolean
   ) => void;
-  updateCommanderTax: (
-    playerId: PlayerId,
-    delta: number,
-    actorId?: PlayerId,
-    isRemote?: boolean
-  ) => void;
   addZone: (zone: Zone, isRemote?: boolean) => void;
   addCard: (card: Card, isRemote?: boolean) => void;
   updateCard: (

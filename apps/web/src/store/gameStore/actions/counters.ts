@@ -17,6 +17,7 @@ import {
   addCounterToCard as yAddCounterToCard,
   removeCounterFromCard as yRemoveCounterFromCard,
 } from "@/yjs/yMutations";
+import { readCard } from "@/yjs/mutations/cards/cardData";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];
@@ -47,20 +48,22 @@ export const createCounterActions = (
     const resolvedColor = resolveCounterColor(normalizedName, get().globalCounters);
     const normalizedColor = (color || resolvedColor).slice(0, 16);
 
-    if (
-      applyShared((maps) => {
-        const current = maps.globalCounters.get(normalizedName) as
-          | string
-          | undefined;
-        if (current) return;
-        maps.globalCounters.set(normalizedName, normalizedColor);
-      })
-    )
-      return;
+    let didInsert = false;
+    const sharedApplied = applyShared((maps) => {
+      const current = maps.globalCounters.get(normalizedName) as string | undefined;
+      if (current) return;
+      maps.globalCounters.set(normalizedName, normalizedColor);
+      didInsert = true;
+    });
 
-    set((state) => ({
-      globalCounters: { ...state.globalCounters, [normalizedName]: normalizedColor },
-    }));
+    if (!sharedApplied) {
+      set((state) => ({
+        globalCounters: { ...state.globalCounters, [normalizedName]: normalizedColor },
+      }));
+      didInsert = true;
+    }
+
+    if (!didInsert) return;
 
     emitLog(
       "counter.global.add",
@@ -98,27 +101,47 @@ export const createCounterActions = (
     const delta = nextCount - prevCount;
     if (delta <= 0) return;
 
-    if (applyShared((maps) => yAddCounterToCard(maps, cardId, counter))) return;
-
-    set((current) => {
-      const currentCard = current.cards[cardId];
-      if (!currentCard) return current;
-      return {
-        cards: {
-          ...current.cards,
-          [cardId]: {
-            ...currentCard,
-            counters: newCounters,
-          },
-        },
-      };
+    let sharedDelta: number | null = null;
+    let sharedNextCount: number | null = null;
+    const sharedApplied = applyShared((maps) => {
+      const before = readCard(maps, cardId);
+      const beforeCount =
+        before?.counters.find((c) => c.type === counter.type)?.count ?? 0;
+      yAddCounterToCard(maps, cardId, counter);
+      const after = readCard(maps, cardId);
+      if (before && after) {
+        const afterCount =
+          after.counters.find((c) => c.type === counter.type)?.count ?? beforeCount;
+        sharedDelta = afterCount - beforeCount;
+        sharedNextCount = afterCount;
+      }
     });
+
+    if (!sharedApplied) {
+      set((current) => {
+        const currentCard = current.cards[cardId];
+        if (!currentCard) return current;
+        return {
+          cards: {
+            ...current.cards,
+            [cardId]: {
+              ...currentCard,
+              counters: newCounters,
+            },
+          },
+        };
+      });
+    }
+
+    const logDelta = sharedDelta ?? delta;
+    const logNextTotal = sharedNextCount ?? nextCount;
+    if (sharedDelta !== null && logDelta <= 0) return;
 
     logPermission({
       action: "addCounterToCard",
       actorId: actor,
       allowed: true,
-      details: { cardId, zoneId: card.zoneId, counterType: counter.type, delta },
+      details: { cardId, zoneId: card.zoneId, counterType: counter.type, delta: logDelta },
     });
     emitLog(
       "counter.add",
@@ -127,8 +150,8 @@ export const createCounterActions = (
         cardId,
         zoneId: card.zoneId,
         counterType: counter.type,
-        delta,
-        newTotal: nextCount,
+        delta: logDelta,
+        newTotal: logNextTotal,
         cardName: card.name,
       },
       buildLogContext()
@@ -163,28 +186,47 @@ export const createCounterActions = (
     const delta = nextCount - prevCount;
     if (delta === 0) return;
 
-    if (applyShared((maps) => yRemoveCounterFromCard(maps, cardId, counterType)))
-      return;
-
-    set((current) => {
-      const currentCard = current.cards[cardId];
-      if (!currentCard) return current;
-      return {
-        cards: {
-          ...current.cards,
-          [cardId]: {
-            ...currentCard,
-            counters: newCounters,
-          },
-        },
-      };
+    let sharedDelta: number | null = null;
+    let sharedNextCount: number | null = null;
+    const sharedApplied = applyShared((maps) => {
+      const before = readCard(maps, cardId);
+      const beforeCount =
+        before?.counters.find((c) => c.type === counterType)?.count ?? 0;
+      yRemoveCounterFromCard(maps, cardId, counterType);
+      const after = readCard(maps, cardId);
+      if (before && after) {
+        const afterCount =
+          after.counters.find((c) => c.type === counterType)?.count ?? 0;
+        sharedDelta = afterCount - beforeCount;
+        sharedNextCount = afterCount;
+      }
     });
+
+    if (!sharedApplied) {
+      set((current) => {
+        const currentCard = current.cards[cardId];
+        if (!currentCard) return current;
+        return {
+          cards: {
+            ...current.cards,
+            [cardId]: {
+              ...currentCard,
+              counters: newCounters,
+            },
+          },
+        };
+      });
+    }
+
+    const logDelta = sharedDelta ?? delta;
+    const logNextTotal = sharedNextCount ?? nextCount;
+    if (sharedDelta !== null && logDelta === 0) return;
 
     logPermission({
       action: "removeCounterFromCard",
       actorId: actor,
       allowed: true,
-      details: { cardId, zoneId: card.zoneId, counterType, delta },
+      details: { cardId, zoneId: card.zoneId, counterType, delta: logDelta },
     });
     emitLog(
       "counter.remove",
@@ -193,8 +235,8 @@ export const createCounterActions = (
         cardId,
         zoneId: card.zoneId,
         counterType,
-        delta,
-        newTotal: nextCount,
+        delta: logDelta,
+        newTotal: logNextTotal,
         cardName: card.name,
       },
       buildLogContext()

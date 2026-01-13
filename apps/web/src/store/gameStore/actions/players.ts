@@ -25,7 +25,7 @@ export const createPlayerActions = (
   { applyShared, buildLogContext }: Deps
 ): Pick<
   GameState,
-  "addPlayer" | "updatePlayer" | "updateCommanderTax" | "setDeckLoaded"
+  "addPlayer" | "updatePlayer" | "setDeckLoaded"
 > => ({
   addPlayer: (player, _isRemote) => {
     if (get().viewerRole === "spectator") return;
@@ -90,66 +90,6 @@ export const createPlayerActions = (
         [id]: { ...state.players[id], ...updates },
       },
     }));
-  },
-
-  updateCommanderTax: (playerId, delta, actorId, _isRemote) => {
-    const actor = actorId ?? get().myPlayerId;
-    const role = actor === get().myPlayerId ? get().viewerRole : "player";
-    const player = get().players[playerId];
-    if (!player) return;
-    if (role === "spectator") {
-      logPermission({
-        action: "updateCommanderTax",
-        actorId: actor,
-        allowed: false,
-        reason: "Spectators cannot update players",
-        details: { playerId, delta },
-      });
-      return;
-    }
-    if (actor !== playerId) {
-      logPermission({
-        action: "updateCommanderTax",
-        actorId: actor,
-        allowed: false,
-        reason: "Only the player may change their commander tax",
-        details: { playerId, delta },
-      });
-      return;
-    }
-
-    const from = player.commanderTax || 0;
-    const to = Math.max(0, from + delta);
-
-    if (
-      applyShared((maps) => {
-        yPatchPlayer(maps, playerId, { commanderTax: to });
-      })
-    )
-      return;
-
-    set((state) => {
-      const current = state.players[playerId];
-      if (!current) return state;
-      return {
-        players: {
-          ...state.players,
-          [playerId]: { ...current, commanderTax: to },
-        },
-      };
-    });
-
-    logPermission({
-      action: "updateCommanderTax",
-      actorId: actor,
-      allowed: true,
-      details: { playerId, delta },
-    });
-    emitLog(
-      "player.commanderTax",
-      { actorId: actor, playerId, from, to, delta: to - from },
-      buildLogContext()
-    );
   },
 
   setDeckLoaded: (playerId, loaded, _isRemote) => {

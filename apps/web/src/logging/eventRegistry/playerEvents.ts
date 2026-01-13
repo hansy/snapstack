@@ -1,4 +1,4 @@
-import { buildPlayerPart } from "../helpers";
+import { buildCardPart, buildPlayerPart } from "../helpers";
 import type { LogEventDefinition, LogEventId } from "@/logging/types";
 
 import { DEFAULT_AGGREGATE_WINDOW_MS } from "./constants";
@@ -17,6 +17,9 @@ export type CommanderTaxPayload = {
   from: number;
   to: number;
   delta?: number;
+  cardId?: string;
+  zoneId?: string;
+  cardName?: string;
 };
 
 const formatLife: LogEventDefinition<LifePayload>["format"] = (payload, ctx) => {
@@ -29,10 +32,24 @@ const formatLife: LogEventDefinition<LifePayload>["format"] = (payload, ctx) => 
 const formatCommanderTax: LogEventDefinition<CommanderTaxPayload>["format"] = (payload, ctx) => {
   const player = buildPlayerPart(ctx, payload.playerId);
   const delta = typeof payload.delta === "number" ? payload.delta : payload.to - payload.from;
-  const signed = delta >= 0 ? `+${delta}` : `${delta}`;
+  const absDelta = Math.abs(delta);
+  const verb = delta >= 0 ? "added" : "removed";
+  const preposition = delta >= 0 ? "to" : "from";
+  const zone = payload.zoneId ? ctx.zones[payload.zoneId] : undefined;
+  const cardPart = buildCardPart(
+    ctx,
+    payload.cardId,
+    zone,
+    zone,
+    payload.cardName ?? "their commander"
+  );
   return [
     player,
-    { kind: "text", text: ` commander tax ${signed} (${payload.from} -> ${payload.to})` },
+    {
+      kind: "text",
+      text: ` ${verb} ${absDelta} commander tax ${preposition} `,
+    },
+    cardPart,
   ];
 };
 
