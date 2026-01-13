@@ -12,6 +12,8 @@ const EVENT_IDS = [
   "card.draw",
   "card.discard",
   "library.shuffle",
+  "library.view",
+  "library.topReveal",
   "deck.reset",
   "deck.unload",
   "card.move",
@@ -175,5 +177,48 @@ describe("logEventRegistry", () => {
     );
 
     expect(parts.map((p) => p.text).join("")).toBe("Bob gains control of Lightning Bolt");
+  });
+
+  it("formats library view entries", () => {
+    const ctx: LogContext = {
+      players: { p1: makePlayer("p1", "Alice") },
+      cards: {},
+      zones: {},
+    };
+
+    const withCount = logEventRegistry["library.view"].format(
+      { playerId: "p1", count: 3 },
+      ctx
+    );
+    const viewAll = logEventRegistry["library.view"].format({ playerId: "p1" }, ctx);
+
+    expect(withCount.map((p) => p.text).join("")).toBe(
+      "Alice viewed top 3 cards of Library"
+    );
+    expect(viewAll.map((p) => p.text).join("")).toBe("Alice viewed all cards of Library");
+  });
+
+  it("formats top card reveal toggles", () => {
+    const ctx: LogContext = {
+      players: { p1: makePlayer("p1", "Alice") },
+      cards: {},
+      zones: {},
+    };
+
+    const enabled = logEventRegistry["library.topReveal"].format(
+      { playerId: "p1", enabled: true, mode: "self" },
+      ctx
+    );
+    const disabled = logEventRegistry["library.topReveal"].format(
+      { playerId: "p1", enabled: false, mode: "all" },
+      ctx
+    );
+
+    expect(enabled.map((p) => p.text).join("")).toBe(
+      "Alice toggled ON top card reveal for self"
+    );
+    expect(disabled.map((p) => p.text).join("")).toBe(
+      "Alice toggled OFF top card reveal for everyone"
+    );
   });
 });

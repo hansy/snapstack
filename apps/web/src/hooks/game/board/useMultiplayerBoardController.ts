@@ -6,6 +6,7 @@ import { useClientPrefsStore } from "@/store/clientPrefsStore";
 import { useGameStore } from "@/store/gameStore";
 import { useSelectionStore } from "@/store/selectionStore";
 import { resolvePlayerColors } from "@/lib/playerColors";
+import { ZONE } from "@/constants/zones";
 import { emitLog } from "@/logging/logStore";
 import { useBoardScale } from "./useBoardScale";
 import { useGameContextMenu } from "../context-menu/useGameContextMenu";
@@ -73,6 +74,23 @@ export const useMultiplayerBoardController = (sessionId: string) => {
 
   const handleViewZone = React.useCallback((zoneId: string, count?: number) => {
     setZoneViewerState({ isOpen: true, zoneId, count });
+
+    const state = useGameStore.getState();
+    const zone = state.zones[zoneId];
+    if (!zone || zone.type !== ZONE.LIBRARY) return;
+    if (state.viewerRole === "spectator") return;
+    if (zone.ownerId !== state.myPlayerId) return;
+
+    const safeCount =
+      typeof count === "number" && Number.isFinite(count) && count > 0
+        ? Math.floor(count)
+        : undefined;
+
+    emitLog(
+      "library.view",
+      { actorId: state.myPlayerId, playerId: state.myPlayerId, count: safeCount },
+      { players: state.players, cards: state.cards, zones: state.zones }
+    );
   }, []);
 
   const handleLeave = React.useCallback(() => {
