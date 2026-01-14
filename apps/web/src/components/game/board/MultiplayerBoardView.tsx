@@ -14,6 +14,7 @@ import { shouldRenderFaceDown } from "@/lib/reveal";
 import { Seat } from "../seat/Seat";
 import { ContextMenu } from "../context-menu/ContextMenu";
 import { AddCounterModal } from "../add-counter/AddCounterModal";
+import { CoinFlipDialog } from "../coin/CoinFlipDialog";
 import { DiceRollDialog } from "../dice/DiceRollDialog";
 import { LoadDeckModal } from "../load-deck/LoadDeckModal";
 import { LogDrawer } from "../log-drawer/LogDrawer";
@@ -69,6 +70,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   handleZoneContextMenu,
   handleBattlefieldContextMenu,
   handleLifeContextMenu,
+  handleOpenCoinFlipper,
   handleOpenDiceRoller,
   closeContextMenu,
   countPrompt,
@@ -81,6 +83,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   setIsLoadDeckModalOpen,
   isTokenModalOpen,
   setIsTokenModalOpen,
+  isCoinFlipperOpen,
+  setIsCoinFlipperOpen,
   isDiceRollerOpen,
   setIsDiceRollerOpen,
   isLogOpen,
@@ -99,6 +103,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   preferredUsername,
   handleUsernameSubmit,
   handleDrawCard,
+  handleFlipCoin,
   handleRollDice,
   handleLeave,
   shareLinks,
@@ -124,6 +129,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
         >
           <Sidenav
             onCreateToken={() => setIsTokenModalOpen(true)}
+            onOpenCoinFlipper={handleOpenCoinFlipper}
             onOpenDiceRoller={handleOpenDiceRoller}
             onToggleLog={() => setIsLogOpen(!isLogOpen)}
             isLogOpen={isLogOpen}
@@ -233,6 +239,11 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
           isOpen={isLoadDeckModalOpen}
           onClose={() => setIsLoadDeckModalOpen(false)}
           playerId={myPlayerId}
+        />
+        <CoinFlipDialog
+          open={isCoinFlipperOpen}
+          onClose={() => setIsCoinFlipperOpen(false)}
+          onFlip={handleFlipCoin}
         />
         <DiceRollDialog
           open={isDiceRollerOpen}

@@ -32,6 +32,7 @@ export const useGameContextMenu = (
     viewerRole: ViewerRole | undefined,
     myPlayerId: string,
     onViewZone?: (zoneId: ZoneId, count?: number) => void,
+    onFlipCoin?: () => void,
     onRollDice?: () => void
 ) => {
     const isSpectator = viewerRole === "spectator";
@@ -176,13 +177,22 @@ export const useGameContextMenu = (
     }, [isSpectator, myPlayerId, onViewZone, openContextMenu, openCountPrompt, openTopCardRevealPrompt, seatHasDeckLoaded]);
 
     const handleBattlefieldContextMenu = React.useCallback(
-        (e: React.MouseEvent, actions: { onCreateToken: () => void; onOpenDiceRoller?: () => void }) => {
+        (e: React.MouseEvent, actions: { onCreateToken: () => void; onOpenCoinFlipper?: () => void; onOpenDiceRoller?: () => void }) => {
             if (isSpectator) return;
             if (!seatHasDeckLoaded(myPlayerId)) return;
+            const onCoinFlip = actions.onOpenCoinFlipper ?? onFlipCoin;
             const onDiceRoll = actions.onOpenDiceRoller ?? onRollDice;
             const playerZones = getPlayerZones(useGameStore.getState().zones, myPlayerId);
 
             const items: ContextMenuItem[] = [];
+            if (onCoinFlip) {
+              items.push({
+                type: "action",
+                label: "Flip Coin",
+                onSelect: onCoinFlip,
+                shortcut: getShortcutLabel("ui.openCoinFlipper"),
+              });
+            }
             if (onDiceRoll) {
               items.push({
                 type: "action",
@@ -210,7 +220,7 @@ export const useGameContextMenu = (
                 openContextMenu(e, items);
             }
         },
-        [isSpectator, myPlayerId, onRollDice, openContextMenu, seatHasDeckLoaded]
+        [isSpectator, myPlayerId, onFlipCoin, onRollDice, openContextMenu, seatHasDeckLoaded]
     );
 
     const handleLifeContextMenu = React.useCallback(

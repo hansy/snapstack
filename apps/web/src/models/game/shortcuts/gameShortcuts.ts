@@ -2,6 +2,7 @@ export type GameShortcutId =
   | "ui.closeTopmost"
   | "ui.toggleShortcuts"
   | "ui.toggleLog"
+  | "ui.openCoinFlipper"
   | "ui.openDiceRoller"
   | "ui.openTokenModal"
   | "game.untapAll"
@@ -59,6 +60,13 @@ export const GAME_SHORTCUTS: GameShortcutDefinition[] = [
     binding: { key: "l" },
     title: "Toggle Log",
     description: "Opens/closes the game log drawer.",
+    requiresDeckLoaded: false,
+  },
+  {
+    id: "ui.openCoinFlipper",
+    binding: { key: "k", shift: true },
+    title: "Flip Coin",
+    description: "Opens the coin flipper dialog.",
     requiresDeckLoaded: false,
   },
   {

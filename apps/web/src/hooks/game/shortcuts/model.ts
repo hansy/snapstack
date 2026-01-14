@@ -53,6 +53,8 @@ export type CloseTopmostUiArgs = {
   closeActiveModal: () => void;
   tokenModalOpen: boolean;
   setTokenModalOpen: (open: boolean) => void;
+  coinFlipperOpen: boolean;
+  setCoinFlipperOpen: (open: boolean) => void;
   diceRollerOpen: boolean;
   setDiceRollerOpen: (open: boolean) => void;
   loadDeckModalOpen: boolean;
@@ -174,6 +176,8 @@ export const runGameShortcut = (params: {
   logOpen: boolean;
   setLogOpen: (open: boolean) => void;
   setTokenModalOpen: (open: boolean) => void;
+  coinFlipperOpen: boolean;
+  setCoinFlipperOpen: (open: boolean) => void;
   diceRollerOpen: boolean;
   setDiceRollerOpen: (open: boolean) => void;
   openCountPrompt: (opts: CountPromptOptions) => void;
@@ -231,6 +235,9 @@ export const runGameShortcut = (params: {
       return true;
     case "game.shuffleLibrary":
       params.actions.shuffle();
+      return true;
+    case "ui.openCoinFlipper":
+      params.setCoinFlipperOpen(true);
       return true;
     case "ui.openDiceRoller":
       params.setDiceRollerOpen(true);

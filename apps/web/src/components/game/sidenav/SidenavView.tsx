@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Coins,
   Dice5,
   Keyboard,
   Loader2,
@@ -49,6 +50,7 @@ const NavIcon: React.FC<NavIconProps> = ({
 
 export const SidenavView: React.FC<SidenavController> = ({
   onCreateToken,
+  onOpenCoinFlipper,
   onOpenDiceRoller,
   onToggleLog,
   onOpenShareDialog,
@@ -99,6 +101,14 @@ export const SidenavView: React.FC<SidenavController> = ({
           label="Create Token"
           onClick={onCreateToken}
           className="hover:text-emerald-400"
+          disabled={isSpectator}
+        />
+
+        <NavIcon
+          icon={<Coins size={20} />}
+          label="Flip Coin"
+          onClick={onOpenCoinFlipper}
+          className="hover:text-yellow-400"
           disabled={isSpectator}
         />
 

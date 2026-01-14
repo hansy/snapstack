@@ -8,6 +8,7 @@ import { logEventRegistry } from "../eventRegistry";
 const EVENT_IDS = [
   "player.life",
   "player.commanderTax",
+  "coin.flip",
   "dice.roll",
   "card.draw",
   "card.discard",
@@ -61,6 +62,36 @@ const makeCard = (id: string, name: string, zoneId: string, ownerId: string): Ca
 describe("logEventRegistry", () => {
   it("exports definitions for all log event ids", () => {
     expect(Object.keys(logEventRegistry).sort()).toEqual([...EVENT_IDS].sort());
+  });
+
+  it("formats coin flip results", () => {
+    const ctx: LogContext = {
+      players: { p1: makePlayer("p1", "Alice") },
+      cards: {},
+      zones: {},
+    };
+
+    const parts = logEventRegistry["coin.flip"].format(
+      { actorId: "p1", count: 2, results: ["heads", "tails"] },
+      ctx
+    );
+
+    expect(parts.map((p) => p.text).join("")).toBe("Alice flipped 2 coins: [heads, tails]");
+  });
+
+  it("formats single coin flip", () => {
+    const ctx: LogContext = {
+      players: { p1: makePlayer("p1", "Alice") },
+      cards: {},
+      zones: {},
+    };
+
+    const parts = logEventRegistry["coin.flip"].format(
+      { actorId: "p1", count: 1, results: ["heads"] },
+      ctx
+    );
+
+    expect(parts.map((p) => p.text).join("")).toBe("Alice flipped 1 coin: heads");
   });
 
   it("formats dice roll results", () => {

@@ -7,6 +7,7 @@ export type SyncStatus = "connecting" | "connected";
 
 export type SidenavControllerInput = {
   onCreateToken?: () => void;
+  onOpenCoinFlipper?: () => void;
   onOpenDiceRoller?: () => void;
   onToggleLog?: () => void;
   isLogOpen?: boolean;
@@ -20,6 +21,7 @@ export type SidenavControllerInput = {
 
 export const useSidenavController = ({
   onCreateToken,
+  onOpenCoinFlipper,
   onOpenDiceRoller,
   onToggleLog,
   isLogOpen = false,
@@ -50,6 +52,7 @@ export const useSidenavController = ({
 
   return {
     onCreateToken,
+    onOpenCoinFlipper,
     onOpenDiceRoller,
     onToggleLog,
     isLogOpen,

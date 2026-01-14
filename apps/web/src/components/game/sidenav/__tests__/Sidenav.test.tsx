@@ -23,7 +23,7 @@ describe("Sidenav", () => {
       untapAll: untapAll as unknown as (playerId: string) => void,
     });
 
-    render(<Sidenav />);
+    render(<Sidenav onOpenCoinFlipper={vi.fn()} onOpenDiceRoller={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Untap All" }));
     expect(untapAll).toHaveBeenCalledTimes(1);
@@ -33,7 +33,7 @@ describe("Sidenav", () => {
   it("opens the share dialog from the share button", () => {
     const onOpenShareDialog = vi.fn();
 
-    render(<Sidenav onOpenShareDialog={onOpenShareDialog} />);
+    render(<Sidenav onOpenCoinFlipper={vi.fn()} onOpenDiceRoller={vi.fn()} onOpenShareDialog={onOpenShareDialog} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Share room" }));
     expect(onOpenShareDialog).toHaveBeenCalledTimes(1);

@@ -36,6 +36,8 @@ export type UseGameShortcutsArgs = {
   closeActiveModal: () => void;
   tokenModalOpen: boolean;
   setTokenModalOpen: (open: boolean) => void;
+  coinFlipperOpen: boolean;
+  setCoinFlipperOpen: (open: boolean) => void;
   diceRollerOpen: boolean;
   setDiceRollerOpen: (open: boolean) => void;
   loadDeckModalOpen: boolean;
@@ -81,6 +83,8 @@ export const useGameShortcuts = (args: UseGameShortcutsArgs) => {
         closeActiveModal,
         tokenModalOpen,
         setTokenModalOpen,
+        coinFlipperOpen,
+        setCoinFlipperOpen,
         diceRollerOpen,
         setDiceRollerOpen,
         loadDeckModalOpen,
@@ -202,6 +206,8 @@ export const useGameShortcuts = (args: UseGameShortcutsArgs) => {
         logOpen,
         setLogOpen,
         setTokenModalOpen,
+        coinFlipperOpen,
+        setCoinFlipperOpen,
         diceRollerOpen,
         setDiceRollerOpen,
         openCountPrompt,
