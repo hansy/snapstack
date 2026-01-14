@@ -14,6 +14,7 @@ import { CommanderZone } from "./CommanderZone";
 import { Hand } from "./Hand";
 import { SideZone } from "./SideZone";
 import type { SeatModel } from "@/models/game/seat/seatModel";
+import { HAND_BASE_CARD_SCALE, HAND_DEFAULT_HEIGHT } from "./handSizing";
 
 interface SeatViewProps {
   player: Player;
@@ -60,6 +61,12 @@ export const SeatView: React.FC<SeatViewProps> = ({
   zoomControlsDisabled,
   onLifeContextMenu,
 }) => {
+  const [handHeight, setHandHeight] = React.useState(HAND_DEFAULT_HEIGHT);
+  const handCardScale = React.useMemo(
+    () => HAND_BASE_CARD_SCALE * (handHeight / HAND_DEFAULT_HEIGHT),
+    [handHeight]
+  );
+
   const {
     isTop,
     isRight,
@@ -277,7 +284,12 @@ export const SeatView: React.FC<SeatViewProps> = ({
           )}
 
           {/* Bottom Bar (Hand + Commander) */}
-          <BottomBar isTop={isTop} isRight={isRight} className="h-40">
+          <BottomBar
+            isTop={isTop}
+            isRight={isRight}
+            height={handHeight}
+            onHeightChange={setHandHeight}
+          >
             {/* Commander Zone */}
             {commander && (
               <CommanderZone
@@ -303,6 +315,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
                 viewerRole={viewerRole}
                 onCardContextMenu={onCardContextMenu}
                 scale={scale}
+                cardScale={handCardScale}
               />
             )}
           </BottomBar>

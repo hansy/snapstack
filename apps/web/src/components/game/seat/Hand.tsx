@@ -5,6 +5,8 @@ import { Card } from "../card/Card";
 import { Zone } from "../zone/Zone";
 import { ZONE_LABEL } from "@/constants/zones";
 import { shouldRenderFaceDown } from "@/lib/reveal";
+import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from "@/lib/constants";
+import { HAND_CARD_OVERLAP_RATIO } from "./handSizing";
 import {
   SortableContext,
   useSortable,
@@ -23,6 +25,7 @@ interface HandProps {
   onCardContextMenu?: (e: React.MouseEvent, card: CardType) => void;
   className?: string;
   scale?: number;
+  cardScale?: number;
 }
 
 const SortableCard = React.memo(({
@@ -32,6 +35,7 @@ const SortableCard = React.memo(({
   viewerPlayerId,
   viewerRole,
   onCardContextMenu,
+  cardScale,
 }: {
   card: CardType;
   isTop: boolean;
@@ -39,6 +43,7 @@ const SortableCard = React.memo(({
   viewerPlayerId: string;
   viewerRole?: ViewerRole;
   onCardContextMenu?: (e: React.MouseEvent, card: CardType) => void;
+  cardScale: number;
 }) => {
   const {
     attributes,
@@ -58,10 +63,15 @@ const SortableCard = React.memo(({
     disabled: !isMe,
   });
 
-  const style = React.useMemo(() => ({
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }), [transform, transition]);
+  const style = React.useMemo(() => {
+    const cardWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO * cardScale;
+    const overlapWidth = cardWidth * HAND_CARD_OVERLAP_RATIO;
+    return {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      ["--hand-card-max-width" as string]: `${overlapWidth}px`,
+    } as React.CSSProperties;
+  }, [transform, transition, cardScale]);
 
   const handleContextMenu = React.useCallback((e: React.MouseEvent) => {
     onCardContextMenu?.(e, card);
@@ -72,7 +82,7 @@ const SortableCard = React.memo(({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "relative shrink-0 h-full w-auto max-w-12 transition-all duration-200 ease-out group",
+        "relative shrink-0 h-full w-auto max-w-[var(--hand-card-max-width)] transition-all duration-200 ease-out group",
         "hover:max-w-[20rem] hover:z-50 hover:scale-110",
         isDragging && "z-50 opacity-0"
       )}
@@ -94,7 +104,7 @@ const SortableCard = React.memo(({
           onContextMenu={handleContextMenu}
           disableDrag // We use Sortable's drag handle
           isDragging={isDragging}
-          scale={1.5}
+          scale={cardScale}
         />
       </div>
     </div>
@@ -112,6 +122,7 @@ const HandInner: React.FC<HandProps> = ({
   onCardContextMenu,
   className,
   scale = 1,
+  cardScale = 1.5,
 }) => {
   // Memoize card IDs array for SortableContext
   const cardIds = React.useMemo(() => cards.map((c) => c.id), [cards]);
@@ -119,7 +130,7 @@ const HandInner: React.FC<HandProps> = ({
   return (
     <div
       className={cn(
-        "h-full flex-1 relative z-20 min-w-0 w-0", // w-0 enforces flex width constraint
+        "h-full flex-1 relative min-w-0 w-0", // w-0 enforces flex width constraint
         // Distinct background for hand area
         "bg-zinc-900/60 backdrop-blur-sm",
         isTop ? "border-b border-white/10" : "border-t border-white/10",
@@ -131,7 +142,7 @@ const HandInner: React.FC<HandProps> = ({
       {/* Hand Label */}
       <div
         className={cn(
-          "absolute px-3 py-1 text-md font-bold uppercase tracking-widest text-zinc-400 bg-zinc-900/80 border border-zinc-700/50 rounded-full z-30 pointer-events-none select-none",
+          "absolute px-3 py-1 text-md font-bold uppercase tracking-widest text-zinc-400 bg-zinc-900 border border-zinc-700/70 rounded-full z-40 pointer-events-none select-none shadow-[0_2px_10px_rgba(0,0,0,0.45)]",
           // Vertical positioning: straddle the border
           isTop ? "-bottom-3" : "-top-3",
           // Horizontal positioning: opposite to sidebar
@@ -146,6 +157,7 @@ const HandInner: React.FC<HandProps> = ({
       <Zone
         zone={zone}
         scale={scale}
+        cardScale={cardScale}
         className={cn(
           "w-full h-full flex overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent overscroll-x-none"
         )}
@@ -169,6 +181,7 @@ const HandInner: React.FC<HandProps> = ({
                 viewerPlayerId={viewerPlayerId}
                 viewerRole={viewerRole}
                 onCardContextMenu={onCardContextMenu}
+                cardScale={cardScale}
               />
             ))}
           </div>
