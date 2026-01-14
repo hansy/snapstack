@@ -17,6 +17,7 @@ import { fetchScryfallCardByUri } from "@/services/scryfall/scryfallCard";
 import { getCard as getCachedCard } from "@/services/scryfall/scryfallCache";
 import { getDisplayName } from "@/lib/cardDisplay";
 import { getPlayerZones } from "@/lib/gameSelectors";
+import { MAX_PLAYER_LIFE } from "@/lib/limits";
 import { ZONE } from "@/constants/zones";
 import { getShortcutLabel } from "@/models/game/shortcuts/gameShortcuts";
 import type { ContextMenuItem } from "@/models/game/context-menu/menu/types";
@@ -237,13 +238,13 @@ export const useGameContextMenu = (
                         openCountPrompt({
                             title: "Set life total",
                             message: "Enter the new life total.",
-                            initialValue: player.life,
+                            initialValue: Math.max(0, player.life),
                             minValue: 0,
                             confirmLabel: "Set life",
                             onSubmit: (value) => {
                                 const nextLife = Number.isFinite(value)
-                                    ? Math.max(0, Math.floor(value))
-                                    : 0;
+                                    ? Math.max(0, Math.min(MAX_PLAYER_LIFE, Math.floor(value)))
+                                    : player.life;
                                 useGameStore
                                     .getState()
                                     .updatePlayer(player.id, { life: nextLife }, myPlayerId);

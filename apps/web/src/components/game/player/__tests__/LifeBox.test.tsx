@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import { useGameStore } from "@/store/gameStore";
+import { MAX_PLAYER_LIFE, MIN_PLAYER_LIFE } from "@/lib/limits";
 
 import { LifeBox } from "../LifeBox";
 
@@ -65,5 +66,45 @@ describe("LifeBox", () => {
 
     fireEvent.contextMenu(screen.getByText("25"));
     expect(onContextMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables decrement at minimum life", () => {
+    render(
+      <LifeBox
+        player={{
+          id: "me",
+          name: "Me",
+          life: MIN_PLAYER_LIFE,
+          counters: [],
+          commanderDamage: {},
+          commanderTax: 0,
+        } as any}
+        isMe
+        opponentColors={{ me: "rose" }}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: "Decrease life" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+  });
+
+  it("disables increment at maximum life", () => {
+    render(
+      <LifeBox
+        player={{
+          id: "me",
+          name: "Me",
+          life: MAX_PLAYER_LIFE,
+          counters: [],
+          commanderDamage: {},
+          commanderTax: 0,
+        } as any}
+        isMe
+        opponentColors={{ me: "rose" }}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: "Increase life" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
   });
 });

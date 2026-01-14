@@ -2,6 +2,7 @@ import type { StoreApi } from "zustand";
 
 import type { GameState } from "@/types";
 import type { SharedMaps } from "@/yjs/yMutations";
+import { MAX_PLAYER_LIFE, MIN_PLAYER_LIFE } from "@/lib/limits";
 
 import { canUpdatePlayer } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
@@ -18,6 +19,9 @@ type Deps = {
   applyShared: ApplyShared;
   buildLogContext: () => LogContext;
 };
+
+const clampLife = (life: number) =>
+  Math.min(MAX_PLAYER_LIFE, Math.max(MIN_PLAYER_LIFE, life));
 
 export const createPlayerActions = (
   set: SetState,
@@ -45,14 +49,28 @@ export const createPlayerActions = (
     const player = get().players[id];
     if (!player) return;
 
-    const permission = canUpdatePlayer({ actorId: actor, role }, player, updates);
+    const normalizedUpdates = { ...updates };
+    if ("life" in normalizedUpdates) {
+      const nextLife = normalizedUpdates.life;
+      if (typeof nextLife !== "number" || !Number.isFinite(nextLife)) {
+        delete normalizedUpdates.life;
+      } else {
+        normalizedUpdates.life = clampLife(nextLife);
+      }
+    }
+
+    const permission = canUpdatePlayer(
+      { actorId: actor, role },
+      player,
+      normalizedUpdates
+    );
     if (!permission.allowed) {
       logPermission({
         action: "updatePlayer",
         actorId: actor,
         allowed: false,
         reason: permission.reason,
-        details: { playerId: id, updates },
+        details: { playerId: id, updates: normalizedUpdates },
       });
       return;
     }
@@ -60,18 +78,21 @@ export const createPlayerActions = (
       action: "updatePlayer",
       actorId: actor,
       allowed: true,
-      details: { playerId: id, updates },
+      details: { playerId: id, updates: normalizedUpdates },
     });
 
-    if (typeof updates.life === "number" && updates.life !== player.life) {
+    if (
+      typeof normalizedUpdates.life === "number" &&
+      normalizedUpdates.life !== player.life
+    ) {
       emitLog(
         "player.life",
         {
           actorId: actor,
           playerId: id,
           from: player.life,
-          to: updates.life,
-          delta: updates.life - player.life,
+          to: normalizedUpdates.life,
+          delta: normalizedUpdates.life - player.life,
         },
         buildLogContext()
       );
@@ -94,7 +115,7 @@ export const createPlayerActions = (
 
     if (
       applyShared((maps) => {
-        yPatchPlayer(maps, id, updates);
+        yPatchPlayer(maps, id, normalizedUpdates);
       })
     )
       return;
@@ -102,7 +123,7 @@ export const createPlayerActions = (
     set((state) => ({
       players: {
         ...state.players,
-        [id]: { ...state.players[id], ...updates },
+        [id]: { ...state.players[id], ...normalizedUpdates },
       },
     }));
   },
