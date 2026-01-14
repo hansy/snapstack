@@ -28,6 +28,8 @@ const TestHarness = () => {
     closeActiveModal: noop,
     tokenModalOpen: false,
     setTokenModalOpen: noop,
+    coinFlipperOpen: false,
+    setCoinFlipperOpen: noop,
     diceRollerOpen: false,
     setDiceRollerOpen: noop,
     loadDeckModalOpen: false,

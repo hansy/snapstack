@@ -132,6 +132,8 @@ describe("mulligan shortcut (shared mode)", () => {
       logOpen: false,
       setLogOpen: vi.fn(),
       setTokenModalOpen: vi.fn(),
+      coinFlipperOpen: false,
+      setCoinFlipperOpen: vi.fn(),
       diceRollerOpen: false,
       setDiceRollerOpen: vi.fn(),
       openCountPrompt: (opts) => opts.onSubmit(7),

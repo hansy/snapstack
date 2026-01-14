@@ -64,7 +64,7 @@ export const GAME_SHORTCUTS: GameShortcutDefinition[] = [
   },
   {
     id: "ui.openCoinFlipper",
-    binding: { key: "k", shift: true },
+    binding: { key: "c" },
     title: "Flip Coin",
     description: "Opens the coin flipper dialog.",
     requiresDeckLoaded: false,

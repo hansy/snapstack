@@ -234,6 +234,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     topCardRevealPromptOpen: Boolean(topCardRevealPrompt),
     activeModalOpen: Boolean(activeModal),
     tokenModalOpen: isTokenModalOpen,
+    coinFlipperOpen: isCoinFlipperOpen,
     diceRollerOpen: isDiceRollerOpen,
     loadDeckModalOpen: isLoadDeckModalOpen,
     shareDialogOpen: isShareDialogOpen,

@@ -100,6 +100,10 @@ export const closeTopmostUi = (args: CloseTopmostUiArgs): boolean => {
     args.setTokenModalOpen(false);
     return true;
   }
+  if (args.coinFlipperOpen) {
+    args.setCoinFlipperOpen(false);
+    return true;
+  }
   if (args.diceRollerOpen) {
     args.setDiceRollerOpen(false);
     return true;
@@ -134,6 +138,7 @@ export const areShortcutsBlockedByUi = (args: {
   topCardRevealPromptOpen: boolean;
   activeModalOpen: boolean;
   tokenModalOpen: boolean;
+  coinFlipperOpen: boolean;
   diceRollerOpen: boolean;
   loadDeckModalOpen: boolean;
   shareDialogOpen: boolean;
@@ -147,6 +152,7 @@ export const areShortcutsBlockedByUi = (args: {
     args.topCardRevealPromptOpen ||
     args.activeModalOpen ||
     args.tokenModalOpen ||
+    args.coinFlipperOpen ||
     args.diceRollerOpen ||
     args.loadDeckModalOpen ||
     args.shareDialogOpen ||

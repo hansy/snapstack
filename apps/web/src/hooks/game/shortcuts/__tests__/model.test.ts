@@ -27,6 +27,8 @@ describe("gameShortcuts/model", () => {
       closeActiveModal: vi.fn(),
       tokenModalOpen: false,
       setTokenModalOpen: vi.fn(),
+      coinFlipperOpen: false,
+      setCoinFlipperOpen: vi.fn(),
       diceRollerOpen: false,
       setDiceRollerOpen: vi.fn(),
       loadDeckModalOpen: false,
@@ -65,6 +67,8 @@ describe("gameShortcuts/model", () => {
       closeActiveModal: vi.fn(),
       tokenModalOpen: true,
       setTokenModalOpen,
+      coinFlipperOpen: false,
+      setCoinFlipperOpen: vi.fn(),
       diceRollerOpen: false,
       setDiceRollerOpen: vi.fn(),
       loadDeckModalOpen: false,
@@ -86,6 +90,46 @@ describe("gameShortcuts/model", () => {
     expect(setTokenModalOpen).not.toHaveBeenCalled();
   });
 
+  it("closes the coin flipper before the dice roller", () => {
+    const setCoinFlipperOpen = vi.fn();
+    const setDiceRollerOpen = vi.fn();
+
+    const closed = closeTopmostUi({
+      contextMenuOpen: false,
+      closeContextMenu: vi.fn(),
+      countPromptOpen: false,
+      closeCountPrompt: vi.fn(),
+      textPromptOpen: false,
+      closeTextPrompt: vi.fn(),
+      topCardRevealPromptOpen: false,
+      closeTopCardRevealPrompt: vi.fn(),
+      activeModalOpen: false,
+      closeActiveModal: vi.fn(),
+      tokenModalOpen: false,
+      setTokenModalOpen: vi.fn(),
+      coinFlipperOpen: true,
+      setCoinFlipperOpen,
+      diceRollerOpen: true,
+      setDiceRollerOpen,
+      loadDeckModalOpen: false,
+      setLoadDeckModalOpen: vi.fn(),
+      shareDialogOpen: false,
+      setShareDialogOpen: vi.fn(),
+      zoneViewerOpen: false,
+      closeZoneViewer: vi.fn(),
+      opponentRevealsOpen: false,
+      closeOpponentReveals: vi.fn(),
+      logOpen: false,
+      setLogOpen: vi.fn(),
+      shortcutsOpen: false,
+      setShortcutsOpen: vi.fn(),
+    });
+
+    expect(closed).toBe(true);
+    expect(setCoinFlipperOpen).toHaveBeenCalledWith(false);
+    expect(setDiceRollerOpen).not.toHaveBeenCalled();
+  });
+
   it("reports when shortcuts are blocked by open UI", () => {
     expect(
       areShortcutsBlockedByUi({
@@ -95,6 +139,7 @@ describe("gameShortcuts/model", () => {
         topCardRevealPromptOpen: false,
         activeModalOpen: false,
         tokenModalOpen: false,
+        coinFlipperOpen: false,
         diceRollerOpen: false,
         loadDeckModalOpen: false,
         shareDialogOpen: false,
@@ -111,6 +156,7 @@ describe("gameShortcuts/model", () => {
         topCardRevealPromptOpen: false,
         activeModalOpen: false,
         tokenModalOpen: false,
+        coinFlipperOpen: false,
         diceRollerOpen: false,
         loadDeckModalOpen: false,
         shareDialogOpen: false,
@@ -127,6 +173,24 @@ describe("gameShortcuts/model", () => {
         topCardRevealPromptOpen: false,
         activeModalOpen: false,
         tokenModalOpen: false,
+        coinFlipperOpen: true,
+        diceRollerOpen: false,
+        loadDeckModalOpen: false,
+        shareDialogOpen: false,
+        zoneViewerOpen: false,
+        opponentRevealsOpen: false,
+      })
+    ).toBe(true);
+
+    expect(
+      areShortcutsBlockedByUi({
+        contextMenuOpen: false,
+        countPromptOpen: false,
+        textPromptOpen: false,
+        topCardRevealPromptOpen: false,
+        activeModalOpen: false,
+        tokenModalOpen: false,
+        coinFlipperOpen: false,
         diceRollerOpen: false,
         loadDeckModalOpen: false,
         shareDialogOpen: true,
@@ -160,6 +224,8 @@ describe("gameShortcuts/model", () => {
       logOpen: false,
       setLogOpen: vi.fn(),
       setTokenModalOpen: vi.fn(),
+      coinFlipperOpen: false,
+      setCoinFlipperOpen: vi.fn(),
       diceRollerOpen: false,
       setDiceRollerOpen: vi.fn(),
       openCountPrompt: vi.fn(),
@@ -185,6 +251,8 @@ describe("gameShortcuts/model", () => {
       logOpen: false,
       setLogOpen: vi.fn(),
       setTokenModalOpen: vi.fn(),
+      coinFlipperOpen: false,
+      setCoinFlipperOpen: vi.fn(),
       diceRollerOpen: false,
       setDiceRollerOpen: vi.fn(),
       openCountPrompt: vi.fn(),
