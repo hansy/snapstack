@@ -1,4 +1,5 @@
 import type { Player } from "@/types";
+import { MAX_PLAYER_LIFE, MIN_PLAYER_LIFE } from "@/lib/limits";
 
 import { MAX_NAME_LENGTH } from "../sanitizeLimits";
 
@@ -27,7 +28,7 @@ export const sanitizePlayer = (value: any): Player | null => {
   return {
     id,
     name,
-    life: clampNumber(value.life, -999, 999, 40),
+    life: clampNumber(value.life, MIN_PLAYER_LIFE, MAX_PLAYER_LIFE, 40),
     color: typeof value.color === "string" ? value.color.slice(0, 16) : undefined,
     cursor:
       value.cursor &&

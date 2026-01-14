@@ -2,6 +2,7 @@ import React from "react";
 import { Minus, Plus } from "lucide-react";
 
 import { Tooltip } from "@/components/ui/tooltip";
+import { MAX_PLAYER_LIFE, MIN_PLAYER_LIFE } from "@/lib/limits";
 import { cn } from "@/lib/utils";
 
 import type { LifeBoxController } from "@/hooks/game/player/useLifeBoxController";
@@ -20,6 +21,9 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
   handleLifeChange,
   handleCommanderDamageChange,
 }) => {
+  const isAtMinLife = player.life <= MIN_PLAYER_LIFE;
+  const isAtMaxLife = player.life >= MAX_PLAYER_LIFE;
+
   return (
     <div
       className={cn(
@@ -58,11 +62,11 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
               type="button"
               aria-label="Decrease life"
               onClick={() => handleLifeChange(-1)}
-              disabled={player.life <= 0}
+              disabled={isAtMinLife}
               className={cn(
                 "w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
-                player.life <= 0
-                  ? "opacity-50 cursor-not-allowed text-zinc-500"
+                isAtMinLife
+                  ? "cursor-not-allowed text-zinc-500 group-hover:opacity-50"
                   : "hover:bg-red-900/50"
               )}
             >
@@ -84,7 +88,13 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
               type="button"
               aria-label="Increase life"
               onClick={() => handleLifeChange(1)}
-              className="w-8 h-8 rounded-full bg-zinc-700 hover:bg-green-900/50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+              disabled={isAtMaxLife}
+              className={cn(
+                "w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
+                isAtMaxLife
+                  ? "cursor-not-allowed text-zinc-500 group-hover:opacity-50"
+                  : "hover:bg-green-900/50"
+              )}
             >
               <Plus size={16} />
             </button>
