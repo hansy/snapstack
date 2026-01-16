@@ -19,13 +19,15 @@ import {
   migrateHiddenStateFromSnapshot,
   normalizeHiddenState,
 } from "./domain/hiddenState";
-import { getMaps, isRecord } from "./domain/yjsStore";
+import { clearYMap, getMaps, isRecord, syncPlayerOrder } from "./domain/yjsStore";
 
 export { applyIntentToDoc } from "./domain/intents/applyIntentToDoc";
 export { buildOverlayForViewer } from "./domain/overlay";
 export { createEmptyHiddenState } from "./domain/hiddenState";
 
 const INTENT_ROLE = "intent";
+const EMPTY_ROOM_GRACE_MS = 30_000;
+const ROOM_TEARDOWN_CLOSE_CODE = 1013;
 
 const YJS_OPTIONS = {
   persist: { mode: "snapshot" as const },
@@ -38,6 +40,11 @@ export default class MtgPartyServer implements Party.Server {
   private roomTokens: RoomTokens | null = null;
   private libraryViews = new Map<string, { playerId: string; count?: number }>();
   private overlaySummaries = new Map<string, { cardCount: number; cardsWithArt: number }>();
+  private connectionRoles = new Map<Party.Connection, "player" | "spectator">();
+  private emptyRoomTimer: number | null = null;
+  private teardownGeneration = 0;
+  private resetGeneration = 0;
+  private teardownInProgress = false;
 
   constructor(public party: Party.Room) {}
 
@@ -74,21 +81,36 @@ export default class MtgPartyServer implements Party.Server {
     return this.hiddenState;
   }
 
-  private async persistHiddenState() {
+  private shouldPersistHiddenState(expectedResetGeneration?: number) {
+    if (this.teardownInProgress) return false;
+    if (
+      typeof expectedResetGeneration === "number" &&
+      expectedResetGeneration !== this.resetGeneration
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  private async persistHiddenState(expectedResetGeneration?: number) {
     if (!this.hiddenState) return;
+    if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     const { cards, ...rest } = this.hiddenState;
     const chunks = chunkHiddenCards(cards);
     const chunkKeys = chunks.map((_chunk, index) => `${HIDDEN_STATE_CARDS_PREFIX}${index}`);
 
     for (let index = 0; index < chunks.length; index += 1) {
+      if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
       const key = chunkKeys[index];
       await this.party.storage.put(key, chunks[index]);
     }
 
+    if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     const prevMeta = await this.party.storage.get<HiddenStateMeta>(HIDDEN_STATE_META_KEY);
     if (prevMeta?.cardChunkKeys?.length) {
       for (const key of prevMeta.cardChunkKeys) {
         if (!chunkKeys.includes(key)) {
+          if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
           try {
             await this.party.storage.delete(key);
           } catch (_err) {}
@@ -96,12 +118,14 @@ export default class MtgPartyServer implements Party.Server {
       }
     }
 
+    if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     const nextMeta: HiddenStateMeta = {
       ...rest,
       cardChunkKeys: chunkKeys,
     };
     await this.party.storage.put(HIDDEN_STATE_META_KEY, nextMeta);
 
+    if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     try {
       await this.party.storage.delete(HIDDEN_STATE_KEY);
     } catch (_err) {}
@@ -147,7 +171,135 @@ export default class MtgPartyServer implements Party.Server {
     } catch (_err) {}
   }
 
+  private hasPlayerConnections(): boolean {
+    for (const role of this.connectionRoles.values()) {
+      if (role === "player") return true;
+    }
+    return false;
+  }
+
+  private clearEmptyRoomTimer() {
+    if (this.emptyRoomTimer !== null) {
+      clearTimeout(this.emptyRoomTimer);
+      this.emptyRoomTimer = null;
+    }
+  }
+
+  private scheduleEmptyRoomTeardown() {
+    if (this.teardownInProgress) return;
+    if (this.hasPlayerConnections()) {
+      this.clearEmptyRoomTimer();
+      return;
+    }
+    if (this.emptyRoomTimer !== null) return;
+    const generation = this.teardownGeneration;
+    this.emptyRoomTimer = setTimeout(() => {
+      this.emptyRoomTimer = null;
+      void this.teardownRoomIfEmpty(generation);
+    }, EMPTY_ROOM_GRACE_MS) as unknown as number;
+  }
+
+  private registerConnection(conn: Party.Connection, role: "player" | "spectator") {
+    this.connectionRoles.set(conn, role);
+    if (role === "player") {
+      this.teardownGeneration += 1;
+      this.clearEmptyRoomTimer();
+    }
+    this.scheduleEmptyRoomTeardown();
+  }
+
+  private unregisterConnection(conn: Party.Connection) {
+    this.connectionRoles.delete(conn);
+    this.scheduleEmptyRoomTeardown();
+  }
+
+  private async clearRoomStorage() {
+    const storage = this.party.storage as unknown as {
+      deleteAll?: () => Promise<void>;
+      list?: () => Promise<Map<string, unknown> | Iterable<[string, unknown]> | string[]>;
+      delete?: (key: string) => Promise<void>;
+    };
+    if (typeof storage.deleteAll === "function") {
+      await storage.deleteAll();
+      return;
+    }
+    if (typeof storage.list !== "function" || typeof storage.delete !== "function") return;
+    const listed = await storage.list();
+    const keys: string[] = [];
+    if (Array.isArray(listed)) {
+      listed.forEach((key) => {
+        if (typeof key === "string") keys.push(key);
+      });
+    } else if (listed instanceof Map) {
+      listed.forEach((_value, key) => {
+        if (typeof key === "string") keys.push(key);
+      });
+    } else if (Symbol.iterator in Object(listed)) {
+      for (const entry of listed as Iterable<[string, unknown]>) {
+        if (entry && typeof entry[0] === "string") keys.push(entry[0]);
+      }
+    }
+    await Promise.all(keys.map((key) => storage.delete!(key)));
+  }
+
+  private clearPublicState(doc: Y.Doc) {
+    doc.transact(() => {
+      const maps = getMaps(doc);
+      clearYMap(maps.players);
+      clearYMap(maps.zones);
+      clearYMap(maps.cards);
+      clearYMap(maps.zoneCardOrders);
+      clearYMap(maps.globalCounters);
+      clearYMap(maps.battlefieldViewScale);
+      clearYMap(maps.meta);
+      clearYMap(maps.handRevealsToAll);
+      clearYMap(maps.libraryRevealsToAll);
+      clearYMap(maps.faceDownRevealsToAll);
+      syncPlayerOrder(maps.playerOrder, []);
+    });
+  }
+
+  private async teardownRoomIfEmpty(expectedGeneration: number) {
+    if (this.teardownInProgress) return;
+    if (expectedGeneration !== this.teardownGeneration) return;
+    if (this.hasPlayerConnections()) return;
+
+    this.teardownInProgress = true;
+    this.resetGeneration += 1;
+    try {
+      const connections = Array.from(this.connectionRoles.keys());
+      this.connectionRoles.clear();
+      for (const connection of connections) {
+        try {
+          connection.close(ROOM_TEARDOWN_CLOSE_CODE, "room reset");
+        } catch (_err) {}
+      }
+
+      this.hiddenState = null;
+      this.roomTokens = null;
+      this.libraryViews.clear();
+      this.overlaySummaries.clear();
+
+      try {
+        const doc = await unstable_getYDoc(this.party, YJS_OPTIONS);
+        this.clearPublicState(doc);
+      } catch (_err) {}
+
+      try {
+        await this.clearRoomStorage();
+      } catch (_err) {}
+    } finally {
+      this.teardownInProgress = false;
+    }
+  }
+
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
+    if (this.teardownInProgress) {
+      try {
+        conn.close(ROOM_TEARDOWN_CLOSE_CODE, "room reset");
+      } catch (_err) {}
+      return;
+    }
     const url = new URL(conn.uri ?? ctx.request.url);
     const role = url.searchParams.get("role");
     if (role === INTENT_ROLE) {
@@ -160,6 +312,24 @@ export default class MtgPartyServer implements Party.Server {
   private async bindIntentConnection(conn: Party.Connection) {
     this.intentConnections.add(conn);
     const state = parseIntentConnectionState(conn);
+    let connectionClosed = false;
+    let connectionRegistered = false;
+    let resolvedRole: "player" | "spectator" | undefined;
+    let resolvedPlayerId: string | undefined;
+    conn.addEventListener("close", () => {
+      connectionClosed = true;
+      this.intentConnections.delete(conn);
+      this.libraryViews.delete(conn.id);
+      this.overlaySummaries.delete(conn.id);
+      if (!connectionRegistered) return;
+      this.unregisterConnection(conn);
+      console.warn("[party] intent connection closed", {
+        room: this.party.id,
+        connId: conn.id,
+        playerId: resolvedPlayerId,
+        viewerRole: resolvedRole,
+      });
+    });
     const rejectConnection = (reason: string) => {
       this.intentConnections.delete(conn);
       this.libraryViews.delete(conn.id);
@@ -206,21 +376,24 @@ export default class MtgPartyServer implements Party.Server {
       }
     }
 
-    const resolvedRole =
+    resolvedRole =
       providedToken && activeTokens?.spectatorToken === providedToken
         ? "spectator"
         : "player";
-    const resolvedPlayerId = resolvedRole === "spectator" ? undefined : state.playerId;
+    resolvedPlayerId = resolvedRole === "spectator" ? undefined : state.playerId;
     if (resolvedRole === "player" && !resolvedPlayerId) {
       rejectConnection("missing player");
       return;
     }
 
+    if (connectionClosed) return;
     conn.setState({
       playerId: resolvedPlayerId,
       viewerRole: resolvedRole,
       token: providedToken ?? activeTokens?.playerToken,
     });
+    this.registerConnection(conn, resolvedRole);
+    connectionRegistered = true;
     console.info("[party] intent connection established", {
       room: this.party.id,
       connId: conn.id,
@@ -234,18 +407,6 @@ export default class MtgPartyServer implements Party.Server {
     }
 
     void this.sendOverlayForConnection(conn);
-
-    conn.addEventListener("close", () => {
-      this.intentConnections.delete(conn);
-      this.libraryViews.delete(conn.id);
-      this.overlaySummaries.delete(conn.id);
-      console.warn("[party] intent connection closed", {
-        room: this.party.id,
-        connId: conn.id,
-        playerId: resolvedPlayerId,
-        viewerRole: resolvedRole,
-      });
-    });
 
     conn.addEventListener("message", (event) => {
       const raw = event.data;
@@ -267,9 +428,17 @@ export default class MtgPartyServer implements Party.Server {
   }
 
   private async bindSyncConnection(conn: Party.Connection, url: URL) {
+    let connectionClosed = false;
+    let connectionRegistered = false;
+    conn.addEventListener("close", () => {
+      connectionClosed = true;
+      if (!connectionRegistered) return;
+      this.unregisterConnection(conn);
+    });
     const state = parseConnectionParams(url);
     const storedTokens = await this.loadRoomTokens();
     const providedToken = state.token;
+    const resolvedRole = state.viewerRole ?? "player";
 
     const rejectConnection = (reason: string) => {
       try {
@@ -290,6 +459,9 @@ export default class MtgPartyServer implements Party.Server {
         rejectConnection("missing player");
         return;
       }
+      if (connectionClosed) return;
+      this.registerConnection(conn, resolvedRole);
+      connectionRegistered = true;
       return onConnect(conn, this.party, YJS_OPTIONS);
     }
 
@@ -302,6 +474,9 @@ export default class MtgPartyServer implements Party.Server {
       return;
     }
 
+    if (connectionClosed) return;
+    this.registerConnection(conn, resolvedRole);
+    connectionRegistered = true;
     return onConnect(conn, this.party, YJS_OPTIONS);
   }
 
@@ -310,6 +485,7 @@ export default class MtgPartyServer implements Party.Server {
     let error: string | undefined;
     let logEvents: { eventId: string; payload: Record<string, unknown> }[] = [];
     let hiddenChanged = false;
+    const resetGeneration = this.resetGeneration;
     const state = (conn.state ?? {}) as IntentConnectionState;
     const sendAck = (intentId: string, success: boolean, message?: string) => {
       const ack = {
@@ -424,7 +600,7 @@ export default class MtgPartyServer implements Party.Server {
     if (ok && hiddenChanged) {
       await this.broadcastOverlays();
       try {
-        await this.persistHiddenState();
+        await this.persistHiddenState(resetGeneration);
       } catch (err: any) {
         let hiddenSize: number | null = null;
         try {
