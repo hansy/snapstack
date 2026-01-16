@@ -113,24 +113,57 @@ export const createSeatModel = (params: {
     });
   };
 
+  const revealedLibraryCards = buildRevealedLibraryCards();
+
   let libraryCards = zones.library?.cardIds.length
     ? getCardsInZone(params.cards, zones.library)
-    : buildRevealedLibraryCards();
+    : revealedLibraryCards;
 
   if (
     (!zones.library || zones.library.cardIds.length === 0) &&
     params.isMe &&
     params.libraryTopReveal === "self"
   ) {
-    const topCard = Object.values(params.cards).find((card) => {
-      if (card.zoneId !== zones.library?.id) return false;
-      return canViewerSeeLibraryCardByReveal(
-        card,
-        params.viewerPlayerId,
-        params.viewerRole
-      );
-    });
-    if (topCard) libraryCards = [topCard];
+    const libraryZoneId = zones.library?.id;
+    const visibleLibraryCards = libraryZoneId
+      ? Object.values(params.cards).filter((card) => {
+          if (card.zoneId !== libraryZoneId) return false;
+          return canViewerSeeLibraryCardByReveal(
+            card,
+            params.viewerPlayerId,
+            params.viewerRole
+          );
+        })
+      : [];
+
+    const privateVisible = visibleLibraryCards.filter(
+      (card) => !card.revealedToAll && !card.knownToAll
+    );
+
+    const topRevealedToAll = revealedLibraryCards.length
+      ? revealedLibraryCards[revealedLibraryCards.length - 1]
+      : null;
+
+    const topRevealedToAllCard = topRevealedToAll
+      ? (() => {
+          const stored = params.cards[topRevealedToAll.id];
+          if (!stored) return topRevealedToAll;
+          if (libraryZoneId && stored.zoneId !== libraryZoneId) return topRevealedToAll;
+          return stored;
+        })()
+      : null;
+
+    let topCard: Card | null = null;
+    if (privateVisible.length === 1) {
+      // Prefer a single private-visible card to honor self top-reveal.
+      topCard = privateVisible[0];
+    } else if (topRevealedToAllCard) {
+      topCard = topRevealedToAllCard;
+    } else if (visibleLibraryCards.length === 1) {
+      topCard = visibleLibraryCards[0];
+    }
+
+    libraryCards = topCard ? [topCard] : [];
   }
 
   const cardsByZone = {

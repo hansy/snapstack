@@ -139,4 +139,71 @@ describe("createSeatModel", () => {
 
     expect(model.cards.library.map((card) => card.id)).toEqual(["c2", "c1"]);
   });
+
+  it("uses orderKey for top card when self reveal has multiple visible cards", () => {
+    const library: Zone = {
+      id: "lib4",
+      type: ZONE.LIBRARY,
+      ownerId: "p1",
+      cardIds: [],
+    };
+    const zones = { lib4: library };
+    const cards = {
+      c2: makeCard({ id: "c2", ownerId: "p1", zoneId: "lib4", revealedToAll: true }),
+      c1: makeCard({ id: "c1", ownerId: "p1", zoneId: "lib4", revealedToAll: true }),
+    };
+
+    const model = createSeatModel({
+      playerId: "p1",
+      position: "bottom-left",
+      viewerPlayerId: "p1",
+      isMe: true,
+      zones,
+      cards,
+      scale: 1,
+      libraryTopReveal: "self",
+      libraryRevealsToAll: {
+        c1: { card: { name: "Top" }, orderKey: "000002", ownerId: "p1" },
+        c2: { card: { name: "Bottom" }, orderKey: "000001", ownerId: "p1" },
+      },
+    });
+
+    expect(model.cards.library.map((card) => card.id)).toEqual(["c1"]);
+  });
+
+  it("uses library reveal entry when stored card zoneId is stale", () => {
+    const library: Zone = {
+      id: "lib5",
+      type: ZONE.LIBRARY,
+      ownerId: "p1",
+      cardIds: [],
+    };
+    const graveyard: Zone = {
+      id: "gy1",
+      type: ZONE.GRAVEYARD,
+      ownerId: "p1",
+      cardIds: [],
+    };
+    const zones = { lib5: library, gy1: graveyard };
+    const cards = {
+      c1: makeCard({ id: "c1", ownerId: "p1", zoneId: "gy1", revealedToAll: true }),
+    };
+
+    const model = createSeatModel({
+      playerId: "p1",
+      position: "bottom-left",
+      viewerPlayerId: "p1",
+      isMe: true,
+      zones,
+      cards,
+      scale: 1,
+      libraryTopReveal: "self",
+      libraryRevealsToAll: {
+        c1: { card: { name: "Top" }, orderKey: "000001", ownerId: "p1" },
+      },
+    });
+
+    expect(model.cards.library).toHaveLength(1);
+    expect(model.cards.library[0]?.zoneId).toBe("lib5");
+  });
 });
