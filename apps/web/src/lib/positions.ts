@@ -11,6 +11,9 @@ export const GRID_STEP_Y = SNAP_GRID_SIZE / LEGACY_BATTLEFIELD_HEIGHT;
 
 const clamp01 = (value: number) => Math.min(Math.max(value, 0), 1);
 
+export const normalizedPositionKey = (position: { x: number; y: number }) =>
+    `${position.x.toFixed(4)}:${position.y.toFixed(4)}`;
+
 export const toNormalizedPosition = (
     position: { x: number; y: number },
     zoneWidth: number = LEGACY_BATTLEFIELD_WIDTH,
@@ -113,18 +116,17 @@ export const findAvailablePositionNormalized = (
     stepY: number = GRID_STEP_Y,
     maxChecks: number = 50
 ) => {
-    const key = (p: { x: number; y: number }) => `${p.x.toFixed(4)}:${p.y.toFixed(4)}`;
     const occupied = new Set<string>();
     zoneCardIds.forEach(id => {
         const card = cards[id];
         if (card) {
-            occupied.add(key(card.position));
+            occupied.add(normalizedPositionKey(card.position));
         }
     });
 
     let candidate = clampNormalizedPosition(start);
     let attempts = 0;
-    while (occupied.has(key(candidate)) && attempts < maxChecks) {
+    while (occupied.has(normalizedPositionKey(candidate)) && attempts < maxChecks) {
         candidate = clampNormalizedPosition({ x: candidate.x + stepX, y: candidate.y + stepY });
         attempts += 1;
     }
