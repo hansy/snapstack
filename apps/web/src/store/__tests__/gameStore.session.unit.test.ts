@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { sendIntent } from '@/partykit/intentTransport';
 import { useGameStore } from '../gameStore';
-import { ensureLocalStorage } from '../testUtils';
+import { ensureLocalStorage } from '@test/utils/storage';
 
 vi.mock('@/partykit/intentTransport', () => ({
   sendIntent: vi.fn(),

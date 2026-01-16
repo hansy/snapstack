@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 
 import { useGameStore } from "@/store/gameStore";
-import { ensureLocalStorage } from "@/store/testUtils";
+import { ensureLocalStorage } from '@test/utils/storage';
 import { useBattlefieldZoomControls } from "@/hooks/game/board/useBattlefieldZoomControls";
 import { useGameShortcuts } from "../useGameShortcuts";
 

@@ -13,7 +13,7 @@ import { act, render, waitFor } from "@testing-library/react";
 import type { Card, Zone } from "@/types";
 import { ZONE } from "@/constants/zones";
 import { useGameStore } from "@/store/gameStore";
-import { ensureLocalStorage } from "@/store/testUtils";
+import { ensureLocalStorage } from '@test/utils/storage';
 import type { ContextMenuAction } from "@/models/game/context-menu/menu/types";
 
 import {

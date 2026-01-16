@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import { useGameStore } from "@/store/gameStore";
-import { ensureLocalStorage } from "@/store/testUtils";
+import { ensureLocalStorage } from '@test/utils/storage';
 
 import { Sidenav } from "../Sidenav";
 

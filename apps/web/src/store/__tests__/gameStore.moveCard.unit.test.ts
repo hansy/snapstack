@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../gameStore';
 import { ZONE } from '@/constants/zones';
 import { GRID_STEP_X, GRID_STEP_Y } from '@/lib/positions';
-import { ensureLocalStorage } from '../testUtils';
+import { ensureLocalStorage } from '@test/utils/storage';
 
 const makeZone = (id: string, type: keyof typeof ZONE, ownerId: string, cardIds: string[] = []) => ({
   id,
