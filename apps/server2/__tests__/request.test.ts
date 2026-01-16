@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getRoomFromUrl, normalizePathname } from "./request";
+import { getRoomFromUrl, normalizePathname } from "../request";
 
 const ROOM_ID = "123e4567-e89b-42d3-a456-426614174000";
 const OTHER_ROOM_ID = "123e4567-e89b-42d3-a456-426614174001";

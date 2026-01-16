@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isValidHandshake, parseHandshakeParams } from "./handshake";
+import { isValidHandshake, parseHandshakeParams } from "../handshake";
 
 const USER_ID = "123e4567-e89b-42d3-a456-426614174000";
 const CLIENT_KEY = "123e4567-e89b-42d3-a456-426614174001";
