@@ -86,11 +86,13 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
   onToggleRoomLock,
 }) => {
   const sortedPlayers = React.useMemo(() => {
-    return Object.values(players).sort((a, b) => {
-      const aKey = (a.name || a.id).toLowerCase();
-      const bKey = (b.name || b.id).toLowerCase();
+    return Object.values(players)
+      .filter((player): player is Player => Boolean(player && player.id))
+      .sort((a, b) => {
+        const aKey = (a.name || a.id || "").toLowerCase();
+        const bKey = (b.name || b.id || "").toLowerCase();
       return aKey.localeCompare(bKey);
-    });
+      });
   }, [players]);
 
   const resolvedPlayerLink =

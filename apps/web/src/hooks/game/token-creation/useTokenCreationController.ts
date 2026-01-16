@@ -29,7 +29,7 @@ export const useTokenCreationController = ({
   const [selectedToken, setSelectedToken] = React.useState<ScryfallCard | null>(null);
   const [quantity, setQuantity] = React.useState(1);
 
-  const addCard = useGameStore((state) => state.addCard);
+  const addCards = useGameStore((state) => state.addCards);
   const viewerRole = useGameStore((state) => state.viewerRole);
 
   const [debouncedSearch] = React.useState(() => createDebouncedTokenSearch());
@@ -120,13 +120,13 @@ export const useTokenCreationController = ({
       createId: uuidv4,
     });
 
-    planned.forEach((card) => addCard(card));
+    addCards(planned);
 
     toast.success(
       `Created ${quantity} ${selectedToken.name} token${quantity > 1 ? "s" : ""}`
     );
     handleClose();
-  }, [addCard, handleClose, playerId, quantity, selectedToken, viewerRole]);
+  }, [addCards, handleClose, playerId, quantity, selectedToken, viewerRole]);
 
   return {
     isOpen,

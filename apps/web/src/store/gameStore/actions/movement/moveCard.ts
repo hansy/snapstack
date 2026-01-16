@@ -114,12 +114,16 @@ export const createMoveCard =
       const cardsCopy = { ...state.cards };
       const nextTapped = toZone.type === ZONE.BATTLEFIELD ? card.tapped : false;
       const nextCounters = enforceZoneCounterRules(card.counters, toZone);
-      const newPosition = normalizeMovePosition(position, card.position);
+      const fallbackPosition =
+        !position && toZone.type === ZONE.BATTLEFIELD && fromZone.type !== ZONE.BATTLEFIELD
+          ? { x: 0.5, y: 0.5 }
+          : position;
+      const newPosition = normalizeMovePosition(fallbackPosition, card.position);
       let resolvedPosition = newPosition;
 
       if (
         toZone.type === ZONE.BATTLEFIELD &&
-        position &&
+        fallbackPosition &&
         (!opts?.skipCollision || opts?.groupCollision)
       ) {
         if (opts?.groupCollision) {

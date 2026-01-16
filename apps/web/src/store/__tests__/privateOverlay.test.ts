@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { ZONE } from "@/constants/zones";
 import type { GameState } from "@/types";
 import { mergePrivateOverlay } from "@/store/gameStore/overlay";
+import { createPrivateOverlayActions } from "@/store/gameStore/actions/privateOverlay";
+import { resetIntentState, setAuthoritativeState } from "@/store/gameStore/dispatchIntent";
 
 const buildBaseState = (): GameState =>
   ({
@@ -21,7 +23,7 @@ const buildBaseState = (): GameState =>
     cards: {},
     zones: {
       hand: { id: "hand", type: ZONE.HAND, ownerId: "p1", cardIds: ["c1", "c2"] },
-      library: { id: "lib", type: ZONE.LIBRARY, ownerId: "p1", cardIds: [] },
+      lib: { id: "lib", type: ZONE.LIBRARY, ownerId: "p1", cardIds: [] },
     },
     handRevealsToAll: {},
     libraryRevealsToAll: {},
@@ -41,6 +43,7 @@ const buildBaseState = (): GameState =>
     updatePlayer: (() => {}) as any,
     addZone: (() => {}) as any,
     addCard: (() => {}) as any,
+    addCards: (() => {}) as any,
     updateCard: (() => {}) as any,
     transformCard: (() => {}) as any,
     moveCard: (() => {}) as any,
@@ -145,5 +148,77 @@ describe("mergePrivateOverlay", () => {
 
     expect(merged.cards.c1?.name).toBe("Actual");
     expect(merged.zones.lib?.cardIds).toEqual(["c3", "c4"]);
+  });
+});
+
+describe("applyPrivateOverlay", () => {
+  it("rebuilds from the public snapshot before applying overlays", () => {
+    resetIntentState();
+
+    const basePublic = buildBaseState();
+    basePublic.zones.bf = {
+      id: "bf",
+      type: ZONE.BATTLEFIELD,
+      ownerId: "p1",
+      cardIds: [],
+    } as any;
+    basePublic.cards = {};
+
+    const overlay = {
+      cards: [
+        {
+          id: "c1",
+          name: "Secret",
+          ownerId: "p1",
+          controllerId: "p1",
+          zoneId: "hand",
+          tapped: false,
+          faceDown: false,
+          position: { x: 0.5, y: 0.5 },
+          rotation: 0,
+          counters: [],
+        },
+      ],
+    };
+
+    let state = {
+      ...basePublic,
+      zones: {
+        ...basePublic.zones,
+        bf: {
+          id: "bf",
+          type: ZONE.BATTLEFIELD,
+          ownerId: "p1",
+          cardIds: ["ghost"],
+        },
+      },
+      cards: {
+        ghost: {
+          id: "ghost",
+          name: "Ghost",
+          ownerId: "p1",
+          controllerId: "p1",
+          zoneId: "bf",
+          tapped: false,
+          faceDown: false,
+          position: { x: 0.5, y: 0.5 },
+          rotation: 0,
+          counters: [],
+        },
+      },
+    } as GameState;
+
+    const set = (next: any) => {
+      state = typeof next === "function" ? next(state) : { ...state, ...next };
+    };
+    const get = () => state;
+
+    setAuthoritativeState(basePublic as any, basePublic as any);
+
+    const { applyPrivateOverlay } = createPrivateOverlayActions(set as any, get as any);
+    applyPrivateOverlay(overlay as any);
+
+    expect(state.cards.ghost).toBeUndefined();
+    expect(state.cards.c1?.name).toBe("Secret");
   });
 });

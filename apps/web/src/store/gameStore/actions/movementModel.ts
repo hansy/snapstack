@@ -99,7 +99,7 @@ export const computeRevealPatchAfterMove = ({
   }
 
   if (!toHidden && !faceDownBattlefield) {
-    return { knownToAll: true };
+    return { knownToAll: true, revealedToAll: false, revealedTo: [] };
   }
 
   return null;

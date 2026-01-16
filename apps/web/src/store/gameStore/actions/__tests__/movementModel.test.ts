@@ -87,7 +87,7 @@ describe("movementModel", () => {
           toZoneType: ZONE.GRAVEYARD,
           effectiveFaceDown: false,
         })
-      ).toEqual({ knownToAll: true });
+      ).toEqual({ knownToAll: true, revealedToAll: false, revealedTo: [] });
     });
 
     it("does nothing when moving into hidden zones", () => {

@@ -13,14 +13,14 @@ import {
   reorderZoneCards,
   resetDeck,
   setBattlefieldViewScale,
-  SharedMaps,
   sharedSnapshot,
   transformCard,
   unloadDeck,
   upsertCard as yUpsertCard,
   upsertPlayer as yUpsertPlayer,
   upsertZone as yUpsertZone,
-} from '../yMutations';
+} from '../legacyMutations';
+import type { SharedMaps } from '../legacyMutations';
 import { ZONE } from '@/constants/zones';
 import { Card, Player, Zone } from '@/types';
 import { GRID_STEP_Y } from '@/lib/positions';

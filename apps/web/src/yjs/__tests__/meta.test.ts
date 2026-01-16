@@ -1,8 +1,8 @@
 import * as Y from "yjs";
 import { describe, expect, it } from "vitest";
 
-import type { SharedMaps } from "../yMutations";
-import { patchRoomMeta } from "../yMutations";
+import type { SharedMaps } from "../legacyMutations";
+import { patchRoomMeta } from "../legacyMutations";
 
 const createSharedMaps = (): SharedMaps => {
   const doc = new Y.Doc();

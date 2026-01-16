@@ -2,10 +2,11 @@ import type * as Party from "partykit/server";
 import { onConnect, unstable_getYDoc } from "y-partykit";
 import * as Y from "yjs";
 
-import type { Card, CardIdentity, FaceDownMode } from "../../web/src/types/cards";
+import { isTokenCard, type Card, type CardIdentity, type FaceDownMode } from "../../web/src/types/cards";
 import type { Counter } from "../../web/src/types/counters";
 import type { Player } from "../../web/src/types/players";
 import type { Zone, ZoneType } from "../../web/src/types/zones";
+import { MAX_PLAYERS } from "../../web/src/lib/room";
 
 const INTENT_ROLE = "intent";
 const LEGACY_BATTLEFIELD_WIDTH = 1000;
@@ -32,12 +33,192 @@ const ZONE = {
 
 const LEGACY_COMMAND_ZONE = "command" as const;
 const HIDDEN_STATE_KEY = "hiddenState";
+const HIDDEN_STATE_META_KEY = "hiddenState:v2:meta";
+const HIDDEN_STATE_CARDS_PREFIX = "hiddenState:v2:cards:";
 const ROOM_TOKENS_KEY = "roomTokens";
+const MAX_HIDDEN_STATE_CHUNK_SIZE = 120_000;
 const isHiddenZoneType = (zoneType: ZoneType | undefined) =>
   zoneType === ZONE.HAND || zoneType === ZONE.LIBRARY || zoneType === ZONE.SIDEBOARD;
 
 const isPublicZoneType = (zoneType: ZoneType | undefined) =>
   Boolean(zoneType) && !isHiddenZoneType(zoneType);
+
+type PermissionResult = { allowed: boolean; reason?: string };
+
+const allow = (): PermissionResult => ({ allowed: true });
+const deny = (reason: string): PermissionResult => ({ allowed: false, reason });
+
+const requireBattlefieldController = (
+  actorId: string,
+  card: { controllerId: string },
+  zone: { type: ZoneType } | null | undefined,
+  action: string
+): PermissionResult => {
+  if (!zone || zone.type !== ZONE.BATTLEFIELD) {
+    return deny(`Cards can only ${action} on the battlefield`);
+  }
+  if (actorId !== card.controllerId) {
+    return deny(`Only controller may ${action}`);
+  }
+  return allow();
+};
+
+const canTapCard = (
+  actorId: string,
+  card: { controllerId: string },
+  zone: { type: ZoneType } | null | undefined
+): PermissionResult => requireBattlefieldController(actorId, card, zone, "tap/untap");
+
+const canModifyCardState = (
+  actorId: string,
+  card: { controllerId: string },
+  zone: { type: ZoneType } | null | undefined
+): PermissionResult => requireBattlefieldController(actorId, card, zone, "modify this card");
+
+const canUpdatePlayer = (
+  actorId: string,
+  player: Player,
+  updates: Record<string, unknown>
+): PermissionResult => {
+  if (actorId === player.id) return allow();
+
+  const isLifeChange =
+    updates.life !== undefined || updates.commanderDamage !== undefined;
+  if (isLifeChange) {
+    return deny("Cannot change another player's life total");
+  }
+
+  if (updates.name !== undefined) {
+    return deny("Cannot change another player's name");
+  }
+
+  return deny("Cannot update another player");
+};
+
+const canViewHiddenZone = (actorId: string, zone: Zone): PermissionResult => {
+  if (isHiddenZoneType(zone.type) && zone.ownerId !== actorId) {
+    return deny("Hidden zone");
+  }
+  return allow();
+};
+
+const canMoveCard = (
+  actorId: string,
+  card: Card,
+  fromZone: Zone,
+  toZone: Zone
+): PermissionResult => {
+  const actorIsOwner = actorId === card.ownerId;
+  const actorIsController = actorId === card.controllerId;
+  const actorIsFromHost = actorId === fromZone.ownerId;
+  const actorIsToHost = actorId === toZone.ownerId;
+  const isToken = isTokenCard(card);
+
+  const fromHidden = isHiddenZoneType(fromZone.type);
+  const toHidden = isHiddenZoneType(toZone.type);
+  const fromBattlefield = fromZone.type === ZONE.BATTLEFIELD;
+  const toBattlefield = toZone.type === ZONE.BATTLEFIELD;
+  const bothBattlefields = fromBattlefield && toBattlefield;
+
+  if (!toBattlefield && toZone.ownerId !== card.ownerId) {
+    return deny("Cards may only enter their owner seat zones or any battlefield");
+  }
+
+  if (fromHidden && !actorIsFromHost) {
+    return deny("Cannot move from a hidden zone you do not own");
+  }
+
+  if (toHidden) {
+    if (!actorIsToHost) {
+      return deny("Cannot place into a hidden zone you do not own");
+    }
+    return allow();
+  }
+
+  const toZoneType = toZone.type as ZoneType | typeof LEGACY_COMMAND_ZONE;
+  if ((toZoneType === ZONE.COMMANDER || toZoneType === LEGACY_COMMAND_ZONE) && !actorIsOwner) {
+    return deny("Cannot place cards into another player's command zone");
+  }
+
+  const tokenLeavingBattlefield = isToken && fromBattlefield && !toBattlefield;
+  if (tokenLeavingBattlefield) {
+    return actorIsOwner
+      ? allow()
+      : deny("Only owner may move this token off the battlefield");
+  }
+
+  if (bothBattlefields) {
+    return actorIsOwner || actorIsController
+      ? allow()
+      : deny("Only owner or controller may move this card between battlefields");
+  }
+
+  if (toBattlefield) {
+    return actorIsOwner || actorIsController
+      ? allow()
+      : deny("Only owner or controller may move this card here");
+  }
+
+  if (actorIsOwner) return allow();
+
+  if (actorIsFromHost && !fromHidden && !toHidden) return allow();
+
+  return deny("Not permitted to move this card");
+};
+
+const canAddCard = (actorId: string, card: Card, zone: Zone): PermissionResult => {
+  if (isTokenCard(card) && zone.type !== ZONE.BATTLEFIELD) {
+    return deny("Tokens can only enter the battlefield");
+  }
+  if (isHiddenZoneType(zone.type)) {
+    if (zone.ownerId !== actorId) {
+      return deny("Cannot place into a hidden zone you do not own");
+    }
+    if (card.ownerId !== zone.ownerId) {
+      return deny("Cards may only enter their owner seat zones or any battlefield");
+    }
+    return allow();
+  }
+
+  if (zone.type === ZONE.BATTLEFIELD) {
+    if (actorId === card.ownerId || actorId === card.controllerId) return allow();
+    return deny("Only owner or controller may move this card here");
+  }
+
+  const zoneType = zone.type as ZoneType | typeof LEGACY_COMMAND_ZONE;
+  if ((zoneType === ZONE.COMMANDER || zoneType === LEGACY_COMMAND_ZONE) && card.ownerId !== zone.ownerId) {
+    return deny("Cannot place cards into another player's command zone");
+  }
+
+  if (card.ownerId !== zone.ownerId) {
+    return deny("Cards may only enter their owner seat zones or any battlefield");
+  }
+
+  return actorId === card.ownerId ? allow() : deny("Not permitted to move this card");
+};
+
+const canRemoveToken = (actorId: string, card: Card, zone: Zone): PermissionResult => {
+  if (!isTokenCard(card)) {
+    return deny("Direct remove is allowed only for tokens");
+  }
+  const actorIsOwner = actorId === card.ownerId;
+  const actorIsController = actorId === card.controllerId;
+  const actorIsZoneHost = actorId === zone.ownerId;
+  if (actorIsOwner || actorIsController || actorIsZoneHost) return allow();
+  return deny("Only owner, controller, or zone host may remove this token");
+};
+
+const hasSameMembers = (left: string[], right: string[]): boolean => {
+  if (left.length !== right.length) return false;
+  const setLeft = new Set(left);
+  const setRight = new Set(right);
+  if (setLeft.size !== left.length || setRight.size !== right.length) return false;
+  if (setLeft.size !== setRight.size) return false;
+  for (const entry of setLeft) {
+    if (!setRight.has(entry)) return false;
+  }
+  return true;
+};
 
 
 export default class MtgPartyServer implements Party.Server {
@@ -45,11 +226,29 @@ export default class MtgPartyServer implements Party.Server {
   private hiddenState: HiddenState | null = null;
   private roomTokens: RoomTokens | null = null;
   private libraryViews = new Map<string, { playerId: string; count?: number }>();
+  private overlaySummaries = new Map<string, { cardCount: number; cardsWithArt: number }>();
 
   constructor(public party: Party.Room) {}
 
   private async ensureHiddenState(doc: Y.Doc) {
     if (this.hiddenState) return this.hiddenState;
+    const storedMeta = await this.party.storage.get<HiddenStateMeta>(HIDDEN_STATE_META_KEY);
+    if (storedMeta) {
+      const cards: Record<string, Card> = {};
+      const chunkKeys = Array.isArray(storedMeta.cardChunkKeys)
+        ? storedMeta.cardChunkKeys
+        : [];
+      for (const key of chunkKeys) {
+        const chunk = await this.party.storage.get<Record<string, Card>>(key);
+        if (chunk && isRecord(chunk)) {
+          Object.assign(cards, chunk as Record<string, Card>);
+        }
+      }
+      const { cardChunkKeys: _keys, ...rest } = storedMeta;
+      this.hiddenState = normalizeHiddenState({ ...rest, cards });
+      return this.hiddenState;
+    }
+
     const stored = await this.party.storage.get<HiddenState>(HIDDEN_STATE_KEY);
     if (stored) {
       this.hiddenState = normalizeHiddenState(stored);
@@ -60,13 +259,41 @@ export default class MtgPartyServer implements Party.Server {
       migrated = migrateHiddenStateFromSnapshot(getMaps(doc));
     });
     this.hiddenState = migrated ?? createEmptyHiddenState();
-    await this.party.storage.put(HIDDEN_STATE_KEY, this.hiddenState);
+    await this.persistHiddenState();
     return this.hiddenState;
   }
 
   private async persistHiddenState() {
     if (!this.hiddenState) return;
-    await this.party.storage.put(HIDDEN_STATE_KEY, this.hiddenState);
+    const { cards, ...rest } = this.hiddenState;
+    const chunks = chunkHiddenCards(cards);
+    const chunkKeys = chunks.map((_chunk, index) => `${HIDDEN_STATE_CARDS_PREFIX}${index}`);
+
+    for (let index = 0; index < chunks.length; index += 1) {
+      const key = chunkKeys[index];
+      await this.party.storage.put(key, chunks[index]);
+    }
+
+    const prevMeta = await this.party.storage.get<HiddenStateMeta>(HIDDEN_STATE_META_KEY);
+    if (prevMeta?.cardChunkKeys?.length) {
+      for (const key of prevMeta.cardChunkKeys) {
+        if (!chunkKeys.includes(key)) {
+          try {
+            await this.party.storage.delete(key);
+          } catch (_err) {}
+        }
+      }
+    }
+
+    const nextMeta: HiddenStateMeta = {
+      ...rest,
+      cardChunkKeys: chunkKeys,
+    };
+    await this.party.storage.put(HIDDEN_STATE_META_KEY, nextMeta);
+
+    try {
+      await this.party.storage.delete(HIDDEN_STATE_KEY);
+    } catch (_err) {}
   }
 
   private async loadRoomTokens(): Promise<RoomTokens | null> {
@@ -125,9 +352,18 @@ export default class MtgPartyServer implements Party.Server {
     const rejectConnection = (reason: string) => {
       this.intentConnections.delete(conn);
       this.libraryViews.delete(conn.id);
+      this.overlaySummaries.delete(conn.id);
       try {
         conn.close(1008, reason);
       } catch (_err) {}
+      console.warn("[party] intent connection rejected", {
+        room: this.party.id,
+        reason,
+        connId: conn.id,
+        playerId: state.playerId,
+        viewerRole: state.viewerRole,
+        hasToken: Boolean(state.token),
+      });
     };
 
     const storedTokens = await this.loadRoomTokens();
@@ -174,6 +410,13 @@ export default class MtgPartyServer implements Party.Server {
       viewerRole: resolvedRole,
       token: providedToken ?? activeTokens?.playerToken,
     });
+    console.info("[party] intent connection established", {
+      room: this.party.id,
+      connId: conn.id,
+      playerId: resolvedPlayerId,
+      viewerRole: resolvedRole,
+      hasToken: Boolean(providedToken ?? activeTokens?.playerToken),
+    });
 
     if (activeTokens) {
       this.sendRoomTokens(conn, activeTokens, resolvedRole);
@@ -184,6 +427,13 @@ export default class MtgPartyServer implements Party.Server {
     conn.addEventListener("close", () => {
       this.intentConnections.delete(conn);
       this.libraryViews.delete(conn.id);
+      this.overlaySummaries.delete(conn.id);
+      console.warn("[party] intent connection closed", {
+        room: this.party.id,
+        connId: conn.id,
+        playerId: resolvedPlayerId,
+        viewerRole: resolvedRole,
+      });
     });
 
     conn.addEventListener("message", (event) => {
@@ -278,6 +528,23 @@ export default class MtgPartyServer implements Party.Server {
     }
     payload.actorId = state.playerId;
     const normalizedIntent = { ...intent, payload };
+    if (
+      normalizedIntent.type === "library.draw" ||
+      normalizedIntent.type === "library.shuffle" ||
+      normalizedIntent.type === "deck.load" ||
+      normalizedIntent.type === "deck.reset" ||
+      normalizedIntent.type === "deck.mulligan" ||
+      normalizedIntent.type === "card.add" ||
+      normalizedIntent.type === "card.add.batch"
+    ) {
+      console.info("[party] intent received", {
+        room: this.party.id,
+        connId: conn.id,
+        intentId: normalizedIntent.id,
+        type: normalizedIntent.type,
+        actorId: state.playerId,
+      });
+    }
 
     try {
       const doc = await unstable_getYDoc(this.party, YJS_OPTIONS);
@@ -296,14 +563,84 @@ export default class MtgPartyServer implements Party.Server {
     }
 
     sendAck(intent.id, ok, error);
+    if (
+      normalizedIntent.type === "library.draw" ||
+      normalizedIntent.type === "library.shuffle" ||
+      normalizedIntent.type === "deck.load" ||
+      normalizedIntent.type === "deck.reset" ||
+      normalizedIntent.type === "deck.mulligan" ||
+      normalizedIntent.type === "card.add" ||
+      normalizedIntent.type === "card.add.batch"
+    ) {
+      console.info("[party] intent ack", {
+        room: this.party.id,
+        connId: conn.id,
+        intentId: normalizedIntent.id,
+        type: normalizedIntent.type,
+        ok,
+        error,
+      });
+    }
+    if (
+      normalizedIntent.type === "library.draw" ||
+      normalizedIntent.type === "library.shuffle" ||
+      normalizedIntent.type === "deck.load" ||
+      normalizedIntent.type === "deck.reset" ||
+      normalizedIntent.type === "deck.mulligan" ||
+      normalizedIntent.type === "card.add" ||
+      normalizedIntent.type === "card.add.batch"
+    ) {
+      console.info("[party] intent result", {
+        room: this.party.id,
+        connId: conn.id,
+        intentId: normalizedIntent.id,
+        type: normalizedIntent.type,
+        ok,
+        hiddenChanged,
+        logEvents: logEvents.map((event) => event.eventId),
+      });
+    }
+
+    if (!ok) {
+      console.warn("[party] intent rejected", {
+        type: normalizedIntent.type,
+        actorId: state.playerId,
+        viewerRole: state.viewerRole,
+        error,
+      });
+    }
 
     if (ok && hiddenChanged) {
-      await this.persistHiddenState();
       await this.broadcastOverlays();
+      try {
+        await this.persistHiddenState();
+      } catch (err: any) {
+        let hiddenSize: number | null = null;
+        try {
+          hiddenSize = JSON.stringify(this.hiddenState ?? {}).length;
+        } catch (_err) {
+          hiddenSize = null;
+        }
+        console.error("[party] hidden state persist failed", {
+          room: this.party.id,
+          connId: conn.id,
+          error: err?.message ?? String(err),
+          hiddenSize,
+        });
+      }
     }
 
     if (ok && logEvents.length > 0) {
-      this.broadcastLogEvents(logEvents);
+      try {
+        this.broadcastLogEvents(logEvents);
+      } catch (err: any) {
+        console.error("[party] log events broadcast failed", {
+          room: this.party.id,
+          connId: conn.id,
+          error: err?.message ?? String(err),
+          eventIds: logEvents.map((event) => event.eventId),
+        });
+      }
     }
 
     if (ok && normalizedIntent.type === "library.view") {
@@ -313,6 +650,11 @@ export default class MtgPartyServer implements Party.Server {
 
   private broadcastLogEvents(logEvents: LogEvent[]) {
     if (logEvents.length === 0) return;
+    console.info("[party] log events broadcast", {
+      room: this.party.id,
+      eventIds: logEvents.map((event) => event.eventId),
+      connectionCount: this.intentConnections.size,
+    });
     const messages = logEvents.map((event) =>
       JSON.stringify({ type: "logEvent", eventId: event.eventId, payload: event.payload })
     );
@@ -343,12 +685,44 @@ export default class MtgPartyServer implements Party.Server {
         viewerId,
         libraryView,
       });
+      const cardCount = Array.isArray(overlay.cards) ? overlay.cards.length : 0;
+      const cardsWithArt = Array.isArray(overlay.cards)
+        ? overlay.cards.filter((card) => typeof card.imageUrl === "string" && card.imageUrl.length > 0)
+            .length
+        : 0;
+      const viewerHandCount =
+        viewerRole !== "spectator" && viewerId
+          ? activeHidden.handOrder[viewerId]?.length ?? 0
+          : 0;
+      const previous = this.overlaySummaries.get(conn.id);
+      const changed =
+        !previous ||
+        previous.cardCount !== cardCount ||
+        previous.cardsWithArt !== cardsWithArt ||
+        (viewerHandCount > 0 && cardCount === 0);
+      if (changed) {
+        console.info("[party] overlay summary", {
+          room: this.party.id,
+          connId: conn.id,
+          viewerRole,
+          viewerId,
+          cardCount,
+          cardsWithArt,
+          viewerHandCount,
+          libraryViewCount: libraryView?.count,
+        });
+        this.overlaySummaries.set(conn.id, { cardCount, cardsWithArt });
+      }
       conn.send(JSON.stringify({ type: "privateOverlay", payload: overlay }));
     } catch (_err) {}
   }
 
   private async broadcastOverlays() {
     if (this.intentConnections.size === 0) return;
+    console.info("[party] overlay broadcast", {
+      room: this.party.id,
+      connectionCount: this.intentConnections.size,
+    });
     const doc = await unstable_getYDoc(this.party, YJS_OPTIONS);
     const maps = getMaps(doc);
     const hidden = await this.ensureHiddenState(doc);
@@ -413,6 +787,7 @@ type HiddenState = {
   libraryReveals: Record<string, HiddenReveal>;
   faceDownReveals: Record<string, HiddenReveal>;
 };
+type HiddenStateMeta = Omit<HiddenState, "cards"> & { cardChunkKeys: string[] };
 
 type RoomTokens = {
   playerToken: string;
@@ -497,7 +872,7 @@ const coerceZone = (raw: Record<string, unknown>): Zone => raw as unknown as Zon
 const uniqueStrings = (values: unknown[]): string[] =>
   Array.from(new Set(values.filter((value): value is string => typeof value === "string")));
 
-const createEmptyHiddenState = (): HiddenState => ({
+export const createEmptyHiddenState = (): HiddenState => ({
   cards: {},
   handOrder: {},
   libraryOrder: {},
@@ -551,6 +926,39 @@ const normalizeHiddenState = (value: unknown): HiddenState => {
     libraryReveals: readRevealMap(value.libraryReveals),
     faceDownReveals: readRevealMap(value.faceDownReveals),
   };
+};
+
+const estimateJsonSize = (value: unknown): number => {
+  try {
+    return JSON.stringify(value).length;
+  } catch (_err) {
+    return Number.POSITIVE_INFINITY;
+  }
+};
+
+const chunkHiddenCards = (cards: Record<string, Card>): Record<string, Card>[] => {
+  const entries = Object.entries(cards);
+  if (entries.length === 0) return [];
+  const chunks: Record<string, Card>[] = [];
+  let current: Record<string, Card> = {};
+
+  entries.forEach(([cardId, card]) => {
+    const next = { ...current, [cardId]: card };
+    if (
+      Object.keys(current).length > 0 &&
+      estimateJsonSize(next) > MAX_HIDDEN_STATE_CHUNK_SIZE
+    ) {
+      chunks.push(current);
+      current = { [cardId]: card };
+      return;
+    }
+    current = next;
+  });
+
+  if (Object.keys(current).length) {
+    chunks.push(current);
+  }
+  return chunks;
 };
 
 const parseConnectionParams = (url: URL): IntentConnectionState => {
@@ -924,7 +1332,7 @@ const computeRevealPatchAfterMove = ({
   }
 
   if (!toHidden && !faceDownBattlefield) {
-    return { knownToAll: true, revealedToAll: undefined, revealedTo: undefined };
+    return { knownToAll: true, revealedToAll: false, revealedTo: [] };
   }
 
   return null;
@@ -1237,12 +1645,18 @@ const syncLibraryRevealsToAllForPlayer = (
     });
   }
 
-  maps.libraryRevealsToAll.forEach((_value, key) => {
+  maps.libraryRevealsToAll.forEach((value, key) => {
     const cardId = String(key);
     if (libraryCardIds.has(cardId)) {
       if (!toAllIds.has(cardId)) {
         maps.libraryRevealsToAll.delete(cardId);
       }
+      return;
+    }
+    const entry = readRecord(value);
+    const entryOwnerId = entry && typeof entry.ownerId === "string" ? entry.ownerId : undefined;
+    if (entryOwnerId && entryOwnerId === playerId) {
+      maps.libraryRevealsToAll.delete(cardId);
       return;
     }
     if (resolvedLibraryZoneId && hidden.cards[cardId]?.zoneId === resolvedLibraryZoneId) {
@@ -1263,7 +1677,7 @@ const syncLibraryRevealsToAllForPlayer = (
   });
 };
 
-const buildOverlayForViewer = (params: {
+export const buildOverlayForViewer = (params: {
   maps: Maps;
   hidden: HiddenState;
   viewerId?: string;
@@ -1501,7 +1915,7 @@ const migrateHiddenStateFromSnapshot = (maps: Maps): HiddenState => {
   return hidden;
 };
 
-const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): ApplyResult => {
+export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): ApplyResult => {
   if (!intent || typeof intent.type !== "string") {
     return { ok: false, error: "invalid intent" };
   }
@@ -1516,20 +1930,123 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
     hiddenChanged = true;
   };
   const readActorId = (value: unknown) => (typeof value === "string" ? value : undefined);
+  const actorId = readActorId(payload.actorId);
+  const prepareCardAdd = (
+    raw: unknown
+  ): { card: Card; zoneId: string } | { error: string } => {
+    if (!actorId) return { error: "missing actor" };
+    const card = isRecord(raw) ? coerceCard(raw) : null;
+    if (!card || typeof card.id !== "string") return { error: "invalid card" };
+    const normalized = normalizeCardForAdd(card);
+    const zone = readZone(maps, normalized.zoneId);
+    if (!zone) return { error: "zone not found" };
+    const permission = canAddCard(actorId, normalized, zone);
+    if (!permission.allowed) {
+      return { error: permission.reason ?? "not permitted" };
+    }
+    return { card: normalized, zoneId: zone.id };
+  };
+  const applyPreparedCardAdd = (
+    prepared: { card: Card; zoneId: string }
+  ): InnerApplyResult => {
+    if (!actorId) return { ok: false, error: "missing actor" };
+    const zone = readZone(maps, prepared.zoneId);
+    if (!zone) return { ok: false, error: "zone not found" };
+    const nextCounters = enforceZoneCounterRules(prepared.card.counters, zone ?? undefined);
+    const nextCard = { ...prepared.card, counters: nextCounters };
+    if (zone && isHiddenZoneType(zone.type)) {
+      hidden.cards[nextCard.id] = nextCard;
+      if (zone.type === ZONE.HAND) {
+        const nextOrder = placeCardId(hidden.handOrder[zone.ownerId] ?? [], nextCard.id, "top");
+        hidden.handOrder[zone.ownerId] = nextOrder;
+        writeZone(maps, { ...zone, cardIds: nextOrder });
+      } else if (zone.type === ZONE.LIBRARY) {
+        hidden.libraryOrder[zone.ownerId] = placeCardId(
+          hidden.libraryOrder[zone.ownerId] ?? [],
+          nextCard.id,
+          "top"
+        );
+      } else if (zone.type === ZONE.SIDEBOARD) {
+        hidden.sideboardOrder[zone.ownerId] = placeCardId(
+          hidden.sideboardOrder[zone.ownerId] ?? [],
+          nextCard.id,
+          "top"
+        );
+      }
+      updatePlayerCounts(maps, hidden, zone.ownerId);
+      markHiddenChanged();
+      return { ok: true };
+    }
+    const enteringFaceDownBattlefield = zone?.type === ZONE.BATTLEFIELD && nextCard.faceDown;
+    const publicCard = enteringFaceDownBattlefield
+      ? stripCardIdentity({
+          ...nextCard,
+          knownToAll: false,
+          revealedToAll: false,
+          revealedTo: [],
+        })
+      : nextCard;
+    writeCard(maps, publicCard);
+    if (zone) {
+      const nextIds = placeCardId(zone.cardIds, nextCard.id, "top");
+      writeZone(maps, { ...zone, cardIds: nextIds });
+    }
+    if (enteringFaceDownBattlefield) {
+      hidden.faceDownBattlefield[nextCard.id] = buildCardIdentity(nextCard);
+      hidden.faceDownReveals[nextCard.id] = {};
+      maps.faceDownRevealsToAll.delete(nextCard.id);
+      markHiddenChanged();
+    }
+    if (nextCard.isToken) {
+      pushLogEvent("card.tokenCreate", {
+        actorId,
+        playerId: nextCard.ownerId,
+        tokenName: nextCard.name ?? "Token",
+        count: 1,
+      });
+    }
+    return { ok: true };
+  };
 
   const apply = (): InnerApplyResult => {
+    if (!actorId) return { ok: false, error: "missing actor" };
     switch (intent.type) {
       case "player.join": {
         const player = isRecord(payload.player) ? coercePlayer(payload.player) : null;
         if (!player || typeof player.id !== "string") {
           return { ok: false, error: "invalid player" };
         }
-        writePlayer(maps, player);
-        if (!hidden.handOrder[player.id]) hidden.handOrder[player.id] = [];
-        if (!hidden.libraryOrder[player.id]) hidden.libraryOrder[player.id] = [];
-        if (!hidden.sideboardOrder[player.id]) hidden.sideboardOrder[player.id] = [];
-        updatePlayerCounts(maps, hidden, player.id);
-        markHiddenChanged();
+        if (player.id !== actorId) {
+          return { ok: false, error: "actor mismatch" };
+        }
+
+        const existing = readPlayer(maps, player.id);
+        if (!existing) {
+          const locked = Boolean(maps.meta.get("locked"));
+          if (locked) return { ok: false, error: "room locked" };
+          if (maps.players.size >= MAX_PLAYERS) {
+            return { ok: false, error: "room full" };
+          }
+          writePlayer(maps, player);
+        }
+
+        let initializedHidden = false;
+        if (!hidden.handOrder[player.id]) {
+          hidden.handOrder[player.id] = [];
+          initializedHidden = true;
+        }
+        if (!hidden.libraryOrder[player.id]) {
+          hidden.libraryOrder[player.id] = [];
+          initializedHidden = true;
+        }
+        if (!hidden.sideboardOrder[player.id]) {
+          hidden.sideboardOrder[player.id] = [];
+          initializedHidden = true;
+        }
+        if (initializedHidden) {
+          updatePlayerCounts(maps, hidden, player.id);
+          markHiddenChanged();
+        }
         const currentHost = maps.meta.get("hostId");
         if (typeof currentHost !== "string" || !maps.players.get(currentHost)) {
           maps.meta.set("hostId", player.id);
@@ -1542,7 +2059,10 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         if (!playerId || !updates) return { ok: false, error: "invalid player update" };
         const current = readPlayer(maps, playerId);
         if (!current) return { ok: false, error: "player not found" };
-        const actorId = readActorId(payload.actorId);
+        const permission = canUpdatePlayer(actorId, current, updates);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         if (typeof updates.life === "number" && updates.life !== current.life) {
           const from = typeof current.life === "number" ? current.life : 0;
           const to = updates.life;
@@ -1579,6 +2099,9 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
       case "player.leave": {
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
+        if (playerId !== actorId) {
+          return { ok: false, error: "actor mismatch" };
+        }
 
         const snapshot = buildSnapshot(maps);
         const nextPlayers = { ...snapshot.players };
@@ -1652,6 +2175,19 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
       case "zone.add": {
         const zone = isRecord(payload.zone) ? coerceZone(payload.zone) : null;
         if (!zone || typeof zone.id !== "string") return { ok: false, error: "invalid zone" };
+        const existing = readZone(maps, zone.id);
+        if (existing) {
+          if (existing.ownerId !== zone.ownerId || existing.type !== zone.type) {
+            return { ok: false, error: "zone mismatch" };
+          }
+          if (existing.ownerId !== actorId) {
+            return { ok: false, error: "Only zone owner may add zones" };
+          }
+          return { ok: true };
+        }
+        if (zone.ownerId !== actorId) {
+          return { ok: false, error: "Only zone owner may add zones" };
+        }
         const nextCardIds = uniqueStrings(zone.cardIds ?? []);
         const normalized = {
           ...zone,
@@ -1682,6 +2218,19 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         if (!zoneId || !orderedCardIds) return { ok: false, error: "invalid reorder" };
         const zone = readZone(maps, zoneId);
         if (!zone) return { ok: false, error: "zone not found" };
+        if (zone.ownerId !== actorId) {
+          return { ok: false, error: "Only zone owner may reorder cards" };
+        }
+        const currentOrder = isHiddenZoneType(zone.type)
+          ? zone.type === ZONE.HAND
+            ? hidden.handOrder[zone.ownerId] ?? []
+            : zone.type === ZONE.LIBRARY
+              ? hidden.libraryOrder[zone.ownerId] ?? []
+              : hidden.sideboardOrder[zone.ownerId] ?? []
+          : zone.cardIds;
+        if (!hasSameMembers(currentOrder, orderedCardIds)) {
+          return { ok: false, error: "invalid reorder" };
+        }
         if (zone.type === ZONE.HAND) {
           hidden.handOrder[zone.ownerId] = orderedCardIds;
           writeZone(maps, { ...zone, cardIds: orderedCardIds });
@@ -1707,6 +2256,10 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
       }
       case "room.lock": {
         const locked = Boolean(payload.locked);
+        const hostId = maps.meta.get("hostId");
+        if (typeof hostId === "string" && hostId !== actorId) {
+          return { ok: false, error: "Only host may lock the room" };
+        }
         maps.meta.set("locked", locked);
         return { ok: true };
       }
@@ -1714,6 +2267,9 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         const scaleRaw = typeof payload.scale === "number" ? payload.scale : null;
         if (!playerId || scaleRaw === null) return { ok: false, error: "invalid scale" };
+        if (playerId !== actorId) {
+          return { ok: false, error: "actor mismatch" };
+        }
         maps.battlefieldViewScale.set(playerId, clampNumber(scaleRaw, 0.5, 1));
         return { ok: true };
       }
@@ -1726,7 +2282,7 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
           pushLogEvent("counter.global.add", {
             counterType,
             color,
-            actorId: readActorId(payload.actorId),
+            actorId,
           });
         }
         return { ok: true };
@@ -1737,8 +2293,11 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         const card = readCard(maps, cardId);
         if (!card) return { ok: false, error: "card not found" };
         const zone = readZone(maps, card.zoneId);
-        if (!zone || zone.type !== ZONE.BATTLEFIELD) return { ok: true };
-        const actorId = readActorId(payload.actorId);
+        if (!zone) return { ok: false, error: "zone not found" };
+        const permission = canModifyCardState(actorId, card, zone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
 
         if (isRecord(payload.counter) && typeof payload.counter.type === "string") {
           const counter: Counter = {
@@ -1801,8 +2360,13 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         if (!cardId || tapped === null) return { ok: false, error: "invalid tap" };
         const card = readCard(maps, cardId);
         if (!card) return { ok: false, error: "card not found" };
+        const zone = readZone(maps, card.zoneId);
+        const permission = canTapCard(actorId, card, zone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         pushLogEvent("card.tap", {
-          actorId: readActorId(payload.actorId),
+          actorId,
           cardId,
           zoneId: card.zoneId,
           tapped,
@@ -1814,8 +2378,11 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
       case "card.untapAll": {
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
+        if (playerId !== actorId) {
+          return { ok: false, error: "actor mismatch" };
+        }
         pushLogEvent("card.untapAll", {
-          actorId: readActorId(payload.actorId) ?? playerId,
+          actorId,
           playerId,
         });
         maps.cards.forEach((value, key) => {
@@ -1829,63 +2396,22 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         return { ok: true };
       }
       case "card.add": {
-        const card = isRecord(payload.card) ? coerceCard(payload.card) : null;
-        if (!card || typeof card.id !== "string") return { ok: false, error: "invalid card" };
-        const normalized = normalizeCardForAdd(card);
-        const zone = readZone(maps, normalized.zoneId);
-        const nextCounters = enforceZoneCounterRules(normalized.counters, zone ?? undefined);
-        const nextCard = { ...normalized, counters: nextCounters };
-        if (zone && isHiddenZoneType(zone.type)) {
-          hidden.cards[nextCard.id] = nextCard;
-          if (zone.type === ZONE.HAND) {
-            const nextOrder = placeCardId(hidden.handOrder[zone.ownerId] ?? [], nextCard.id, "top");
-            hidden.handOrder[zone.ownerId] = nextOrder;
-            writeZone(maps, { ...zone, cardIds: nextOrder });
-          } else if (zone.type === ZONE.LIBRARY) {
-            hidden.libraryOrder[zone.ownerId] = placeCardId(
-              hidden.libraryOrder[zone.ownerId] ?? [],
-              nextCard.id,
-              "top"
-            );
-          } else if (zone.type === ZONE.SIDEBOARD) {
-            hidden.sideboardOrder[zone.ownerId] = placeCardId(
-              hidden.sideboardOrder[zone.ownerId] ?? [],
-              nextCard.id,
-              "top"
-            );
-          }
-          updatePlayerCounts(maps, hidden, zone.ownerId);
-          markHiddenChanged();
-          return { ok: true };
+        const prepared = prepareCardAdd(payload.card);
+        if ("error" in prepared) return { ok: false, error: prepared.error };
+        return applyPreparedCardAdd(prepared);
+      }
+      case "card.add.batch": {
+        const cards = Array.isArray(payload.cards) ? payload.cards : null;
+        if (!cards || cards.length === 0) return { ok: false, error: "invalid cards" };
+        const prepared: { card: Card; zoneId: string }[] = [];
+        for (const raw of cards) {
+          const next = prepareCardAdd(raw);
+          if ("error" in next) return { ok: false, error: next.error };
+          prepared.push(next);
         }
-        const enteringFaceDownBattlefield =
-          zone?.type === ZONE.BATTLEFIELD && nextCard.faceDown;
-        const publicCard = enteringFaceDownBattlefield
-          ? stripCardIdentity({
-              ...nextCard,
-              knownToAll: false,
-              revealedToAll: false,
-              revealedTo: [],
-            })
-          : nextCard;
-        writeCard(maps, publicCard);
-        if (zone) {
-          const nextIds = placeCardId(zone.cardIds, nextCard.id, "top");
-          writeZone(maps, { ...zone, cardIds: nextIds });
-        }
-        if (enteringFaceDownBattlefield) {
-          hidden.faceDownBattlefield[nextCard.id] = buildCardIdentity(nextCard);
-          hidden.faceDownReveals[nextCard.id] = {};
-          maps.faceDownRevealsToAll.delete(nextCard.id);
-          markHiddenChanged();
-        }
-        if (nextCard.isToken) {
-          pushLogEvent("card.tokenCreate", {
-            actorId: readActorId(payload.actorId) ?? nextCard.ownerId,
-            playerId: nextCard.ownerId,
-            tokenName: nextCard.name ?? "Token",
-            count: 1,
-          });
+        for (const entry of prepared) {
+          const result = applyPreparedCardAdd(entry);
+          if (!result.ok) return result;
         }
         return { ok: true };
       }
@@ -1895,12 +2421,17 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         const card = readCard(maps, cardId);
         if (card) {
           const zone = readZone(maps, card.zoneId);
+          if (!zone) return { ok: false, error: "zone not found" };
+          const permission = canRemoveToken(actorId, card, zone);
+          if (!permission.allowed) {
+            return { ok: false, error: permission.reason ?? "not permitted" };
+          }
           if (zone) {
             const nextIds = removeFromArray(zone.cardIds, cardId);
             writeZone(maps, { ...zone, cardIds: nextIds });
           }
           pushLogEvent("card.remove", {
-            actorId: readActorId(payload.actorId),
+            actorId,
             cardId,
             zoneId: card.zoneId,
             cardName: card.name,
@@ -1914,20 +2445,25 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         }
         const hiddenCard = hidden.cards[cardId];
         if (!hiddenCard) return { ok: false, error: "card not found" };
-        const zone = readZone(maps, hiddenCard.zoneId);
-        if (zone?.type === ZONE.HAND) {
-          const nextOrder = removeFromArray(hidden.handOrder[zone.ownerId] ?? [], cardId);
-          hidden.handOrder[zone.ownerId] = nextOrder;
-          writeZone(maps, { ...zone, cardIds: nextOrder });
-        } else if (zone?.type === ZONE.LIBRARY) {
-          hidden.libraryOrder[zone.ownerId] = removeFromArray(
-            hidden.libraryOrder[zone.ownerId] ?? [],
+        const hiddenZone = readZone(maps, hiddenCard.zoneId);
+        if (!hiddenZone) return { ok: false, error: "zone not found" };
+        const hiddenPermission = canRemoveToken(actorId, hiddenCard, hiddenZone);
+        if (!hiddenPermission.allowed) {
+          return { ok: false, error: hiddenPermission.reason ?? "not permitted" };
+        }
+        if (hiddenZone.type === ZONE.HAND) {
+          const nextOrder = removeFromArray(hidden.handOrder[hiddenZone.ownerId] ?? [], cardId);
+          hidden.handOrder[hiddenZone.ownerId] = nextOrder;
+          writeZone(maps, { ...hiddenZone, cardIds: nextOrder });
+        } else if (hiddenZone.type === ZONE.LIBRARY) {
+          hidden.libraryOrder[hiddenZone.ownerId] = removeFromArray(
+            hidden.libraryOrder[hiddenZone.ownerId] ?? [],
             cardId
           );
-          syncLibraryRevealsToAllForPlayer(maps, hidden, zone.ownerId, zone.id);
-        } else if (zone?.type === ZONE.SIDEBOARD) {
-          hidden.sideboardOrder[zone.ownerId] = removeFromArray(
-            hidden.sideboardOrder[zone.ownerId] ?? [],
+          syncLibraryRevealsToAllForPlayer(maps, hidden, hiddenZone.ownerId, hiddenZone.id);
+        } else if (hiddenZone.type === ZONE.SIDEBOARD) {
+          hidden.sideboardOrder[hiddenZone.ownerId] = removeFromArray(
+            hidden.sideboardOrder[hiddenZone.ownerId] ?? [],
             cardId
           );
         }
@@ -1938,7 +2474,7 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         maps.libraryRevealsToAll.delete(cardId);
         updatePlayerCounts(maps, hidden, hiddenCard.ownerId);
         pushLogEvent("card.remove", {
-          actorId: readActorId(payload.actorId),
+          actorId,
           cardId,
           zoneId: hiddenCard.zoneId,
           cardName: "a card",
@@ -1953,6 +2489,65 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         const card = readCard(maps, cardId);
         if (!card) return { ok: false, error: "card not found" };
         const zone = readZone(maps, card.zoneId);
+        if (!zone) return { ok: false, error: "zone not found" };
+
+        const forbiddenKeys = [
+          "name",
+          "imageUrl",
+          "oracleText",
+          "typeLine",
+          "scryfallId",
+          "scryfall",
+          "deckSection",
+          "zoneId",
+          "position",
+          "counters",
+          "ownerId",
+          "controllerId",
+          "id",
+          "tapped",
+          "knownToAll",
+          "revealedToAll",
+          "revealedTo",
+          "isToken",
+        ];
+        for (const key of forbiddenKeys) {
+          if (Object.prototype.hasOwnProperty.call(updates, key)) {
+            return { ok: false, error: "unsupported update" };
+          }
+        }
+
+        if (Object.prototype.hasOwnProperty.call(updates, "isCommander")) {
+          if (card.ownerId !== actorId) {
+            return { ok: false, error: "Only owner may update commander status" };
+          }
+        }
+        if (Object.prototype.hasOwnProperty.call(updates, "commanderTax")) {
+          if (card.ownerId !== actorId) {
+            return { ok: false, error: "Only owner may update commander tax" };
+          }
+        }
+
+        const controlledFields = [
+          "power",
+          "toughness",
+          "basePower",
+          "baseToughness",
+          "customText",
+          "faceDown",
+          "faceDownMode",
+          "currentFaceIndex",
+          "rotation",
+        ];
+        const requiresControl = controlledFields.some((key) =>
+          Object.prototype.hasOwnProperty.call(updates, key)
+        );
+        if (requiresControl) {
+          const permission = canModifyCardState(actorId, card, zone);
+          if (!permission.allowed) {
+            return { ok: false, error: permission.reason ?? "not permitted" };
+          }
+        }
         const nextCard = applyCardUpdates(card, updates, zone?.type);
         let publicCard = nextCard;
         if (zone?.type === ZONE.BATTLEFIELD) {
@@ -1978,7 +2573,6 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
             publicCard = stripCardIdentity(nextCard);
           }
         }
-        const actorId = readActorId(payload.actorId);
         const newPower = updates.power ?? card.power;
         const newToughness = updates.toughness ?? card.toughness;
         const powerChanged = newPower !== card.power;
@@ -2022,11 +2616,15 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         const card = readCard(maps, cardId);
         if (!card) return { ok: false, error: "card not found" };
         const zone = readZone(maps, card.zoneId);
-        if (!zone || zone.type !== ZONE.BATTLEFIELD) return { ok: true };
+        if (!zone) return { ok: false, error: "zone not found" };
+        const permission = canModifyCardState(actorId, card, zone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         if (!isTransformableCard(card)) return { ok: true };
         const { targetIndex, toFaceName } = computeTransformTargetIndex(card, faceIndex);
         pushLogEvent("card.transform", {
-          actorId: readActorId(payload.actorId),
+          actorId,
           cardId,
           zoneId: card.zoneId,
           toFaceName,
@@ -2050,8 +2648,12 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         if (!cardId) return { ok: false, error: "invalid card" };
         const hiddenCard = hidden.cards[cardId];
         if (!hiddenCard) return { ok: false, error: "card not found" };
+        if (hiddenCard.ownerId !== actorId) {
+          return { ok: false, error: "Only owner may reveal this card" };
+        }
         const zone = readZone(maps, hiddenCard.zoneId);
-        if (!zone || (zone.type !== ZONE.HAND && zone.type !== ZONE.LIBRARY)) {
+        if (!zone) return { ok: false, error: "zone not found" };
+        if (zone.type !== ZONE.HAND && zone.type !== ZONE.LIBRARY) {
           return { ok: true };
         }
         const reveal =
@@ -2109,6 +2711,10 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         if (!card) return { ok: false, error: "card not found" };
         const zone = readZone(maps, card.zoneId);
         if (!zone) return { ok: false, error: "zone not found" };
+        const permission = canModifyCardState(actorId, card, zone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         const snapshot = buildSnapshot(maps);
         const position = computeDuplicateTokenPosition({
           sourceCard: card,
@@ -2120,7 +2726,7 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         const nextIds = placeCardId(zone.cardIds, clone.id, "top");
         writeZone(maps, { ...zone, cardIds: nextIds });
         pushLogEvent("card.duplicate", {
-          actorId: readActorId(payload.actorId),
+          actorId,
           sourceCardId: cardId,
           newCardId,
           zoneId: zone.id,
@@ -2129,9 +2735,39 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         return { ok: true };
       }
       case "card.move": {
+        const cardId = typeof payload.cardId === "string" ? payload.cardId : null;
+        const toZoneId = typeof payload.toZoneId === "string" ? payload.toZoneId : null;
+        if (!cardId || !toZoneId) return { ok: false, error: "invalid move" };
+        const toZone = readZone(maps, toZoneId);
+        if (!toZone) return { ok: false, error: "zone not found" };
+        const publicCard = readCard(maps, cardId);
+        const hiddenCard = !publicCard ? hidden.cards[cardId] : null;
+        const card = publicCard ?? hiddenCard;
+        if (!card) return { ok: false, error: "card not found" };
+        const fromZone = readZone(maps, card.zoneId);
+        if (!fromZone) return { ok: false, error: "zone not found" };
+        const permission = canMoveCard(actorId, card, fromZone, toZone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         return applyCardMove(maps, hidden, payload, "top", pushLogEvent, markHiddenChanged);
       }
       case "card.move.bottom": {
+        const cardId = typeof payload.cardId === "string" ? payload.cardId : null;
+        const toZoneId = typeof payload.toZoneId === "string" ? payload.toZoneId : null;
+        if (!cardId || !toZoneId) return { ok: false, error: "invalid move" };
+        const toZone = readZone(maps, toZoneId);
+        if (!toZone) return { ok: false, error: "zone not found" };
+        const publicCard = readCard(maps, cardId);
+        const hiddenCard = !publicCard ? hidden.cards[cardId] : null;
+        const card = publicCard ?? hiddenCard;
+        if (!card) return { ok: false, error: "card not found" };
+        const fromZone = readZone(maps, card.zoneId);
+        if (!fromZone) return { ok: false, error: "zone not found" };
+        const permission = canMoveCard(actorId, card, fromZone, toZone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         return applyCardMove(maps, hidden, payload, "bottom", pushLogEvent, markHiddenChanged);
       }
       case "library.draw": {
@@ -2142,6 +2778,10 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
         const handZone = findZoneByType(snapshot.zones, playerId, ZONE.HAND);
         if (!libraryZone || !handZone) return { ok: false, error: "zone not found" };
+        const permission = canViewHiddenZone(actorId, libraryZone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         const drawCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
         for (let i = 0; i < drawCount; i += 1) {
           const order = hidden.libraryOrder[playerId] ?? [];
@@ -2168,6 +2808,10 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
         const graveyardZone = findZoneByType(snapshot.zones, playerId, ZONE.GRAVEYARD);
         if (!libraryZone || !graveyardZone) return { ok: false, error: "zone not found" };
+        const permission = canViewHiddenZone(actorId, libraryZone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         const discardCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
         for (let i = 0; i < discardCount; i += 1) {
           const order = hidden.libraryOrder[playerId] ?? [];
@@ -2189,6 +2833,13 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
       case "library.shuffle": {
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
+        const snapshot = buildSnapshot(maps);
+        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
+        if (!libraryZone) return { ok: false, error: "zone not found" };
+        const permission = canViewHiddenZone(actorId, libraryZone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         const current = hidden.libraryOrder[playerId] ?? [];
         const shuffled = shuffle(current);
         hidden.libraryOrder[playerId] = shuffled;
@@ -2204,7 +2855,7 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         syncLibraryRevealsToAllForPlayer(maps, hidden, playerId);
         markHiddenChanged();
         pushLogEvent("library.shuffle", {
-          actorId: readActorId(payload.actorId),
+          actorId,
           playerId,
         });
         return { ok: true };
@@ -2212,10 +2863,17 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
       case "deck.reset": {
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
+        const snapshot = buildSnapshot(maps);
+        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
+        if (!libraryZone) return { ok: false, error: "zone not found" };
+        const permission = canViewHiddenZone(actorId, libraryZone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         applyResetDeck(maps, hidden, playerId);
         markHiddenChanged();
         pushLogEvent("deck.reset", {
-          actorId: readActorId(payload.actorId),
+          actorId,
           playerId,
         });
         return { ok: true };
@@ -2223,10 +2881,17 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
       case "deck.unload": {
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
+        const snapshot = buildSnapshot(maps);
+        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
+        if (!libraryZone) return { ok: false, error: "zone not found" };
+        const permission = canViewHiddenZone(actorId, libraryZone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         applyUnloadDeck(maps, hidden, playerId);
         markHiddenChanged();
         pushLogEvent("deck.unload", {
-          actorId: readActorId(payload.actorId),
+          actorId,
           playerId,
         });
         return { ok: true };
@@ -2235,15 +2900,22 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         const count = typeof payload.count === "number" ? payload.count : 0;
         if (!playerId) return { ok: false, error: "invalid player" };
+        const snapshot = buildSnapshot(maps);
+        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
+        if (!libraryZone) return { ok: false, error: "zone not found" };
+        const permission = canViewHiddenZone(actorId, libraryZone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         const mulliganDrawCount = applyMulligan(maps, hidden, playerId, count);
         markHiddenChanged();
         pushLogEvent("deck.reset", {
-          actorId: readActorId(payload.actorId),
+          actorId,
           playerId,
         });
         if (mulliganDrawCount > 0) {
           pushLogEvent("card.draw", {
-            actorId: readActorId(payload.actorId),
+            actorId,
             playerId,
             count: mulliganDrawCount,
           });
@@ -2253,6 +2925,9 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
       case "deck.load": {
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
+        if (playerId !== actorId) {
+          return { ok: false, error: "actor mismatch" };
+        }
         const player = readPlayer(maps, playerId);
         if (!player) return { ok: true };
         writePlayer(maps, { ...player, deckLoaded: true });
@@ -2262,21 +2937,27 @@ const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): Appl
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
         const count = typeof payload.count === "number" ? payload.count : undefined;
+        const snapshot = buildSnapshot(maps);
+        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
+        if (!libraryZone) return { ok: false, error: "zone not found" };
+        const permission = canViewHiddenZone(actorId, libraryZone);
+        if (!permission.allowed) {
+          return { ok: false, error: permission.reason ?? "not permitted" };
+        }
         pushLogEvent("library.view", {
-          actorId: readActorId(payload.actorId),
+          actorId,
           playerId,
           ...(count !== undefined ? { count } : {}),
         });
         return { ok: true };
       }
       case "dice.roll": {
-        const actorId = readActorId(payload.actorId);
         const sides = typeof payload.sides === "number" ? payload.sides : null;
         const count = typeof payload.count === "number" ? payload.count : null;
         const results = Array.isArray(payload.results)
           ? payload.results.filter((value) => typeof value === "number")
           : null;
-        if (!actorId || !sides || !count || !results) return { ok: false, error: "invalid dice roll" };
+        if (!sides || !count || !results) return { ok: false, error: "invalid dice roll" };
         pushLogEvent("dice.roll", {
           actorId,
           sides,
@@ -2501,10 +3182,14 @@ const applyCardMove = (
       : undefined;
     const cardWithIdentity = mergeCardIdentity(card, faceDownIdentity);
 
-    let resolvedPosition = normalizeMovePosition(position, card.position);
+    const fallbackPosition =
+      !position && toZone.type === ZONE.BATTLEFIELD && fromZone.type !== ZONE.BATTLEFIELD
+        ? { x: 0.5, y: 0.5 }
+        : position;
+    let resolvedPosition = normalizeMovePosition(fallbackPosition, card.position);
     if (
       toZone.type === ZONE.BATTLEFIELD &&
-      position &&
+      fallbackPosition &&
       (!opts?.skipCollision || opts?.groupCollision)
     ) {
       const ordered = toZone.cardIds;
@@ -2809,10 +3494,14 @@ const applyCardMove = (
     }
 
     const nextCounters = enforceZoneCounterRules(card.counters, toZone);
-    let resolvedPosition = normalizeMovePosition(position, card.position);
+    const fallbackPosition =
+      !position && toZone.type === ZONE.BATTLEFIELD && fromZone.type !== ZONE.BATTLEFIELD
+        ? { x: 0.5, y: 0.5 }
+        : position;
+    let resolvedPosition = normalizeMovePosition(fallbackPosition, card.position);
     if (
       toZone.type === ZONE.BATTLEFIELD &&
-      position &&
+      fallbackPosition &&
       (!opts?.skipCollision || opts?.groupCollision)
     ) {
       const ordered = toZone.cardIds;
@@ -2945,7 +3634,7 @@ const applyResetDeck = (maps: Maps, hidden: HiddenState, playerId: string) => {
   const toLibrary: string[] = [];
 
   const removeFromPublicZone = (zoneId: string, cardId: string) => {
-    const zone = snapshot.zones[zoneId];
+    const zone = readZone(maps, zoneId) ?? snapshot.zones[zoneId];
     if (!zone) return;
     const nextIds = removeFromArray(zone.cardIds, cardId);
     writeZone(maps, { ...zone, cardIds: nextIds });
@@ -3186,7 +3875,7 @@ const applyMulligan = (
   const toLibrary: string[] = [];
 
   const removeFromPublicZone = (zoneId: string, cardId: string) => {
-    const zone = snapshot.zones[zoneId];
+    const zone = readZone(maps, zoneId) ?? snapshot.zones[zoneId];
     if (!zone) return;
     const nextIds = removeFromArray(zone.cardIds, cardId);
     writeZone(maps, { ...zone, cardIds: nextIds });

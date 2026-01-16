@@ -40,7 +40,7 @@ describe("sanitizeSharedSnapshot", () => {
     const safe = sanitizeSharedSnapshot({
       players: { p1: { id: "p1", name: "P1", life: 40 } },
       zones: {
-        z1: { id: "z1", ownerId: "p1", type: ZONE.LIBRARY, cardIds: ["c1", "missing"] },
+        z1: { id: "z1", ownerId: "p1", type: ZONE.BATTLEFIELD, cardIds: ["c1", "missing"] },
       },
       cards: {
         c1: {
@@ -69,7 +69,7 @@ describe("sanitizeSharedSnapshot", () => {
     const safe = sanitizeSharedSnapshot({
       players: { p1: { id: "p1", name: "P1", life: 40 } },
       zones: {
-        z1: { id: "z1", ownerId: "p1", type: ZONE.LIBRARY, cardIds: ["c1"] },
+        z1: { id: "z1", ownerId: "p1", type: ZONE.BATTLEFIELD, cardIds: ["c1"] },
       },
       cards: {
         c1: {
@@ -101,14 +101,14 @@ describe("sanitizeSharedSnapshot", () => {
     const safe = sanitizeSharedSnapshot({
       players: { p1: { id: "p1", name: "P1", life: 40 } },
       zones: {
-        hand: { id: "hand", ownerId: "p1", type: ZONE.HAND, cardIds: ["c1"] },
+        yard: { id: "yard", ownerId: "p1", type: ZONE.GRAVEYARD, cardIds: ["c1"] },
       },
       cards: {
         c1: {
           id: "c1",
           ownerId: "p1",
           controllerId: "p1",
-          zoneId: "hand",
+          zoneId: "yard",
           name: "Card",
           tapped: false,
           faceDown: false,

@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { ShareRoomDialog } from "../ShareRoomDialog";
 import { toast } from "sonner";
@@ -60,10 +60,16 @@ describe("ShareRoomDialog", () => {
   it("copies the active player link when the room is unlocked", async () => {
     renderDialog();
 
-    expect(screen.getByText("Player link")).toBeTruthy();
-    expect(screen.getByDisplayValue("https://example.com/room")).toBeTruthy();
+    const playerLabel = screen.getByText("Player invite link");
+    const playerInput = screen.getByDisplayValue("https://example.com/room");
+    expect(playerLabel).toBeTruthy();
+    expect(playerInput).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    const playerField = playerLabel.closest("div")?.parentElement;
+    const copyButton = playerField
+      ? within(playerField).getByRole("button", { name: "Copy" })
+      : screen.getAllByRole("button", { name: "Copy" })[0];
+    fireEvent.click(copyButton);
 
     await waitFor(() => {
       expect(clipboardWriteText).toHaveBeenCalledWith(
@@ -71,20 +77,17 @@ describe("ShareRoomDialog", () => {
       );
     });
     expect(toast.success).toHaveBeenCalledWith(
-      "Player link copied to clipboard"
+      "Player invite link copied to clipboard"
     );
   });
 
   it("shows the spectator link when the room is locked", () => {
     renderDialog({ roomLockedByHost: true });
 
-    expect(screen.getByText("Spectator link")).toBeTruthy();
+    expect(screen.getByText("Spectator invite link")).toBeTruthy();
     expect(
       screen.getByDisplayValue("https://example.com/room?role=spectator")
     ).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: "Allow spectators?" })
-    ).toBeNull();
   });
 
   it("disables lock controls for non-hosts", () => {
@@ -93,12 +96,8 @@ describe("ShareRoomDialog", () => {
     const lockButton = screen.getByRole("button", {
       name: "Lock room",
     }) as HTMLButtonElement;
-    const spectatorsButton = screen.getByRole("button", {
-      name: "Allow spectators?",
-    }) as HTMLButtonElement;
 
     expect(lockButton.disabled).toBe(true);
-    expect(spectatorsButton.disabled).toBe(true);
   });
 
   it("allows hosts to toggle the room lock", () => {
@@ -107,5 +106,17 @@ describe("ShareRoomDialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Lock room" }));
     expect(onToggleRoomLock).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores transient undefined players when sorting", () => {
+    renderDialog({
+      players: {
+        p1: buildPlayer("p1", "Alice"),
+        p2: undefined as any,
+      } as any,
+    });
+
+    expect(screen.getByText("Players (1/4)")).toBeTruthy();
+    expect(screen.getByText("Alice")).toBeTruthy();
   });
 });

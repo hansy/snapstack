@@ -4,11 +4,12 @@ import { v4 as uuidv4 } from "uuid";
 import type { GameState } from "@/types";
 
 import { clearLogs } from "@/logging/logStore";
-import { destroySession } from "@/yjs/docManager";
+import { destroyAllSessions, destroySession } from "@/yjs/docManager";
 import type { DispatchIntent } from "@/store/gameStore/dispatchIntent";
 import { resetIntentState } from "@/store/gameStore/dispatchIntent";
 import { clearRoomHostPending, writeRoomTokensToStorage } from "@/lib/partyKitToken";
 import { useClientPrefsStore } from "@/store/clientPrefsStore";
+import { clearIntentTransport } from "@/partykit/intentTransport";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];
@@ -123,6 +124,12 @@ export const createSessionActions = (
 
       try {
         destroySession(sessionId);
+      } catch (_err) {}
+      try {
+        destroyAllSessions();
+      } catch (_err) {}
+      try {
+        clearIntentTransport();
       } catch (_err) {}
 
       get().forgetSessionIdentity(sessionId);

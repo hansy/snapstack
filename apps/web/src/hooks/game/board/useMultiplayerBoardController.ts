@@ -215,14 +215,13 @@ export const useMultiplayerBoardController = (sessionId: string) => {
         { length: safeCount },
         () => (Math.random() < 0.5 ? "heads" : "tails") as "heads" | "tails"
       );
-      const state = useGameStore.getState();
-      emitLog(
-        "coin.flip",
-        { actorId: myPlayerId, count: safeCount, results },
-        { players: state.players, cards: state.cards, zones: state.zones }
-      );
+      sendLogIntent("coin.flip", {
+        actorId: myPlayerId,
+        count: safeCount,
+        results,
+      });
     },
-    [isSpectator, myPlayerId]
+    [isSpectator, myPlayerId, sendLogIntent]
   );
 
   const handleRollDice = React.useCallback(
