@@ -1,8 +1,6 @@
-import { GRID_STEP_Y, clampNormalizedPosition } from './positions';
+import { GRID_STEP_Y, clampNormalizedPosition, normalizedPositionKey } from './positions';
 
 export type NormalizedPosition = { x: number; y: number };
-
-const positionKey = (position: NormalizedPosition) => `${position.x.toFixed(4)}:${position.y.toFixed(4)}`;
 
 const resolvePositionAgainstOccupied = ({
   targetPosition,
@@ -17,7 +15,7 @@ const resolvePositionAgainstOccupied = ({
   let candidate = clampedTarget;
   let attempts = 0;
 
-  while (occupied.has(positionKey(candidate)) && attempts < maxAttempts) {
+  while (occupied.has(normalizedPositionKey(candidate)) && attempts < maxAttempts) {
     candidate = clampNormalizedPosition({ x: candidate.x, y: candidate.y + GRID_STEP_Y });
     attempts += 1;
   }
@@ -45,7 +43,7 @@ export const resolveBattlefieldCollisionPosition = ({
     const pos = getPosition(id);
     if (!pos) return;
     const clamped = clampNormalizedPosition(pos);
-    occupied.add(positionKey(clamped));
+    occupied.add(normalizedPositionKey(clamped));
   });
 
   return resolvePositionAgainstOccupied({
@@ -78,7 +76,7 @@ export const resolveBattlefieldGroupCollisionPositions = ({
     const pos = getPosition(otherId);
     if (!pos) continue;
     const clamped = clampNormalizedPosition(pos);
-    occupied.add(positionKey(clamped));
+    occupied.add(normalizedPositionKey(clamped));
   }
 
   const resolved: Record<string, NormalizedPosition> = {};
@@ -93,7 +91,7 @@ export const resolveBattlefieldGroupCollisionPositions = ({
       maxAttempts,
     });
     resolved[id] = next;
-    occupied.add(positionKey(next));
+    occupied.add(normalizedPositionKey(next));
   });
 
   return resolved;

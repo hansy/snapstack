@@ -34,6 +34,27 @@ const buildHandCardZones = (zones: Record<string, Zone>) => {
   return byCardId;
 };
 
+const ensureHiddenZonePlaceholders = (
+  zones: Record<string, Zone>,
+  cards: Record<string, Card>
+) => {
+  Object.values(zones).forEach((zone) => {
+    if (zone.type !== ZONE.HAND && zone.type !== ZONE.LIBRARY && zone.type !== ZONE.SIDEBOARD) {
+      return;
+    }
+    zone.cardIds.forEach((cardId) => {
+      if (typeof cardId !== "string") return;
+      if (!cards[cardId]) {
+        cards[cardId] = createPlaceholderCard({
+          id: cardId,
+          ownerId: zone.ownerId,
+          zoneId: zone.id,
+        });
+      }
+    });
+  });
+};
+
 export const mergePrivateOverlay = (
   base: GameState,
   overlay?: PrivateOverlayPayload | null
@@ -93,6 +114,34 @@ export const mergePrivateOverlay = (
       });
     }
   }
+
+  ensureHiddenZonePlaceholders(nextZones, nextCards);
+
+  const libraryZoneByOwner = new Map<string, string>();
+  Object.values(nextZones).forEach((zone) => {
+    if (zone.type === ZONE.LIBRARY) {
+      libraryZoneByOwner.set(zone.ownerId, zone.id);
+    }
+  });
+
+  Object.entries(base.libraryRevealsToAll).forEach(([cardId, entry]) => {
+    const ownerId = entry.ownerId ?? nextCards[cardId]?.ownerId;
+    const zoneId = nextCards[cardId]?.zoneId ?? (ownerId ? libraryZoneByOwner.get(ownerId) : undefined);
+    if (!nextCards[cardId] && ownerId && zoneId) {
+      nextCards[cardId] = createPlaceholderCard({
+        id: cardId,
+        ownerId,
+        zoneId,
+      });
+    }
+    const existing = nextCards[cardId];
+    if (!existing) return;
+    nextCards[cardId] = {
+      ...existing,
+      ...entry.card,
+      revealedToAll: true,
+    };
+  });
 
   return { ...base, cards: nextCards, zones: nextZones };
 };

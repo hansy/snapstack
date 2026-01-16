@@ -111,6 +111,9 @@ export const SeatView: React.FC<SeatViewProps> = ({
       : libraryCount > 0
         ? libraryPlaceholder ?? undefined
         : undefined;
+  const libraryTopIsPlaceholder = Boolean(
+    libraryTopCard?.id && libraryTopCard.id.startsWith("placeholder:library:")
+  );
   const canSeeLibraryTop =
     libraryCards.length > 0 && libraryTopCard
       ? canViewerSeeLibraryCardByReveal(
@@ -201,6 +204,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
                 count={libraryCount}
                 onContextMenu={onZoneContextMenu}
                 faceDown={libraryFaceDown}
+                disableCardDrag={libraryTopIsPlaceholder}
                 showContextMenuCursor={player.deckLoaded}
                 indicatorSide={isRight ? "left" : "right"}
                 onClick={

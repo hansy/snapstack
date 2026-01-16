@@ -28,6 +28,12 @@ const mockGameState = vi.hoisted(() => ({
   viewerRole: "player" as const,
   sessionId: null as string | null,
   myPlayerId: null as string | null,
+  players: {},
+  playerOrder: [],
+  zones: {},
+  cards: {},
+  roomLockedByHost: false,
+  roomOverCapacity: false,
   roomTokens: null as any,
   setRoomTokens: vi.fn(),
   ensurePlayerIdForSession: vi.fn(() => "player-1"),
@@ -144,6 +150,22 @@ vi.mock("@/store/clientPrefsStore", () => {
 });
 
 vi.mock("@/logging/logStore", () => logStoreMocks);
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+vi.mock("@/lib/partyKitToken", () => ({
+  clearInviteTokenFromUrl: vi.fn(),
+  clearRoomHostPending: vi.fn(),
+  isRoomHostPending: vi.fn(() => true),
+  mergeRoomTokens: (base: any, update: any) => ({ ...(base ?? {}), ...(update ?? {}) }),
+  readRoomTokensFromStorage: vi.fn(() => null),
+  resolveInviteTokenFromUrl: vi.fn(() => ({})),
+  writeRoomTokensToStorage: vi.fn(),
+}));
 vi.mock("@/lib/partyKitHost", () => ({ resolvePartyKitHost: () => "party.test" }));
 vi.mock("@/partykit/intentTransport", () => intentTransportMocks);
 vi.mock("@/yjs/sync", () => ({

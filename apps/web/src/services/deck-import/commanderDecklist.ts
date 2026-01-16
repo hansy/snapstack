@@ -1,4 +1,11 @@
-type Section = "main" | "commander" | "sideboard";
+import {
+  detectSectionHeader,
+  isIgnoredHeader,
+  normalizeDecklistName,
+  type DeckSection,
+} from "./decklistParsing";
+
+type Section = DeckSection;
 
 type Segment = {
   headerLine: string | null;
@@ -28,29 +35,7 @@ type UpdateResult = {
   changed: boolean;
 };
 
-const IGNORED_HEADERS = new Set(["companion", "maybeboard", "about"]);
-
-const normalizeDecklistName = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/\s*\/\/\s*/g, "/")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const detectSectionHeader = (line: string): Section | null => {
-  const lower = line.toLowerCase();
-  if (lower === "commander" || lower.startsWith("commander:")) return "commander";
-  if (lower === "sideboard" || lower.startsWith("sideboard:")) return "sideboard";
-  if (lower === "deck" || lower.startsWith("deck:")) return "main";
-  return null;
-};
-
-const isIgnoredHeader = (line: string) => {
-  const lower = line.toLowerCase();
-  if (IGNORED_HEADERS.has(lower)) return true;
-  if (lower.startsWith("name ") || lower.startsWith("about ")) return true;
-  return false;
-};
+export { normalizeDecklistName };
 
 const parseCardLine = (line: string): CardLine | null => {
   const leadingMatch = line.match(/^(\s*)/);
@@ -283,5 +268,3 @@ export const updateDecklistCommanderSection = (
   const nextText = nextLines.join("\n");
   return { text: nextText, changed: nextText !== text };
 };
-
-export { normalizeDecklistName };

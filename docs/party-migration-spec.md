@@ -32,15 +32,15 @@ Key outcomes:
 ## 1.1) Progress Tracker
 - [x] PartyKit server scaffold + PartySocket client
 - [x] Public schema changes (hand slots, library counts, reveal maps)
-- [ ] Intent protocol + server validation
+- [x] Intent protocol + server validation
 - [x] Optimistic prediction + reconciliation on client
 - [x] Hidden state extraction (library/hand/face-down)
 - [x] Private overlays (owner/spectator projections)
 - [x] Server-emitted logs (client-stored)
-- [ ] Reconnect/resume verification (public + overlays)
-- [ ] Permission enforcement + denial UX
+- [x] Reconnect/resume verification (public + overlays)
+- [x] Permission enforcement + denial UX
 - [x] Simplify/remove legacy client-authoritative paths
-- [ ] Migration tests (new behavior only) + perf checks
+- [x] Migration tests (new behavior only) + perf checks
 
 ---
 
@@ -434,3 +434,19 @@ Remove or rewrite tests that assert the **old client-authoritative behavior** (p
 - Party.Server API: https://docs.partykit.io/reference/partyserver-api/
 - y-partykit API: https://docs.partykit.io/reference/y-partykit-api/
 - Hibernation limitations (Yjs): https://docs.partykit.io/guides/scaling-partykit-servers-with-hibernation/
+
+---
+
+## 18) Migration Audit (2026-01-15)
+Findings from a codebase scan to verify the migration state:
+- **Runtime Yjs writes:** none found in production paths. Client reads Yjs snapshots and applies them to the store; all mutations flow through intents.
+- **Yjs mutation helpers:** no production imports of `apps/web/src/yjs/mutations/*`. They remain **legacy/test-only**.
+- **Legacy isolation:** `apps/web/src/yjs/yMutations.ts` now exports **only** types + `sharedSnapshot`. Legacy helpers are re-exported in `apps/web/src/yjs/legacyMutations.ts` for tests.
+- **Server authority:** server enforces intent-only writes and read-only Yjs sync connections (`readOnly: true` on y-partykit server). Token gating is validated on sync + intent connections.
+- **Additional hardening:** server now rejects token creation outside battlefield and rejects client attempts to mutate server-managed card identity/visibility fields via `card.update`.
+
+## 19) Cleanup Tasks (Remaining)
+- [ ] Add a lint rule to forbid importing `@/yjs/legacyMutations` outside test files.
+- [ ] Remove `apps/web/src/yjs/mutations/*` once legacy tests are deleted or moved to server-side equivalents.
+- [ ] Remove the legacy mutation test suites (`apps/web/src/yjs/__tests__/yMutations.test.ts`, `apps/web/src/yjs/__tests__/meta.test.ts`) if we no longer want to maintain client-side Yjs mutation behavior.
+- [ ] Consider relocating any remaining “legacy” mutation coverage to server-side tests that exercise intent application.

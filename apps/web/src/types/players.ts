@@ -16,5 +16,5 @@ export interface Player {
   handCount?: number;
   libraryCount?: number;
   sideboardCount?: number;
-  libraryTopReveal?: LibraryTopRevealMode;
+  libraryTopReveal?: LibraryTopRevealMode | null;
 }

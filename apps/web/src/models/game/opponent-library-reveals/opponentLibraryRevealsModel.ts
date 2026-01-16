@@ -54,7 +54,7 @@ export const computeRevealedOpponentLibraryCards = (params: {
   cardsById: Record<string, Card>;
   viewerId: PlayerId;
   libraryRevealsToAll: LibraryRevealsToAll;
-  libraryTopReveal?: LibraryTopRevealMode;
+  libraryTopReveal?: LibraryTopRevealMode | null;
 }): { cards: Card[]; actualTopCardId: string | null } => {
   if (!params.zone || params.zone.type !== ZONE.LIBRARY) {
     return { cards: [], actualTopCardId: null };

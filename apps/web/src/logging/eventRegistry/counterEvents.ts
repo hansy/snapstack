@@ -1,5 +1,6 @@
 import { buildCardPart, buildPlayerPart } from "../helpers";
 import type { LogEventDefinition, LogEventId } from "@/logging/types";
+import { DEFAULT_AGGREGATE_WINDOW_MS } from "./constants";
 
 export type CounterPayload = {
   cardId: string;
@@ -52,9 +53,29 @@ const formatGlobalCounterAdd: LogEventDefinition<GlobalCounterPayload>["format"]
 export const counterEvents = {
   "counter.add": {
     format: formatCounterAdd,
+    aggregate: {
+      key: (payload: CounterPayload) =>
+        `counter:${payload.cardId}:${payload.counterType}:${payload.actorId ?? "unknown"}`,
+      mergePayload: (existing: CounterPayload, incoming: CounterPayload) => ({
+        ...incoming,
+        delta: existing.delta + incoming.delta,
+        newTotal: incoming.newTotal,
+      }),
+      windowMs: DEFAULT_AGGREGATE_WINDOW_MS,
+    },
   },
   "counter.remove": {
     format: formatCounterRemove,
+    aggregate: {
+      key: (payload: CounterPayload) =>
+        `counter:${payload.cardId}:${payload.counterType}:${payload.actorId ?? "unknown"}`,
+      mergePayload: (existing: CounterPayload, incoming: CounterPayload) => ({
+        ...incoming,
+        delta: existing.delta + incoming.delta,
+        newTotal: incoming.newTotal,
+      }),
+      windowMs: DEFAULT_AGGREGATE_WINDOW_MS,
+    },
   },
   "counter.global.add": {
     format: formatGlobalCounterAdd,

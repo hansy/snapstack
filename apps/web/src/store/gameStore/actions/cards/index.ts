@@ -3,6 +3,7 @@ import type { GameState } from "@/types";
 import type { Deps, GetState, SetState } from "./types";
 
 import { createAddCard } from "./addCard";
+import { createAddCards } from "./addCards";
 import { createDuplicateCard } from "./duplicateCard";
 import { createRemoveCard } from "./removeCard";
 import { createSetCardReveal } from "./setCardReveal";
@@ -18,6 +19,7 @@ export const createCardActions = (
 ): Pick<
   GameState,
   | "addCard"
+  | "addCards"
   | "duplicateCard"
   | "updateCard"
   | "transformCard"
@@ -27,6 +29,7 @@ export const createCardActions = (
   | "setCardReveal"
 > => ({
   addCard: createAddCard(set, get, deps),
+  addCards: createAddCards(set, get, deps),
   duplicateCard: createDuplicateCard(set, get, deps),
   updateCard: createUpdateCard(set, get, deps),
   transformCard: createTransformCard(set, get, deps),

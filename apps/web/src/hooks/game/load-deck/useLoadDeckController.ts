@@ -32,7 +32,7 @@ export const useLoadDeckController = ({
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const wasOpenRef = React.useRef(false);
 
-  const addCard = useGameStore((state) => state.addCard);
+  const addCards = useGameStore((state) => state.addCards);
   const addZone = useGameStore((state) => state.addZone);
   const setDeckLoaded = useGameStore((state) => state.setDeckLoaded);
   const shuffleLibrary = useGameStore((state) => state.shuffleLibrary);
@@ -118,10 +118,10 @@ export const useLoadDeckController = ({
       }
 
       planned.chunks.forEach((chunk) => {
-        chunk.forEach(({ cardData, zoneId }) => {
-          const newCard = createCardFromImport(cardData, playerId, zoneId);
-          addCard(newCard);
-        });
+        const batch = chunk.map(({ cardData, zoneId }) =>
+          createCardFromImport(cardData, playerId, zoneId)
+        );
+        addCards(batch);
       });
 
       setDeckLoaded(playerId, true);
@@ -138,7 +138,7 @@ export const useLoadDeckController = ({
       setIsImporting(false);
     }
   }, [
-    addCard,
+    addCards,
     importText,
     onClose,
     playerId,

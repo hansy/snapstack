@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DEBUG_SIGNAL, resolveDebugSignal } from "./constants";
+import { DEBUG_SIGNAL, resolveDebugSignal } from "../constants";
 
 describe("DEBUG_SIGNAL flag", () => {
   afterEach(() => {

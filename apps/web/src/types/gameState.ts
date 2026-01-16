@@ -45,6 +45,7 @@ export interface GameState {
   ) => void;
   addZone: (zone: Zone, isRemote?: boolean) => void;
   addCard: (card: Card, isRemote?: boolean) => void;
+  addCards: (cards: Card[], isRemote?: boolean) => void;
   updateCard: (
     id: CardId,
     updates: Partial<Card>,

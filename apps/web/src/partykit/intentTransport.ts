@@ -43,6 +43,14 @@ export const createIntentTransport = ({
   return {
     sendIntent: (intent) => {
       const payload = JSON.stringify({ type: "intent", intent });
+      const readyState = (socket as { readyState?: number }).readyState;
+      if (import.meta.env.DEV && readyState !== 1) {
+        console.warn("[party] intent send while socket not open", {
+          intentId: intent.id,
+          type: intent.type,
+          readyState,
+        });
+      }
       socket.send(payload);
     },
     close: () => {

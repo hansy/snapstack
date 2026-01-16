@@ -60,15 +60,21 @@ export const resetIntentState = () => {
 export const handleIntentAck = (
   ack: IntentAck,
   setState: StoreApi<GameState>["setState"]
-) => {
+): string | null => {
   const index = pendingIntents.findIndex((pending) => pending.id === ack.intentId);
-  if (index === -1) return;
+  if (index === -1) return null;
   pendingIntents.splice(index, 1);
 
   if (!ack.ok && lastAuthoritativeState) {
     const reconciled = applyPendingIntents(lastAuthoritativeState);
     setState(reconciled);
   }
+
+  if (!ack.ok) {
+    return ack.error || "Action rejected";
+  }
+
+  return null;
 };
 
 export const createIntentDispatcher = (
@@ -89,7 +95,29 @@ export const createIntentDispatcher = (
         type,
         payload,
       };
-      sendIntent(intent);
+      const sent = sendIntent(intent);
+      if (!sent && import.meta.env.DEV) {
+        console.warn("[party] intent send failed", {
+          intentId,
+          type,
+        });
+      } else if (import.meta.env.DEV) {
+        if (
+          type === "library.draw" ||
+          type === "library.shuffle" ||
+          type === "deck.load" ||
+          type === "deck.reset" ||
+          type === "deck.mulligan" ||
+          type === "card.add" ||
+          type === "card.add.batch"
+        ) {
+          console.info("[party] intent sent", {
+            intentId,
+            type,
+            actorId: typeof payload.actorId === "string" ? payload.actorId : undefined,
+          });
+        }
+      }
     }
 
     pendingIntents.push({ id: intentId, applyLocal });

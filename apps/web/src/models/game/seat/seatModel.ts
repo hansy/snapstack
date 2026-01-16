@@ -45,7 +45,7 @@ export const createSeatModel = (params: {
   viewerRole?: ViewerRole;
   isMe: boolean;
   scale?: number;
-  libraryTopReveal?: LibraryTopRevealMode;
+  libraryTopReveal?: LibraryTopRevealMode | null;
   zones: Record<ZoneId, Zone>;
   cards: Record<string, Card>;
   libraryRevealsToAll?: LibraryRevealsToAll;

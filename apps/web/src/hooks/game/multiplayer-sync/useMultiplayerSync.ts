@@ -86,6 +86,15 @@ export function useMultiplayerSync(sessionId: string) {
     );
     const canConnect = hasToken || isRoomHostPending(sessionId);
     if (!canConnect) {
+      const activeResources = resourcesRef.current;
+      if (activeResources) {
+        teardownSessionResources(sessionId, {
+          awareness: activeResources.awareness,
+          provider: activeResources.provider,
+          intentTransport: activeResources.intentTransport,
+        });
+        resourcesRef.current = null;
+      }
       setJoinBlocked(true);
       setJoinBlockedReason("invite");
       if (useClientPrefsStore.getState().lastSessionId === sessionId) {
@@ -202,8 +211,6 @@ export function useMultiplayerSync(sessionId: string) {
     sessionId,
     hasHydrated,
     viewerRole,
-    roomTokens?.playerToken,
-    roomTokens?.spectatorToken,
     setLastSessionId,
     clearLastSessionId,
   ]);

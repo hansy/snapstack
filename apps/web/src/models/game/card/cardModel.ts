@@ -53,12 +53,14 @@ export const getCardHoverPreviewPolicy = (params: {
   ) {
     return { kind: "immediate" };
   }
-  if (
-    params.zoneType === ZONE.LIBRARY &&
-    params.isZoneTopCard &&
-    params.allowLibraryTopPreview
-  ) {
-    return { kind: "immediate" };
+  if (params.zoneType === ZONE.LIBRARY) {
+    if (params.isZoneTopCard && params.allowLibraryTopPreview) {
+      return { kind: "immediate" };
+    }
+    if (!params.faceDown && params.canPeek) {
+      return { kind: "immediate" };
+    }
+    return { kind: "none" };
   }
   if (params.zoneType === ZONE.BATTLEFIELD) {
     return { kind: "delayed", delayMs: BATTLEFIELD_HOVER_PREVIEW_DELAY_MS };
