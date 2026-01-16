@@ -284,7 +284,7 @@ export class SignalRoom extends DurableObject {
     this.conns.add(ws);
     this.connClients.set(ws, new Set());
     this.connMeta.set(ws, meta);
-    this.userToConn.set(userId, { ws, clientKey, sessionVersion });
+    this.userToConn.set(userId, { ws, userId, clientKey, sessionVersion });
     this.userToLastVersion.set(userId, sessionVersion);
     if (this.emptyTimer !== null) {
       clearTimeout(this.emptyTimer);
