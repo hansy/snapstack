@@ -3,7 +3,6 @@ import { Awareness } from "y-protocols/awareness";
 import YPartyServerProvider from "y-partyserver/provider";
 import { toast } from "sonner";
 import { clearLogs, emitLog } from "@/logging/logStore";
-import { ZONE } from "@/constants/zones";
 import { resolvePartyKitHost } from "@/lib/partyKitHost";
 import {
   clearInviteTokenFromUrl,
@@ -201,13 +200,6 @@ export function setupSessionResources({
     provider.on("connection-error", handleConnectionClose as any);
   }
 
-  const debugIntent = import.meta.env.DEV;
-  let loggedOverlay = false;
-  let loggedRoomTokens = false;
-  let loggedAck = false;
-  let lastOverlaySummary:
-    | { cardCount: number; cardsWithArt: number; handCount: number }
-    | null = null;
   let pendingOverlay: PrivateOverlayPayload | null = null;
   let overlayFlushTimer: number | null = null;
 
@@ -232,27 +224,8 @@ export function setupSessionResources({
     token,
     playerId: ensuredPlayerId,
     viewerRole: intentViewerRole,
-    onOpen: () => {
-      if (!debugIntent) return;
-      console.info("[party] intent connected", {
-        host: partyHost,
-        room: sessionId,
-        viewerRole: intentViewerRole,
-        playerId: ensuredPlayerId,
-        hasToken: Boolean(token),
-      });
-    },
     onMessage: (message) => {
       if (message.type === "ack") {
-        if (debugIntent && (!loggedAck || !message.ok)) {
-          loggedAck = true;
-          console.info("[party] intent ack received", {
-            room: sessionId,
-            intentId: message.intentId,
-            ok: message.ok,
-            error: message.error,
-          });
-        }
         const error = handleIntentAck(message, useGameStore.setState);
         if (error) {
           toast.error(error);
@@ -260,15 +233,6 @@ export function setupSessionResources({
         return;
       }
       if (message.type === "roomTokens") {
-        if (debugIntent && !loggedRoomTokens) {
-          loggedRoomTokens = true;
-          console.info("[party] intent room tokens received", {
-            room: sessionId,
-            viewerRole: intentViewerRole,
-            hasPlayerToken: Boolean(message.payload?.playerToken),
-            hasSpectatorToken: Boolean(message.payload?.spectatorToken),
-          });
-        }
         const payload = message.payload as RoomTokensPayload;
         useGameStore.getState().setRoomTokens(payload);
         writeRoomTokensToStorage(
@@ -279,58 +243,11 @@ export function setupSessionResources({
         return;
       }
       if (message.type === "privateOverlay") {
-        const payloadCards = Array.isArray(message.payload?.cards)
-          ? message.payload.cards
-          : [];
-        const cardsWithArt = payloadCards.filter(
-          (card) => typeof card.imageUrl === "string" && card.imageUrl.length > 0
-        ).length;
-        const state = useGameStore.getState();
-        const myPlayerId = state.myPlayerId;
-        const handZone = Object.values(state.zones).find(
-          (zone) => zone.type === ZONE.HAND && zone.ownerId === myPlayerId
-        );
-        const handCount = Array.isArray(handZone?.cardIds) ? handZone.cardIds.length : 0;
-        if (debugIntent) {
-          const summary = { cardCount: payloadCards.length, cardsWithArt, handCount };
-          const shouldLogSummary =
-            !lastOverlaySummary ||
-            lastOverlaySummary.cardCount !== summary.cardCount ||
-            lastOverlaySummary.cardsWithArt !== summary.cardsWithArt ||
-            lastOverlaySummary.handCount !== summary.handCount ||
-            (summary.handCount > 0 && summary.cardCount === 0);
-          if (shouldLogSummary) {
-            const sampleCard = payloadCards[0];
-            console.info("[party] intent private overlay received", {
-              room: sessionId,
-              ...summary,
-              sample: !loggedOverlay && sampleCard
-                ? {
-                    id: sampleCard.id,
-                    name: sampleCard.name,
-                    imageUrl: sampleCard.imageUrl,
-                    zoneId: sampleCard.zoneId,
-                    ownerId: sampleCard.ownerId,
-                    faceDown: sampleCard.faceDown,
-                  }
-                : null,
-            });
-            loggedOverlay = true;
-            lastOverlaySummary = summary;
-          }
-        }
         pendingOverlay = message.payload as PrivateOverlayPayload;
         scheduleOverlayFlush();
         return;
       }
       if (message.type === "logEvent") {
-        if (debugIntent) {
-          console.info("[party] intent log event received", {
-            room: sessionId,
-            eventId: message.eventId,
-            actorId: (message.payload as { actorId?: string })?.actorId,
-          });
-        }
         const { players, cards, zones } = useGameStore.getState();
         emitLog(message.eventId as any, message.payload as any, {
           players,
@@ -340,14 +257,6 @@ export function setupSessionResources({
       }
     },
     onClose: (event) => {
-      if (debugIntent) {
-        console.warn("[party] intent disconnected", {
-          room: sessionId,
-          code: event.code,
-          reason: event.reason,
-          wasClean: event.wasClean,
-        });
-      }
       if (event.code === 1008) {
         onAuthFailure?.(event.reason || "policy");
       }

@@ -29,13 +29,6 @@ export const createUpdateCard =
       Object.prototype.hasOwnProperty.call(updates, "position") ||
       Object.prototype.hasOwnProperty.call(updates, "counters")
     ) {
-      console.warn(
-        "[updateCard] Unsupported fields (use moveCard / addCounterToCard instead)",
-        {
-          cardId: id,
-          fields: Object.keys(updates),
-        }
-      );
       return;
     }
 

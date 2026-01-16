@@ -106,9 +106,7 @@ export const useTokenCreationController = ({
     const state = useGameStore.getState();
     const battlefield = state.zones[battlefieldZoneId];
 
-    cacheCards([selectedToken]).catch((err) => {
-      console.warn("[TokenCreationModal] Failed to cache token card:", err);
-    });
+    cacheCards([selectedToken]).catch(() => {});
 
     const planned = planTokenCards({
       token: selectedToken,

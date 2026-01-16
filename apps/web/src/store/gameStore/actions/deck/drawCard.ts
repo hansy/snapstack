@@ -38,14 +38,6 @@ export const createDrawCard =
 
     const player = state.players[playerId];
     if (player && typeof player.libraryCount === "number" && player.libraryCount <= 0) {
-      if (import.meta.env.DEV) {
-        console.warn("[party] drawCard blocked by libraryCount", {
-          playerId,
-          actorId: actor,
-          libraryCount: player.libraryCount,
-          deckLoaded: player.deckLoaded,
-        });
-      }
       return;
     }
 

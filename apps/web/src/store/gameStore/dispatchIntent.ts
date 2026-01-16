@@ -95,29 +95,7 @@ export const createIntentDispatcher = (
         type,
         payload,
       };
-      const sent = sendIntent(intent);
-      if (!sent && import.meta.env.DEV) {
-        console.warn("[party] intent send failed", {
-          intentId,
-          type,
-        });
-      } else if (import.meta.env.DEV) {
-        if (
-          type === "library.draw" ||
-          type === "library.shuffle" ||
-          type === "deck.load" ||
-          type === "deck.reset" ||
-          type === "deck.mulligan" ||
-          type === "card.add" ||
-          type === "card.add.batch"
-        ) {
-          console.info("[party] intent sent", {
-            intentId,
-            type,
-            actorId: typeof payload.actorId === "string" ? payload.actorId : undefined,
-          });
-        }
-      }
+      sendIntent(intent);
     }
 
     pendingIntents.push({ id: intentId, applyLocal });

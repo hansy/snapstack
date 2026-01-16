@@ -19,7 +19,6 @@ import {
   RATE_LIMIT_WINDOW_MS,
   STORAGE_KEY_DOC,
   STORAGE_KEY_TIMESTAMP,
-  resolveDebugSignal,
 } from "./constants";
 import { type HandshakeParams, isValidHandshake, parseHandshakeParams } from "./handshake";
 import { getRoomFromUrl, isValidRoomName } from "./request";
@@ -53,7 +52,6 @@ export class SignalRoom extends DurableObject {
   emptyTimer: number | null;
   persistTimer: number | null;
   stateRestorePromise: Promise<void>;
-  debugSignalEnabled: boolean;
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
@@ -75,7 +73,6 @@ export class SignalRoom extends DurableObject {
     this.awareness = new awarenessProtocol.Awareness(this.doc);
     this.emptyTimer = null;
     this.persistTimer = null;
-    this.debugSignalEnabled = resolveDebugSignal(this.env);
     // Restore state from storage on initialization - save promise so fetch() can await it
     this.stateRestorePromise = this.restoreFromStorage();
     this.setupDocListeners();
@@ -128,11 +125,8 @@ export class SignalRoom extends DurableObject {
     }, PERSIST_DEBOUNCE_MS) as unknown as number;
   }
 
-  private dbg(...args: any[]) {
-    if (!this.debugSignalEnabled) return;
-    try {
-      console.log("[signal]", ...args);
-    } catch (_err) {}
+  private dbg(..._args: any[]) {
+    void _args;
   }
 
   private tryClose(ws: WebSocket, code?: number, reason?: string) {
@@ -365,8 +359,7 @@ export class SignalRoom extends DurableObject {
     let messageType: number;
     try {
       messageType = decoding.readVarUint(decoder);
-    } catch (err) {
-      console.warn("[signal] failed to decode message type", err);
+    } catch {
       this.tryClose(ws, 1003, "decode error");
       return;
     }
@@ -376,8 +369,7 @@ export class SignalRoom extends DurableObject {
         try {
           encoding.writeVarUint(encoder, messageSync);
           syncProtocol.readSyncMessage(decoder, encoder, this.doc, ws);
-        } catch (err) {
-          console.warn("[signal] sync decode failed", err);
+        } catch {
           this.tryClose(ws, 1003, "sync decode error");
           return;
         }
@@ -428,7 +420,6 @@ export class SignalRoom extends DurableObject {
         break;
       }
       default:
-        console.warn("[signal] unknown message type", messageType);
     }
   }
 
@@ -468,10 +459,6 @@ export class SignalRoom extends DurableObject {
 
     ws.accept();
     let closed = false;
-    // room name preserved for potential logging
-    const _roomNameForLog: RoomName = room;
-    void _roomNameForLog;
-
     this.registerConnection(ws, meta);
     const snapPlayers = this.doc.getMap("players").size;
     const snapZones = this.doc.getMap("zones").size;
@@ -589,8 +576,7 @@ export class SignalRoom extends DurableObject {
           decoding.readVarString(decoderUpdate);
         } catch (_err) {} // payload
       }
-    } catch (err) {
-      console.warn("[signal] awareness id decode failed", err);
+    } catch {
     }
     return ids;
   }

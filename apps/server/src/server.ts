@@ -1,5 +1,9 @@
 import { DurableObjectNamespace } from "cloudflare:workers";
-import { routePartykitRequest, type Connection, type ConnectionContext } from "partyserver";
+import {
+  routePartykitRequest,
+  type Connection,
+  type ConnectionContext,
+} from "partyserver";
 import { YServer } from "y-partyserver";
 import * as Y from "yjs";
 
@@ -11,7 +15,13 @@ import {
   HIDDEN_STATE_META_KEY,
   ROOM_TOKENS_KEY,
 } from "./domain/constants";
-import type { HiddenState, HiddenStateMeta, Intent, IntentConnectionState, RoomTokens } from "./domain/types";
+import type {
+  HiddenState,
+  HiddenStateMeta,
+  Intent,
+  IntentConnectionState,
+  RoomTokens,
+} from "./domain/types";
 import { applyIntentToDoc } from "./domain/intents/applyIntentToDoc";
 import { buildOverlayForViewer } from "./domain/overlay";
 import {
@@ -35,7 +45,10 @@ const Y_DOC_STORAGE_KEY = "yjs:doc";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return (await routePartykitRequest(request, env)) ?? new Response("Not Found", { status: 404 });
+    return (
+      (await routePartykitRequest(request, env)) ??
+      new Response("Not Found", { status: 404 })
+    );
   },
 };
 
@@ -43,8 +56,14 @@ export class Room extends YServer<Env> {
   private intentConnections = new Set<Connection>();
   private hiddenState: HiddenState | null = null;
   private roomTokens: RoomTokens | null = null;
-  private libraryViews = new Map<string, { playerId: string; count?: number }>();
-  private overlaySummaries = new Map<string, { cardCount: number; cardsWithArt: number }>();
+  private libraryViews = new Map<
+    string,
+    { playerId: string; count?: number }
+  >();
+  private overlaySummaries = new Map<
+    string,
+    { cardCount: number; cardsWithArt: number }
+  >();
 
   async onLoad() {
     const stored = await this.ctx.storage.get<ArrayBuffer>(Y_DOC_STORAGE_KEY);
@@ -77,7 +96,9 @@ export class Room extends YServer<Env> {
 
   private async ensureHiddenState(doc: Y.Doc) {
     if (this.hiddenState) return this.hiddenState;
-    const storedMeta = await this.ctx.storage.get<HiddenStateMeta>(HIDDEN_STATE_META_KEY);
+    const storedMeta = await this.ctx.storage.get<HiddenStateMeta>(
+      HIDDEN_STATE_META_KEY
+    );
     if (storedMeta) {
       const cards: Record<string, Card> = {};
       const chunkKeys = Array.isArray(storedMeta.cardChunkKeys)
@@ -112,14 +133,18 @@ export class Room extends YServer<Env> {
     if (!this.hiddenState) return;
     const { cards, ...rest } = this.hiddenState;
     const chunks = chunkHiddenCards(cards);
-    const chunkKeys = chunks.map((_chunk, index) => `${HIDDEN_STATE_CARDS_PREFIX}${index}`);
+    const chunkKeys = chunks.map(
+      (_chunk, index) => `${HIDDEN_STATE_CARDS_PREFIX}${index}`
+    );
 
     for (let index = 0; index < chunks.length; index += 1) {
       const key = chunkKeys[index];
       await this.ctx.storage.put(key, chunks[index]);
     }
 
-    const prevMeta = await this.ctx.storage.get<HiddenStateMeta>(HIDDEN_STATE_META_KEY);
+    const prevMeta = await this.ctx.storage.get<HiddenStateMeta>(
+      HIDDEN_STATE_META_KEY
+    );
     if (prevMeta?.cardChunkKeys?.length) {
       for (const key of prevMeta.cardChunkKeys) {
         if (!chunkKeys.includes(key)) {
@@ -167,7 +192,11 @@ export class Room extends YServer<Env> {
     return generated;
   }
 
-  private sendRoomTokens(conn: Connection, tokens: RoomTokens, viewerRole: "player" | "spectator") {
+  private sendRoomTokens(
+    conn: Connection,
+    tokens: RoomTokens,
+    viewerRole: "player" | "spectator"
+  ) {
     const payload =
       viewerRole === "player"
         ? tokens
@@ -197,14 +226,6 @@ export class Room extends YServer<Env> {
       try {
         conn.close(1008, reason);
       } catch (_err) {}
-      console.warn("[party] intent connection rejected", {
-        room: this.name,
-        reason,
-        connId: conn.id,
-        playerId: state.playerId,
-        viewerRole: state.viewerRole,
-        hasToken: Boolean(state.token),
-      });
     };
 
     const storedTokens = await this.loadRoomTokens();
@@ -240,7 +261,8 @@ export class Room extends YServer<Env> {
       providedToken && activeTokens?.spectatorToken === providedToken
         ? "spectator"
         : "player";
-    const resolvedPlayerId = resolvedRole === "spectator" ? undefined : state.playerId;
+    const resolvedPlayerId =
+      resolvedRole === "spectator" ? undefined : state.playerId;
     if (resolvedRole === "player" && !resolvedPlayerId) {
       rejectConnection("missing player");
       return;
@@ -250,13 +272,6 @@ export class Room extends YServer<Env> {
       playerId: resolvedPlayerId,
       viewerRole: resolvedRole,
       token: providedToken ?? activeTokens?.playerToken,
-    });
-    console.info("[party] intent connection established", {
-      room: this.name,
-      connId: conn.id,
-      playerId: resolvedPlayerId,
-      viewerRole: resolvedRole,
-      hasToken: Boolean(providedToken ?? activeTokens?.playerToken),
     });
 
     if (activeTokens) {
@@ -269,12 +284,6 @@ export class Room extends YServer<Env> {
       this.intentConnections.delete(conn);
       this.libraryViews.delete(conn.id);
       this.overlaySummaries.delete(conn.id);
-      console.warn("[party] intent connection closed", {
-        room: this.name,
-        connId: conn.id,
-        playerId: resolvedPlayerId,
-        viewerRole: resolvedRole,
-      });
     });
 
     conn.addEventListener("message", (event) => {
@@ -296,7 +305,11 @@ export class Room extends YServer<Env> {
     });
   }
 
-  private async bindSyncConnection(conn: Connection, url: URL, ctx: ConnectionContext) {
+  private async bindSyncConnection(
+    conn: Connection,
+    url: URL,
+    ctx: ConnectionContext
+  ) {
     const state = parseConnectionParams(url);
     const storedTokens = await this.loadRoomTokens();
     const providedToken = state.token;
@@ -363,29 +376,15 @@ export class Room extends YServer<Env> {
     }
 
     const payload = isRecord(intent.payload) ? { ...intent.payload } : {};
-    if (typeof payload.actorId === "string" && payload.actorId !== state.playerId) {
+    if (
+      typeof payload.actorId === "string" &&
+      payload.actorId !== state.playerId
+    ) {
       sendAck(intent.id, false, "actor mismatch");
       return;
     }
     payload.actorId = state.playerId;
     const normalizedIntent = { ...intent, payload };
-    if (
-      normalizedIntent.type === "library.draw" ||
-      normalizedIntent.type === "library.shuffle" ||
-      normalizedIntent.type === "deck.load" ||
-      normalizedIntent.type === "deck.reset" ||
-      normalizedIntent.type === "deck.mulligan" ||
-      normalizedIntent.type === "card.add" ||
-      normalizedIntent.type === "card.add.batch"
-    ) {
-      console.info("[party] intent received", {
-        room: this.name,
-        connId: conn.id,
-        intentId: normalizedIntent.id,
-        type: normalizedIntent.type,
-        actorId: state.playerId,
-      });
-    }
 
     try {
       const doc = this.document;
@@ -404,52 +403,6 @@ export class Room extends YServer<Env> {
     }
 
     sendAck(intent.id, ok, error);
-    if (
-      normalizedIntent.type === "library.draw" ||
-      normalizedIntent.type === "library.shuffle" ||
-      normalizedIntent.type === "deck.load" ||
-      normalizedIntent.type === "deck.reset" ||
-      normalizedIntent.type === "deck.mulligan" ||
-      normalizedIntent.type === "card.add" ||
-      normalizedIntent.type === "card.add.batch"
-    ) {
-      console.info("[party] intent ack", {
-        room: this.name,
-        connId: conn.id,
-        intentId: normalizedIntent.id,
-        type: normalizedIntent.type,
-        ok,
-        error,
-      });
-    }
-    if (
-      normalizedIntent.type === "library.draw" ||
-      normalizedIntent.type === "library.shuffle" ||
-      normalizedIntent.type === "deck.load" ||
-      normalizedIntent.type === "deck.reset" ||
-      normalizedIntent.type === "deck.mulligan" ||
-      normalizedIntent.type === "card.add" ||
-      normalizedIntent.type === "card.add.batch"
-    ) {
-      console.info("[party] intent result", {
-        room: this.name,
-        connId: conn.id,
-        intentId: normalizedIntent.id,
-        type: normalizedIntent.type,
-        ok,
-        hiddenChanged,
-        logEvents: logEvents.map((event) => event.eventId),
-      });
-    }
-
-    if (!ok) {
-      console.warn("[party] intent rejected", {
-        type: normalizedIntent.type,
-        actorId: state.playerId,
-        viewerRole: state.viewerRole,
-        error,
-      });
-    }
 
     if (ok && hiddenChanged) {
       await this.broadcastOverlays();
@@ -489,15 +442,16 @@ export class Room extends YServer<Env> {
     }
   }
 
-  private broadcastLogEvents(logEvents: { eventId: string; payload: Record<string, unknown> }[]) {
+  private broadcastLogEvents(
+    logEvents: { eventId: string; payload: Record<string, unknown> }[]
+  ) {
     if (logEvents.length === 0) return;
-    console.info("[party] log events broadcast", {
-      room: this.name,
-      eventIds: logEvents.map((event) => event.eventId),
-      connectionCount: this.intentConnections.size,
-    });
     const messages = logEvents.map((event) =>
-      JSON.stringify({ type: "logEvent", eventId: event.eventId, payload: event.payload })
+      JSON.stringify({
+        type: "logEvent",
+        eventId: event.eventId,
+        payload: event.payload,
+      })
     );
     for (const connection of this.intentConnections) {
       for (const message of messages) {
@@ -508,11 +462,16 @@ export class Room extends YServer<Env> {
     }
   }
 
-  private async sendOverlayForConnection(conn: Connection, maps?: ReturnType<typeof getMaps>, hidden?: HiddenState) {
+  private async sendOverlayForConnection(
+    conn: Connection,
+    maps?: ReturnType<typeof getMaps>,
+    hidden?: HiddenState
+  ) {
     try {
       const activeMaps = maps ?? getMaps(this.document);
       if (!activeMaps) return;
-      const activeHidden = hidden ?? (await this.ensureHiddenState(this.document));
+      const activeHidden =
+        hidden ?? (await this.ensureHiddenState(this.document));
       if (!activeHidden) return;
       const state = (conn.state ?? {}) as IntentConnectionState;
       const viewerRole = state.viewerRole ?? "player";
@@ -527,12 +486,14 @@ export class Room extends YServer<Env> {
       });
       const cardCount = Array.isArray(overlay.cards) ? overlay.cards.length : 0;
       const cardsWithArt = Array.isArray(overlay.cards)
-        ? overlay.cards.filter((card) => typeof card.imageUrl === "string" && card.imageUrl.length > 0)
-            .length
+        ? overlay.cards.filter(
+            (card) =>
+              typeof card.imageUrl === "string" && card.imageUrl.length > 0
+          ).length
         : 0;
       const viewerHandCount =
         viewerRole !== "spectator" && viewerId
-          ? activeHidden.handOrder[viewerId]?.length ?? 0
+          ? (activeHidden.handOrder[viewerId]?.length ?? 0)
           : 0;
       const previous = this.overlaySummaries.get(conn.id);
       const changed =
@@ -541,16 +502,6 @@ export class Room extends YServer<Env> {
         previous.cardsWithArt !== cardsWithArt ||
         (viewerHandCount > 0 && cardCount === 0);
       if (changed) {
-        console.info("[party] overlay summary", {
-          room: this.name,
-          connId: conn.id,
-          viewerRole,
-          viewerId,
-          cardCount,
-          cardsWithArt,
-          viewerHandCount,
-          libraryViewCount: libraryView?.count,
-        });
         this.overlaySummaries.set(conn.id, { cardCount, cardsWithArt });
       }
       conn.send(JSON.stringify({ type: "privateOverlay", payload: overlay }));
@@ -559,10 +510,7 @@ export class Room extends YServer<Env> {
 
   private async broadcastOverlays() {
     if (this.intentConnections.size === 0) return;
-    console.info("[party] overlay broadcast", {
-      room: this.name,
-      connectionCount: this.intentConnections.size,
-    });
+
     const maps = getMaps(this.document);
     const hidden = await this.ensureHiddenState(this.document);
     for (const connection of this.intentConnections) {
@@ -575,11 +523,14 @@ export class Room extends YServer<Env> {
     if (state.viewerRole === "spectator") return;
     const viewerId = state.playerId;
     const payload = isRecord(intent.payload) ? intent.payload : {};
-    const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
+    const playerId =
+      typeof payload.playerId === "string" ? payload.playerId : null;
     if (!playerId) return;
     if (viewerId && viewerId !== playerId) return;
     const count =
-      typeof payload.count === "number" && Number.isFinite(payload.count) && payload.count > 0
+      typeof payload.count === "number" &&
+      Number.isFinite(payload.count) &&
+      payload.count > 0
         ? Math.floor(payload.count)
         : undefined;
     this.libraryViews.set(conn.id, { playerId, ...(count ? { count } : null) });
