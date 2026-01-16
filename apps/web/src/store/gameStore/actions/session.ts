@@ -119,7 +119,7 @@ export const createSessionActions = (
     if (sessionId) {
       dispatchIntent({
         type: "player.leave",
-        payload: { playerId },
+        payload: { playerId, actorId: playerId },
       });
 
       try {

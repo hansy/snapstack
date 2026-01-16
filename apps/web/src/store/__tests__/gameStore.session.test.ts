@@ -1,6 +1,15 @@
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { sendIntent } from '@/partykit/intentTransport';
 import { useGameStore } from '../gameStore';
 import { ensureLocalStorage } from '../testUtils';
+
+vi.mock('@/partykit/intentTransport', () => ({
+  sendIntent: vi.fn(),
+  clearIntentTransport: vi.fn(),
+}));
+
+const sendIntentMock = vi.mocked(sendIntent);
 
 describe('gameStore session actions', () => {
   beforeAll(() => {
@@ -9,6 +18,8 @@ describe('gameStore session actions', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    sendIntentMock.mockClear();
+    sendIntentMock.mockReturnValue(true);
     useGameStore.setState({
       players: {},
       playerOrder: [],
@@ -90,6 +101,12 @@ describe('gameStore session actions', () => {
     useGameStore.getState().leaveGame();
 
     const state = useGameStore.getState();
+    expect(sendIntentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'player.leave',
+        payload: { playerId: 'p5', actorId: 'p5' },
+      })
+    );
     expect(state.playerIdsBySession.s5).toBeUndefined();
     expect(state.sessionVersions.s5).toBe(1);
     expect(state.players).toEqual({});
@@ -101,10 +118,59 @@ describe('gameStore session actions', () => {
     expect(state.myPlayerId.length).toBeGreaterThan(0);
   });
 
+  it('setDeckLoaded includes actorId in deck intents', () => {
+    useGameStore.setState({
+      myPlayerId: 'p7',
+      players: {
+        p7: {
+          id: 'p7',
+          name: 'Me',
+          life: 40,
+          counters: [],
+          commanderDamage: {},
+          commanderTax: 0,
+        },
+      },
+    });
+
+    useGameStore.getState().setDeckLoaded('p7', true);
+
+    expect(sendIntentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'deck.load',
+        payload: { playerId: 'p7', actorId: 'p7' },
+      })
+    );
+  });
+
+  it('setDeckLoaded includes actorId in unload intents', () => {
+    useGameStore.setState({
+      myPlayerId: 'p8',
+      players: {
+        p8: {
+          id: 'p8',
+          name: 'Me',
+          life: 40,
+          counters: [],
+          commanderDamage: {},
+          commanderTax: 0,
+        },
+      },
+    });
+
+    useGameStore.getState().setDeckLoaded('p8', false);
+
+    expect(sendIntentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'deck.unload',
+        payload: { playerId: 'p8', actorId: 'p8' },
+      })
+    );
+  });
+
   it('setHasHydrated toggles hydration state', () => {
     expect(useGameStore.getState().hasHydrated).toBe(false);
     useGameStore.getState().setHasHydrated(true);
     expect(useGameStore.getState().hasHydrated).toBe(true);
   });
 });
-
