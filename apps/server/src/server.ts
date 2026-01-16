@@ -1,4 +1,3 @@
-import { DurableObjectNamespace } from "cloudflare:workers";
 import {
   routePartykitRequest,
   type Connection,

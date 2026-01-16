@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
-import { applyIntentToDoc, buildOverlayForViewer, createEmptyHiddenState } from "../server";
+import { applyIntentToDoc } from "../domain/intents/applyIntentToDoc";
+import { buildOverlayForViewer } from "../domain/overlay";
+import { createEmptyHiddenState } from "../domain/hiddenState";
 import type { Card } from "../../../web/src/types/cards";
 import type { Player } from "../../../web/src/types/players";
 import type { Zone, ZoneType } from "../../../web/src/types/zones";
@@ -83,7 +85,10 @@ const seedPlayers = (doc: Y.Doc, players: Player[]) => {
   order.delete(0, order.length);
   players.forEach((player) => map.set(player.id, player));
   if (players.length) {
-    order.insert(0, players.map((player) => player.id));
+    order.insert(
+      0,
+      players.map((player) => player.id)
+    );
   }
 };
 
@@ -130,12 +135,19 @@ describe("server migration behavior", () => {
       hidden,
       viewerRole: "spectator",
     });
-    expect(spectatorOverlay.cards.map((card) => card.id).sort()).toEqual(["h1", "h2"]);
+    expect(spectatorOverlay.cards.map((card) => card.id).sort()).toEqual([
+      "h1",
+      "h2",
+    ]);
   });
 
   it("reveals hand cards to explicitly targeted players", () => {
     const doc = createDoc();
-    seedPlayers(doc, [createPlayer("p1"), createPlayer("p2"), createPlayer("p3")]);
+    seedPlayers(doc, [
+      createPlayer("p1"),
+      createPlayer("p2"),
+      createPlayer("p3"),
+    ]);
     const p1Hand = createZone("hand-p1", "hand", "p1");
     seedZones(doc, [p1Hand]);
 
@@ -165,7 +177,9 @@ describe("server migration behavior", () => {
   it("shows face-down identities to controller and spectators only", () => {
     const doc = createDoc();
     seedPlayers(doc, [createPlayer("p1"), createPlayer("p2")]);
-    const battlefield = createZone("battlefield-p1", "battlefield", "p1", ["fd1"]);
+    const battlefield = createZone("battlefield-p1", "battlefield", "p1", [
+      "fd1",
+    ]);
     seedZones(doc, [battlefield]);
     seedCards(doc, [
       createCard("fd1", "p1", battlefield.id, {
@@ -235,7 +249,9 @@ describe("server migration behavior", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error).toBe("Cannot move from a hidden zone you do not own");
+      expect(result.error).toBe(
+        "Cannot move from a hidden zone you do not own"
+      );
     }
   });
 
@@ -270,7 +286,10 @@ describe("server migration behavior", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.logEvents.map((event) => event.eventId)).toEqual(["card.draw", "card.draw"]);
+      expect(result.logEvents.map((event) => event.eventId)).toEqual([
+        "card.draw",
+        "card.draw",
+      ]);
     }
   });
 
@@ -497,7 +516,9 @@ describe("server migration behavior", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.logEvents.map((event) => event.eventId)).toEqual(["library.shuffle"]);
+      expect(result.logEvents.map((event) => event.eventId)).toEqual([
+        "library.shuffle",
+      ]);
     }
     const shuffled = hidden.libraryOrder.p1;
     expect([...shuffled].sort()).toEqual(["c1", "c2", "c3"]);
@@ -538,7 +559,9 @@ describe("server migration behavior", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.logEvents.map((event) => event.eventId)).toEqual(["card.discard"]);
+      expect(result.logEvents.map((event) => event.eventId)).toEqual([
+        "card.discard",
+      ]);
       expect(result.logEvents[0]?.payload).toMatchObject({
         actorId: "p1",
         playerId: "p1",
@@ -679,7 +702,9 @@ describe("server migration behavior", () => {
     );
     expect(lifeUpdate.ok).toBe(true);
     if (lifeUpdate.ok) {
-      expect(lifeUpdate.logEvents.map((event) => event.eventId)).toEqual(["player.life"]);
+      expect(lifeUpdate.logEvents.map((event) => event.eventId)).toEqual([
+        "player.life",
+      ]);
     }
     const player = doc.getMap("players").get("p1") as Player;
     expect(player.life).toBe(30);
@@ -699,7 +724,9 @@ describe("server migration behavior", () => {
     );
     expect(revealUpdate.ok).toBe(true);
     if (revealUpdate.ok) {
-      expect(revealUpdate.logEvents.map((event) => event.eventId)).toEqual(["library.topReveal"]);
+      expect(revealUpdate.logEvents.map((event) => event.eventId)).toEqual([
+        "library.topReveal",
+      ]);
     }
   });
 
@@ -1035,7 +1062,9 @@ describe("server migration behavior", () => {
     );
     expect(add.ok).toBe(true);
     if (add.ok) {
-      expect(add.logEvents.map((event) => event.eventId)).toEqual(["counter.add"]);
+      expect(add.logEvents.map((event) => event.eventId)).toEqual([
+        "counter.add",
+      ]);
     }
     const card = doc.getMap("cards").get("c1") as Card;
     expect(card.counters[0]?.count).toBe(2);
@@ -1056,7 +1085,9 @@ describe("server migration behavior", () => {
     );
     expect(remove.ok).toBe(true);
     if (remove.ok) {
-      expect(remove.logEvents.map((event) => event.eventId)).toEqual(["counter.remove"]);
+      expect(remove.logEvents.map((event) => event.eventId)).toEqual([
+        "counter.remove",
+      ]);
     }
   });
 
@@ -1067,7 +1098,10 @@ describe("server migration behavior", () => {
     seedZones(doc, [battlefield]);
     seedCards(doc, [
       createCard("c1", "p1", battlefield.id, { controllerId: "p1" }),
-      createCard("c2", "p1", battlefield.id, { controllerId: "p2", tapped: true }),
+      createCard("c2", "p1", battlefield.id, {
+        controllerId: "p2",
+        tapped: true,
+      }),
     ]);
 
     const hidden = createEmptyHiddenState();
@@ -1105,7 +1139,9 @@ describe("server migration behavior", () => {
     );
     expect(tapped.ok).toBe(true);
     if (tapped.ok) {
-      expect(tapped.logEvents.map((event) => event.eventId)).toEqual(["card.tap"]);
+      expect(tapped.logEvents.map((event) => event.eventId)).toEqual([
+        "card.tap",
+      ]);
     }
     const card = doc.getMap("cards").get("c1") as Card;
     expect(card.tapped).toBe(true);
@@ -1234,7 +1270,9 @@ describe("server migration behavior", () => {
     );
     expect(denied.ok).toBe(false);
     if (!denied.ok) {
-      expect(denied.error).toBe("Cannot place into a hidden zone you do not own");
+      expect(denied.error).toBe(
+        "Cannot place into a hidden zone you do not own"
+      );
     }
   });
 
@@ -1259,7 +1297,9 @@ describe("server migration behavior", () => {
     );
     expect(created.ok).toBe(true);
     if (created.ok) {
-      expect(created.logEvents.map((event) => event.eventId)).toEqual(["card.tokenCreate"]);
+      expect(created.logEvents.map((event) => event.eventId)).toEqual([
+        "card.tokenCreate",
+      ]);
     }
 
     const removed = applyIntentToDoc(
@@ -1276,7 +1316,9 @@ describe("server migration behavior", () => {
     );
     expect(removed.ok).toBe(true);
     if (removed.ok) {
-      expect(removed.logEvents.map((event) => event.eventId)).toEqual(["card.remove"]);
+      expect(removed.logEvents.map((event) => event.eventId)).toEqual([
+        "card.remove",
+      ]);
     }
     expect(doc.getMap("cards").get("t1")).toBeUndefined();
 
@@ -1309,7 +1351,9 @@ describe("server migration behavior", () => {
     );
     expect(deniedNonToken.ok).toBe(false);
     if (!deniedNonToken.ok) {
-      expect(deniedNonToken.error).toBe("Direct remove is allowed only for tokens");
+      expect(deniedNonToken.error).toBe(
+        "Direct remove is allowed only for tokens"
+      );
     }
   });
 
@@ -1318,7 +1362,9 @@ describe("server migration behavior", () => {
     seedPlayers(doc, [createPlayer("p1"), createPlayer("p2")]);
     const battlefield = createZone("bf-p1", "battlefield", "p1", ["c1"]);
     seedZones(doc, [battlefield]);
-    seedCards(doc, [createCard("c1", "p1", battlefield.id, { controllerId: "p1" })]);
+    seedCards(doc, [
+      createCard("c1", "p1", battlefield.id, { controllerId: "p1" }),
+    ]);
     const hidden = createEmptyHiddenState();
 
     const forbidden = applyIntentToDoc(
@@ -1480,7 +1526,9 @@ describe("server migration behavior", () => {
     );
     expect(transform.ok).toBe(true);
     if (transform.ok) {
-      expect(transform.logEvents.map((event) => event.eventId)).toEqual(["card.transform"]);
+      expect(transform.logEvents.map((event) => event.eventId)).toEqual([
+        "card.transform",
+      ]);
     }
 
     const duplicate = applyIntentToDoc(
@@ -1574,7 +1622,9 @@ describe("server migration behavior", () => {
     );
     expect(denied.ok).toBe(false);
     if (!denied.ok) {
-      expect(denied.error).toBe("Cannot place cards into another player's command zone");
+      expect(denied.error).toBe(
+        "Cannot place cards into another player's command zone"
+      );
     }
   });
 
@@ -1618,7 +1668,9 @@ describe("server migration behavior", () => {
     );
     expect(validFlip.ok).toBe(true);
     if (validFlip.ok) {
-      expect(validFlip.logEvents.map((event) => event.eventId)).toEqual(["coin.flip"]);
+      expect(validFlip.logEvents.map((event) => event.eventId)).toEqual([
+        "coin.flip",
+      ]);
     }
 
     const invalidFlip = applyIntentToDoc(
@@ -1654,7 +1706,9 @@ describe("server migration behavior", () => {
     );
     expect(validRoll.ok).toBe(true);
     if (validRoll.ok) {
-      expect(validRoll.logEvents.map((event) => event.eventId)).toEqual(["dice.roll"]);
+      expect(validRoll.logEvents.map((event) => event.eventId)).toEqual([
+        "dice.roll",
+      ]);
     }
 
     const invalidRoll = applyIntentToDoc(
@@ -1793,7 +1847,9 @@ describe("server migration behavior", () => {
     seedPlayers(doc, [createPlayer("p1"), createPlayer("p2")]);
     const battlefield = createZone("bf-p1", "battlefield", "p1", ["c1"]);
     seedZones(doc, [battlefield]);
-    seedCards(doc, [createCard("c1", "p1", battlefield.id, { controllerId: "p1" })]);
+    seedCards(doc, [
+      createCard("c1", "p1", battlefield.id, { controllerId: "p1" }),
+    ]);
     const hidden = createEmptyHiddenState();
 
     const ptUpdate = applyIntentToDoc(
@@ -1811,7 +1867,9 @@ describe("server migration behavior", () => {
     );
     expect(ptUpdate.ok).toBe(true);
     if (ptUpdate.ok) {
-      expect(ptUpdate.logEvents.map((event) => event.eventId)).toEqual(["card.pt"]);
+      expect(ptUpdate.logEvents.map((event) => event.eventId)).toEqual([
+        "card.pt",
+      ]);
     }
 
     const dupDenied = applyIntentToDoc(
@@ -1921,7 +1979,9 @@ describe("server migration behavior", () => {
     );
     expect(tokenDenied.ok).toBe(false);
     if (!tokenDenied.ok) {
-      expect(tokenDenied.error).toBe("Only owner may move this token off the battlefield");
+      expect(tokenDenied.error).toBe(
+        "Only owner may move this token off the battlefield"
+      );
     }
   });
 
@@ -1997,14 +2057,20 @@ describe("server migration behavior", () => {
 
   it("resets decks by clearing zones, reveals, and top reveal state", () => {
     const doc = createDoc();
-    seedPlayers(doc, [createPlayer("p1", { libraryTopReveal: "all", deckLoaded: true })]);
+    seedPlayers(doc, [
+      createPlayer("p1", { libraryTopReveal: "all", deckLoaded: true }),
+    ]);
     const library = createZone("library-p1", "library", "p1");
     const hand = createZone("hand-p1", "hand", "p1");
     const sideboard = createZone("sideboard-p1", "sideboard", "p1");
-    const battlefield = createZone("battlefield-p1", "battlefield", "p1", ["cPublic"]);
+    const battlefield = createZone("battlefield-p1", "battlefield", "p1", [
+      "cPublic",
+    ]);
     seedZones(doc, [library, hand, sideboard, battlefield]);
 
-    seedCards(doc, [createCard("cPublic", "p1", battlefield.id, { knownToAll: true })]);
+    seedCards(doc, [
+      createCard("cPublic", "p1", battlefield.id, { knownToAll: true }),
+    ]);
 
     const hidden = createEmptyHiddenState();
     hidden.handOrder = { p1: ["h1"] };
@@ -2020,7 +2086,10 @@ describe("server migration behavior", () => {
     const handRevealsToAll = doc.getMap("handRevealsToAll");
     handRevealsToAll.set("h1", { name: "Card h1" });
     const libraryRevealsToAll = doc.getMap("libraryRevealsToAll");
-    libraryRevealsToAll.set("l1", { card: { name: "Card l1" }, orderKey: "k1" });
+    libraryRevealsToAll.set("l1", {
+      card: { name: "Card l1" },
+      orderKey: "k1",
+    });
 
     const result = applyIntentToDoc(
       doc,
@@ -2037,7 +2106,9 @@ describe("server migration behavior", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.logEvents.map((event) => event.eventId)).toEqual(["deck.reset"]);
+      expect(result.logEvents.map((event) => event.eventId)).toEqual([
+        "deck.reset",
+      ]);
     }
     const zonesMap = doc.getMap("zones");
     expect((zonesMap.get(hand.id) as Zone).cardIds).toEqual([]);
@@ -2106,11 +2177,15 @@ describe("server migration behavior", () => {
 
   it("unloads decks by removing all cards and clearing flags", () => {
     const doc = createDoc();
-    seedPlayers(doc, [createPlayer("p1", { libraryTopReveal: "self", deckLoaded: true })]);
+    seedPlayers(doc, [
+      createPlayer("p1", { libraryTopReveal: "self", deckLoaded: true }),
+    ]);
     const library = createZone("library-p1", "library", "p1");
     const hand = createZone("hand-p1", "hand", "p1");
     const sideboard = createZone("sideboard-p1", "sideboard", "p1");
-    const battlefield = createZone("battlefield-p1", "battlefield", "p1", ["cPublic"]);
+    const battlefield = createZone("battlefield-p1", "battlefield", "p1", [
+      "cPublic",
+    ]);
     seedZones(doc, [library, hand, sideboard, battlefield]);
     seedCards(doc, [createCard("cPublic", "p1", battlefield.id)]);
 
@@ -2139,7 +2214,9 @@ describe("server migration behavior", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.logEvents.map((event) => event.eventId)).toEqual(["deck.unload"]);
+      expect(result.logEvents.map((event) => event.eventId)).toEqual([
+        "deck.unload",
+      ]);
     }
     expect(doc.getMap("cards").size).toBe(0);
     expect(hidden.cards.h1).toBeUndefined();
@@ -2217,7 +2294,10 @@ describe("server migration behavior", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.logEvents.map((event) => event.eventId)).toEqual(["deck.reset", "card.draw"]);
+      expect(result.logEvents.map((event) => event.eventId)).toEqual([
+        "deck.reset",
+        "card.draw",
+      ]);
       expect(result.logEvents[1]?.payload).toMatchObject({
         actorId: "p1",
         playerId: "p1",
@@ -2276,7 +2356,9 @@ describe("server migration behavior", () => {
   it("preserves known-to-all hand identity but hides identity in library", () => {
     const doc = createDoc();
     seedPlayers(doc, [createPlayer("p1")]);
-    const battlefield = createZone("battlefield-p1", "battlefield", "p1", ["c1"]);
+    const battlefield = createZone("battlefield-p1", "battlefield", "p1", [
+      "c1",
+    ]);
     const hand = createZone("hand-p1", "hand", "p1");
     const library = createZone("library-p1", "library", "p1");
     seedZones(doc, [battlefield, hand, library]);

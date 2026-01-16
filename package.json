@@ -6,11 +6,9 @@
     "dev": "bun run --cwd apps/web dev",
     "build": "bun run --cwd apps/web build",
     "preview": "bun run --cwd apps/web preview",
-    "test": "bun run --cwd apps/web test",
+    "test": "bun run --cwd apps/web test && bun run --cwd apps/server test",
     "deploy:web": "bun run --cwd apps/web deploy",
     "cf-typegen": "bun run --cwd apps/web cf-typegen",
-    "ws:dev": "bun run --cwd apps/web ws:dev",
-    "ws:deploy": "bun run --cwd apps/web ws:deploy",
     "dev:server": "bun run --cwd apps/server dev",
     "deploy:server": "bun run --cwd apps/server deploy"
   },

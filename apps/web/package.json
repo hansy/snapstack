@@ -5,8 +5,6 @@
   "scripts": {
     "dev": "vite dev",
     "deploy": "bun run build && wrangler deploy",
-    "ws:dev": "wrangler dev --config ../server/wrangler.jsonc",
-    "ws:deploy": "wrangler deploy --config ../server/wrangler.jsonc",
     "preview": "bun run build && vite preview",
     "cf-typegen": "wrangler types",
     "build": "vite build",
