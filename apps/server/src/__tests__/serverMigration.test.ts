@@ -1518,11 +1518,12 @@ describe("server migration behavior", () => {
       doc,
       {
         id: "intent-54",
-        type: "card.move.bottom",
+        type: "card.move",
         payload: {
           actorId: "p1",
           cardId: "c2",
           toZoneId: battlefield.id,
+          placement: "bottom",
         },
       },
       hidden

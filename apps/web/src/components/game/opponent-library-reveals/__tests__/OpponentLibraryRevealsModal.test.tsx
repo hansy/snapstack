@@ -1,8 +1,10 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { DndContext } from "@dnd-kit/core";
 
 import { useGameStore } from "@/store/gameStore";
 import { ZONE } from "@/constants/zones";
+import { CardPreviewProvider } from "@/components/game/card/CardPreviewProvider";
 
 import { OpponentLibraryRevealsModal } from "../OpponentLibraryRevealsModal";
 
@@ -27,7 +29,13 @@ describe("OpponentLibraryRevealsModal", () => {
 
     const onClose = vi.fn();
 
-    render(<OpponentLibraryRevealsModal isOpen onClose={onClose} zoneId="lib-p1" />);
+    render(
+      <DndContext>
+        <CardPreviewProvider>
+          <OpponentLibraryRevealsModal isOpen onClose={onClose} zoneId="lib-p1" />
+        </CardPreviewProvider>
+      </DndContext>
+    );
 
     expect(await screen.findByText("Revealed cards in Opponent's library")).toBeTruthy();
     expect(screen.getByText("Revealed Card")).toBeTruthy();

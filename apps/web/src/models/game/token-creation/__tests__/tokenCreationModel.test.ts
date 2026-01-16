@@ -29,7 +29,7 @@ describe("tokenCreationModel", () => {
       zoneId: "p1-battlefield",
       tapped: false,
       faceDown: false,
-      position: { x: 0.1, y: 0.1 },
+      position: { x: 0.5, y: 0.5 },
       rotation: 0,
       counters: [],
     };
@@ -48,10 +48,10 @@ describe("tokenCreationModel", () => {
 
     expect(planned).toHaveLength(2);
 
-    expect(planned[0]?.position.x).toBeCloseTo(0.1 + GRID_STEP_X, 6);
-    expect(planned[0]?.position.y).toBeCloseTo(0.1 + GRID_STEP_Y, 6);
-    expect(planned[1]?.position.x).toBeCloseTo(0.1 + 2 * GRID_STEP_X, 6);
-    expect(planned[1]?.position.y).toBeCloseTo(0.1 + 2 * GRID_STEP_Y, 6);
+    expect(planned[0]?.position.x).toBeCloseTo(0.5 + GRID_STEP_X, 6);
+    expect(planned[0]?.position.y).toBeCloseTo(0.5 + GRID_STEP_Y, 6);
+    expect(planned[1]?.position.x).toBeCloseTo(0.5 + 2 * GRID_STEP_X, 6);
+    expect(planned[1]?.position.y).toBeCloseTo(0.5 + 2 * GRID_STEP_Y, 6);
   });
 
   it("derives name and P/T from token faces and top-level fields", () => {

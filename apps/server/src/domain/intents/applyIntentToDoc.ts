@@ -881,25 +881,11 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
         if (!permission.allowed) {
           return { ok: false, error: permission.reason ?? "not permitted" };
         }
-        return applyCardMove(maps, hidden, payload, "top", pushLogEvent, markHiddenChanged);
-      }
-      case "card.move.bottom": {
-        const cardId = typeof payload.cardId === "string" ? payload.cardId : null;
-        const toZoneId = typeof payload.toZoneId === "string" ? payload.toZoneId : null;
-        if (!cardId || !toZoneId) return { ok: false, error: "invalid move" };
-        const toZone = readZone(maps, toZoneId);
-        if (!toZone) return { ok: false, error: "zone not found" };
-        const publicCard = readCard(maps, cardId);
-        const hiddenCard = !publicCard ? hidden.cards[cardId] : null;
-        const card = publicCard ?? hiddenCard;
-        if (!card) return { ok: false, error: "card not found" };
-        const fromZone = readZone(maps, card.zoneId);
-        if (!fromZone) return { ok: false, error: "zone not found" };
-        const permission = canMoveCard(actorId, card, fromZone, toZone);
-        if (!permission.allowed) {
-          return { ok: false, error: permission.reason ?? "not permitted" };
-        }
-        return applyCardMove(maps, hidden, payload, "bottom", pushLogEvent, markHiddenChanged);
+        const placement =
+          typeof payload.placement === "string" && (payload.placement === "bottom" || payload.placement === "top")
+            ? payload.placement
+            : "top";
+        return applyCardMove(maps, hidden, payload, placement, pushLogEvent, markHiddenChanged);
       }
       case "library.draw": {
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;

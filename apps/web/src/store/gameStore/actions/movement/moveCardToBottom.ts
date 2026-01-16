@@ -79,8 +79,8 @@ export const createMoveCardToBottom =
     });
 
     dispatchIntent({
-      type: "card.move.bottom",
-      payload: { cardId, toZoneId, actorId: actor },
+      type: "card.move",
+      payload: { cardId, toZoneId, actorId: actor, placement: "bottom" },
       isRemote: _isRemote,
     });
 
