@@ -1,10 +1,7 @@
 {
   "name": "mtg",
-  "private": true,
   "packageManager": "bun@1.2.21",
-  "workspaces": [
-    "apps/*"
-  ],
+  "private": true,
   "scripts": {
     "dev": "bun run --cwd apps/web dev",
     "build": "bun run --cwd apps/web build",
@@ -15,8 +12,9 @@
     "ws:dev": "bun run --cwd apps/web ws:dev",
     "ws:deploy": "bun run --cwd apps/web ws:deploy",
     "dev:server": "bun run --cwd apps/server dev",
-    "deploy:server": "bun run --cwd apps/server deploy",
-    "dev:server2": "bun run --cwd apps/server2 dev",
-    "deploy:server2": "bun run --cwd apps/server2 deploy"
-  }
+    "deploy:server": "bun run --cwd apps/server deploy"
+  },
+  "workspaces": [
+    "apps/*"
+  ]
 }
