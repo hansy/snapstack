@@ -8,12 +8,10 @@ export const fetchCardById = async (fetchFn: typeof fetch, scryfallId: string): 
   try {
     const response = await fetchFn(`https://api.scryfall.com/cards/${scryfallId}`);
     if (!response.ok) {
-      console.warn(`[scryfallCache] Scryfall returned ${response.status} for ${scryfallId}`);
       return null;
     }
     return (await response.json()) as ScryfallCard;
-  } catch (err) {
-    console.warn("[scryfallCache] Network error fetching card:", err);
+  } catch {
     return null;
   }
 };
@@ -54,11 +52,9 @@ export const fetchCardCollection = async (
       for (const card of data.data) {
         results.set(card.id, card);
       }
-    } catch (err) {
-      console.warn("[scryfallCache] Batch fetch error:", err);
+    } catch {
     }
   }
 
   return results;
 };
-

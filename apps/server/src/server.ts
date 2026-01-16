@@ -167,14 +167,6 @@ export default class MtgPartyServer implements Party.Server {
       try {
         conn.close(1008, reason);
       } catch (_err) {}
-      console.warn("[party] intent connection rejected", {
-        room: this.party.id,
-        reason,
-        connId: conn.id,
-        playerId: state.playerId,
-        viewerRole: state.viewerRole,
-        hasToken: Boolean(state.token),
-      });
     };
 
     const storedTokens = await this.loadRoomTokens();
@@ -221,13 +213,6 @@ export default class MtgPartyServer implements Party.Server {
       viewerRole: resolvedRole,
       token: providedToken ?? activeTokens?.playerToken,
     });
-    console.info("[party] intent connection established", {
-      room: this.party.id,
-      connId: conn.id,
-      playerId: resolvedPlayerId,
-      viewerRole: resolvedRole,
-      hasToken: Boolean(providedToken ?? activeTokens?.playerToken),
-    });
 
     if (activeTokens) {
       this.sendRoomTokens(conn, activeTokens, resolvedRole);
@@ -239,12 +224,6 @@ export default class MtgPartyServer implements Party.Server {
       this.intentConnections.delete(conn);
       this.libraryViews.delete(conn.id);
       this.overlaySummaries.delete(conn.id);
-      console.warn("[party] intent connection closed", {
-        room: this.party.id,
-        connId: conn.id,
-        playerId: resolvedPlayerId,
-        viewerRole: resolvedRole,
-      });
     });
 
     conn.addEventListener("message", (event) => {
@@ -339,23 +318,6 @@ export default class MtgPartyServer implements Party.Server {
     }
     payload.actorId = state.playerId;
     const normalizedIntent = { ...intent, payload };
-    if (
-      normalizedIntent.type === "library.draw" ||
-      normalizedIntent.type === "library.shuffle" ||
-      normalizedIntent.type === "deck.load" ||
-      normalizedIntent.type === "deck.reset" ||
-      normalizedIntent.type === "deck.mulligan" ||
-      normalizedIntent.type === "card.add" ||
-      normalizedIntent.type === "card.add.batch"
-    ) {
-      console.info("[party] intent received", {
-        room: this.party.id,
-        connId: conn.id,
-        intentId: normalizedIntent.id,
-        type: normalizedIntent.type,
-        actorId: state.playerId,
-      });
-    }
 
     try {
       const doc = await unstable_getYDoc(this.party, YJS_OPTIONS);
@@ -374,52 +336,6 @@ export default class MtgPartyServer implements Party.Server {
     }
 
     sendAck(intent.id, ok, error);
-    if (
-      normalizedIntent.type === "library.draw" ||
-      normalizedIntent.type === "library.shuffle" ||
-      normalizedIntent.type === "deck.load" ||
-      normalizedIntent.type === "deck.reset" ||
-      normalizedIntent.type === "deck.mulligan" ||
-      normalizedIntent.type === "card.add" ||
-      normalizedIntent.type === "card.add.batch"
-    ) {
-      console.info("[party] intent ack", {
-        room: this.party.id,
-        connId: conn.id,
-        intentId: normalizedIntent.id,
-        type: normalizedIntent.type,
-        ok,
-        error,
-      });
-    }
-    if (
-      normalizedIntent.type === "library.draw" ||
-      normalizedIntent.type === "library.shuffle" ||
-      normalizedIntent.type === "deck.load" ||
-      normalizedIntent.type === "deck.reset" ||
-      normalizedIntent.type === "deck.mulligan" ||
-      normalizedIntent.type === "card.add" ||
-      normalizedIntent.type === "card.add.batch"
-    ) {
-      console.info("[party] intent result", {
-        room: this.party.id,
-        connId: conn.id,
-        intentId: normalizedIntent.id,
-        type: normalizedIntent.type,
-        ok,
-        hiddenChanged,
-        logEvents: logEvents.map((event) => event.eventId),
-      });
-    }
-
-    if (!ok) {
-      console.warn("[party] intent rejected", {
-        type: normalizedIntent.type,
-        actorId: state.playerId,
-        viewerRole: state.viewerRole,
-        error,
-      });
-    }
 
     if (ok && hiddenChanged) {
       await this.broadcastOverlays();
@@ -461,11 +377,6 @@ export default class MtgPartyServer implements Party.Server {
 
   private broadcastLogEvents(logEvents: { eventId: string; payload: Record<string, unknown> }[]) {
     if (logEvents.length === 0) return;
-    console.info("[party] log events broadcast", {
-      room: this.party.id,
-      eventIds: logEvents.map((event) => event.eventId),
-      connectionCount: this.intentConnections.size,
-    });
     const messages = logEvents.map((event) =>
       JSON.stringify({ type: "logEvent", eventId: event.eventId, payload: event.payload })
     );
@@ -512,16 +423,6 @@ export default class MtgPartyServer implements Party.Server {
         previous.cardsWithArt !== cardsWithArt ||
         (viewerHandCount > 0 && cardCount === 0);
       if (changed) {
-        console.info("[party] overlay summary", {
-          room: this.party.id,
-          connId: conn.id,
-          viewerRole,
-          viewerId,
-          cardCount,
-          cardsWithArt,
-          viewerHandCount,
-          libraryViewCount: libraryView?.count,
-        });
         this.overlaySummaries.set(conn.id, { cardCount, cardsWithArt });
       }
       conn.send(JSON.stringify({ type: "privateOverlay", payload: overlay }));
@@ -530,10 +431,6 @@ export default class MtgPartyServer implements Party.Server {
 
   private async broadcastOverlays() {
     if (this.intentConnections.size === 0) return;
-    console.info("[party] overlay broadcast", {
-      room: this.party.id,
-      connectionCount: this.intentConnections.size,
-    });
     const doc = await unstable_getYDoc(this.party, YJS_OPTIONS);
     const maps = getMaps(doc);
     const hidden = await this.ensureHiddenState(doc);

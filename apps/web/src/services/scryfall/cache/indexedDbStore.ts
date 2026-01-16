@@ -62,7 +62,6 @@ export const createIndexedDbStore = ({
 
         request.onsuccess = () => resolve((request.result as CachedCard | undefined) ?? null);
         request.onerror = () => {
-          console.warn("[scryfallCache] Error reading from DB:", request.error);
           resolve(null);
         };
       });
@@ -81,12 +80,11 @@ export const createIndexedDbStore = ({
 
         request.onsuccess = () => resolve();
         request.onerror = () => {
-          console.warn("[scryfallCache] Error writing to DB:", request.error);
           reject(request.error);
         };
       });
-    } catch (err) {
-      console.warn("[scryfallCache] Failed to store card:", err);
+    } catch {
+      // Ignore errors
     }
   };
 
@@ -173,4 +171,3 @@ export const createIndexedDbStore = ({
     count,
   };
 };
-

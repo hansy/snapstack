@@ -308,9 +308,7 @@ export const fetchScryfallCards = async (
   }
 
   if (cardsToCache.length > 0) {
-    cacheCards(cardsToCache).catch((err) => {
-      console.warn("[deckImport] Failed to cache cards:", err);
-    });
+    cacheCards(cardsToCache).catch(() => {});
   }
 
   return { cards: fetchedCards, missing: Array.from(missingMap.values()), warnings };

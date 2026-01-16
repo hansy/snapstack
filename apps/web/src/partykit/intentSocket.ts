@@ -38,18 +38,6 @@ export const createIntentSocket = ({
 
   if (onOpen) socket.onopen = () => onOpen();
   if (onClose) socket.onclose = (event) => onClose(event);
-  if (import.meta.env.DEV) {
-    socket.onerror = (event) => {
-      console.warn("[party] intent socket error", {
-        room,
-        host,
-        viewerRole,
-        playerId,
-        tokenPresent: Boolean(token),
-        event,
-      });
-    };
-  }
   if (onMessage) {
     socket.onmessage = (event) => {
       if (typeof event.data !== "string") return;
