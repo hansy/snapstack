@@ -1,16 +1,8 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../gameStore';
 import { ZONE } from '@/constants/zones';
 import { GRID_STEP_X, GRID_STEP_Y } from '@/lib/positions';
 import { ensureLocalStorage } from '../testUtils';
-import { emitLog } from '@/logging/logStore';
-
-vi.mock('@/logging/logStore', () => ({
-  emitLog: vi.fn(),
-  clearLogs: vi.fn(),
-}));
-
-const emitLogMock = vi.mocked(emitLog);
 
 const makeZone = (id: string, type: keyof typeof ZONE, ownerId: string, cardIds: string[] = []) => ({
   id,
@@ -39,7 +31,6 @@ describe('gameStore move/tap interactions', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    emitLogMock.mockClear();
     useGameStore.setState({
       cards: {},
       zones: {},
@@ -147,81 +138,6 @@ describe('gameStore move/tap interactions', () => {
     expect(moved.faceDown).toBe(false);
   });
 
-  it('logs face-down battlefield exits to public zones with card name', () => {
-    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['cFaceDown']);
-    const exile = makeZone('exile-me', 'EXILE', 'me', []);
-
-    const card = { ...makeCard('cFaceDown', battlefield.id, 'me', false), faceDown: true };
-
-    useGameStore.setState((state) => ({
-      zones: { ...state.zones, [battlefield.id]: battlefield, [exile.id]: exile },
-      cards: { ...state.cards, [card.id]: card },
-    }));
-
-    useGameStore.getState().moveCard(card.id, exile.id, undefined, 'me');
-
-    const moveCall = emitLogMock.mock.calls.find(([eventId]) => eventId === 'card.move');
-    expect(moveCall).toBeTruthy();
-    const [, payload] = moveCall as [
-      string,
-      { cardName?: string; faceDown?: boolean; forceHidden?: boolean },
-      unknown,
-    ];
-    expect(payload.cardName).toBe('Test Card');
-    expect(payload.faceDown).toBe(false);
-    expect(payload.forceHidden).toBe(false);
-  });
-
-  it('keeps face-down battlefield exits to hidden zones redacted', () => {
-    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['cFaceDown']);
-    const hand = makeZone('hand-me', 'HAND', 'me', []);
-
-    const card = { ...makeCard('cFaceDown', battlefield.id, 'me', false), faceDown: true };
-
-    useGameStore.setState((state) => ({
-      zones: { ...state.zones, [battlefield.id]: battlefield, [hand.id]: hand },
-      cards: { ...state.cards, [card.id]: card },
-    }));
-
-    useGameStore.getState().moveCard(card.id, hand.id, undefined, 'me');
-
-    const moveCall = emitLogMock.mock.calls.find(([eventId]) => eventId === 'card.move');
-    expect(moveCall).toBeTruthy();
-    const [, payload] = moveCall as [
-      string,
-      { cardName?: string; faceDown?: boolean; forceHidden?: boolean },
-      unknown,
-    ];
-    expect(payload.cardName).toBe('a card');
-    expect(payload.faceDown).toBe(false);
-    expect(payload.forceHidden).toBe(true);
-  });
-
-  it('logs face-down battlefield exits to public zones when moving to bottom', () => {
-    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['cBottom']);
-    const graveyard = makeZone('gy-me', 'GRAVEYARD', 'me', []);
-
-    const card = { ...makeCard('cBottom', battlefield.id, 'me', false), faceDown: true };
-
-    useGameStore.setState((state) => ({
-      zones: { ...state.zones, [battlefield.id]: battlefield, [graveyard.id]: graveyard },
-      cards: { ...state.cards, [card.id]: card },
-    }));
-
-    useGameStore.getState().moveCardToBottom(card.id, graveyard.id, 'me');
-
-    const moveCall = emitLogMock.mock.calls.find(([eventId]) => eventId === 'card.move');
-    expect(moveCall).toBeTruthy();
-    const [, payload] = moveCall as [
-      string,
-      { cardName?: string; faceDown?: boolean; forceHidden?: boolean },
-      unknown,
-    ];
-    expect(payload.cardName).toBe('Test Card');
-    expect(payload.faceDown).toBe(false);
-    expect(payload.forceHidden).toBe(false);
-  });
-
   it('denies tapping a card that is not on the battlefield', () => {
     const hand = makeZone('hand-me', 'HAND', 'me', ['c2']);
     const card = makeCard('c2', hand.id, 'me', false);
@@ -282,23 +198,6 @@ describe('gameStore move/tap interactions', () => {
     expect(moved.revealedTo ?? []).toHaveLength(0);
   });
 
-  it('clears reveals for all cards in a library when shuffling', () => {
-    const library = makeZone('lib-me', 'LIBRARY', 'me', ['c1', 'c2']);
-    const c1 = { ...makeCard('c1', library.id, 'me', false), revealedToAll: true, revealedTo: ['opponent'] };
-    const c2 = { ...makeCard('c2', library.id, 'me', false), knownToAll: true };
-
-    useGameStore.setState((state) => ({
-      zones: { ...state.zones, [library.id]: library },
-      cards: { ...state.cards, c1, c2 },
-    }));
-
-    useGameStore.getState().shuffleLibrary('me', 'me');
-    const next = useGameStore.getState().cards;
-    expect(next.c1.revealedToAll).toBe(false);
-    expect(next.c1.revealedTo ?? []).toHaveLength(0);
-    expect(next.c1.knownToAll).toBe(false);
-    expect(next.c2.knownToAll).toBe(false);
-  });
 
   it('caps revealedTo recipients locally to avoid divergence', () => {
     const hand = makeZone('hand-me', 'HAND', 'me', ['cR']);
@@ -374,22 +273,6 @@ describe('gameStore move/tap interactions', () => {
     expect(moved.counters).toEqual([]);
   });
 
-  it('clears counters when resetting the deck', () => {
-    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['c8']);
-    const library = makeZone('lib-me', 'LIBRARY', 'me', []);
-    const card = { ...makeCard('c8', battlefield.id, 'me'), counters: [{ type: '+1/+1', count: 3 }] };
-
-    useGameStore.setState((state) => ({
-      zones: { ...state.zones, [battlefield.id]: battlefield, [library.id]: library },
-      cards: { ...state.cards, [card.id]: card },
-    }));
-
-    useGameStore.getState().resetDeck('me', 'me');
-
-    const resetCard = useGameStore.getState().cards[card.id];
-    expect(resetCard.zoneId).toBe(library.id);
-    expect(resetCard.counters).toEqual([]);
-  });
 
   it('duplicates a battlefield card as a token and preserves its state', () => {
     const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['c9']);

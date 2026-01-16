@@ -28,9 +28,20 @@ const mockGameState = vi.hoisted(() => ({
   viewerRole: "player" as const,
   sessionId: null as string | null,
   myPlayerId: null as string | null,
+  players: {},
+  playerOrder: [],
+  zones: {},
+  cards: {},
+  roomLockedByHost: false,
+  roomOverCapacity: false,
+  roomTokens: null as any,
+  setRoomTokens: vi.fn(),
   ensurePlayerIdForSession: vi.fn(() => "player-1"),
   resetSession: vi.fn(),
   ensureSessionVersion: vi.fn(() => 1),
+  addPlayer: vi.fn(),
+  updatePlayer: vi.fn(),
+  addZone: vi.fn(),
 }));
 const docManagerMocks = vi.hoisted(() => ({
   acquireSession: vi.fn(() => ({
@@ -42,13 +53,14 @@ const docManagerMocks = vi.hoisted(() => ({
     zoneCardOrders: new Map(),
     globalCounters: new Map(),
     battlefieldViewScale: new Map(),
-    logs: new Map(),
     meta: new Map(),
+    handRevealsToAll: new Map(),
+    libraryRevealsToAll: new Map(),
+    faceDownRevealsToAll: new Map(),
   })),
   cleanupStaleSessions: vi.fn(),
   setActiveSession: vi.fn(),
   releaseSession: vi.fn(),
-  flushPendingMutations: vi.fn(),
   getSessionProvider: vi.fn(() => null),
   setSessionProvider: vi.fn(),
   getSessionAwareness: vi.fn(() => null),
@@ -59,12 +71,18 @@ const ensureLocalPlayerInitialized = vi.hoisted(() =>
 );
 const createFullSyncToStore = vi.hoisted(() => vi.fn(() => vi.fn()));
 const disposeSessionTransport = vi.hoisted(() => vi.fn());
-vi.mock("y-websocket", () => {
-  class MockWebsocketProvider {
+const intentTransportMocks = vi.hoisted(() => ({
+  createIntentTransport: vi.fn(() => ({ sendIntent: vi.fn(), close: vi.fn() })),
+  setIntentTransport: vi.fn(),
+  clearIntentTransport: vi.fn(),
+}));
+const logStoreMocks = vi.hoisted(() => ({ emitLog: vi.fn(), clearLogs: vi.fn() }));
+vi.mock("y-partykit/provider", () => {
+  class MockPartyKitProvider {
     callbacks = new Map<string, (payload: any) => void>();
     awareness: any;
 
-    constructor(_url: string, _room: string, _doc: any, opts: any) {
+    constructor(_host: string, _room: string, _doc: any, opts: any) {
       this.awareness = opts.awareness;
       providerInstances.push(this);
     }
@@ -81,7 +99,7 @@ vi.mock("y-websocket", () => {
     destroy = vi.fn();
   }
 
-  return { WebsocketProvider: MockWebsocketProvider };
+  return { default: MockPartyKitProvider };
 });
 
 // Minimal awareness mock used by the hook
@@ -115,16 +133,41 @@ vi.mock("@/store/gameStore", () => {
 });
 
 vi.mock("@/store/clientPrefsStore", () => {
-  const prefsState = { username: "test-user" };
+  const prefsState = {
+    username: "test-user",
+    lastSessionId: null as string | null,
+    setLastSessionId: vi.fn((next: string | null) => {
+      prefsState.lastSessionId = next;
+    }),
+    clearLastSessionId: vi.fn(() => {
+      prefsState.lastSessionId = null;
+    }),
+  };
   const useClientPrefsStore = (selector?: any) =>
     selector ? selector(prefsState) : prefsState;
   useClientPrefsStore.getState = () => prefsState;
   return { useClientPrefsStore };
 });
 
-vi.mock("@/logging/logStore", () => ({ bindSharedLogStore: vi.fn() }));
-vi.mock("@/lib/clientKey", () => ({ getOrCreateClientKey: vi.fn(() => "client-key") }));
-vi.mock("@/lib/wsSignaling", () => ({ buildSignalingUrlFromEnv: () => "ws://signal.test" }));
+vi.mock("@/logging/logStore", () => logStoreMocks);
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+vi.mock("@/lib/partyKitToken", () => ({
+  clearInviteTokenFromUrl: vi.fn(),
+  clearRoomHostPending: vi.fn(),
+  isRoomHostPending: vi.fn(() => true),
+  mergeRoomTokens: (base: any, update: any) => ({ ...(base ?? {}), ...(update ?? {}) }),
+  readRoomTokensFromStorage: vi.fn(() => null),
+  resolveInviteTokenFromUrl: vi.fn(() => ({})),
+  writeRoomTokensToStorage: vi.fn(),
+}));
+vi.mock("@/lib/partyKitHost", () => ({ resolvePartyKitHost: () => "party.test" }));
+vi.mock("@/partykit/intentTransport", () => intentTransportMocks);
 vi.mock("@/yjs/sync", () => ({
   isApplyingRemoteUpdate: () => false,
   withApplyingRemoteUpdate: (fn: () => void) => fn(),
@@ -148,6 +191,7 @@ describe("useMultiplayerSync", () => {
   beforeEach(() => {
     providerInstances.length = 0;
     vi.clearAllMocks();
+    logStoreMocks.emitLog.mockClear();
     Object.assign(mockGameState, {
       hasHydrated: true,
       viewerRole: "player" as const,
@@ -183,8 +227,18 @@ describe("useMultiplayerSync", () => {
 
     await waitFor(() => {
       expect(ensureLocalPlayerInitialized).toHaveBeenCalledWith({
-        transact: expect.any(Function),
-        sharedMaps: expect.any(Object),
+        state: expect.objectContaining({
+          players: expect.any(Object),
+          playerOrder: expect.any(Array),
+          zones: expect.any(Object),
+          roomLockedByHost: expect.any(Boolean),
+          roomOverCapacity: expect.any(Boolean),
+        }),
+        actions: expect.objectContaining({
+          addPlayer: expect.any(Function),
+          updatePlayer: expect.any(Function),
+          addZone: expect.any(Function),
+        }),
         playerId: "player-1",
         preferredUsername: "test-user",
       });
@@ -216,5 +270,30 @@ describe("useMultiplayerSync", () => {
     expect(docManagerMocks.releaseSession).toHaveBeenCalledWith("session-456");
     expect(docManagerMocks.cleanupStaleSessions).toHaveBeenCalled();
     expect(docManagerMocks.setActiveSession).toHaveBeenCalledWith(null);
+  });
+
+  it("forwards logEvent messages to the log store", async () => {
+    renderHook(() => useMultiplayerSync("session-789"));
+
+    await waitFor(() => {
+      expect(intentTransportMocks.createIntentTransport).toHaveBeenCalled();
+    });
+
+    const [{ onMessage }] = intentTransportMocks.createIntentTransport.mock.calls[0] as any;
+    onMessage({
+      type: "logEvent",
+      eventId: "library.shuffle",
+      payload: { actorId: "player-1", playerId: "player-1" },
+    });
+
+    expect(logStoreMocks.emitLog).toHaveBeenCalledWith(
+      "library.shuffle",
+      { actorId: "player-1", playerId: "player-1" },
+      expect.objectContaining({
+        players: expect.any(Object),
+        cards: expect.any(Object),
+        zones: expect.any(Object),
+      })
+    );
   });
 });

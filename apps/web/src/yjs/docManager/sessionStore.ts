@@ -1,5 +1,5 @@
 import type { Awareness } from "y-protocols/awareness";
-import type { WebsocketProvider } from "y-websocket";
+import type { YSyncProvider } from "../provider";
 
 import { createGameYDoc, type YDocHandles } from "../yDoc";
 import { docManagerState } from "./state";
@@ -40,6 +40,16 @@ export function releaseSession(sessionId: string): void {
 
   session.refCount = Math.max(0, session.refCount - 1);
 
+  if (session.refCount === 0) {
+    // Disconnect network transports when no active consumers remain.
+    try {
+      session.provider?.disconnect();
+      session.provider?.destroy();
+    } catch (_err) {}
+    session.provider = null;
+    session.awareness = null;
+  }
+
   // Don't immediately destroy - allow for React double-mount.
   // The session will be cleaned up by cleanupStaleSessions if truly unused.
 }
@@ -49,7 +59,7 @@ export function releaseSession(sessionId: string): void {
  */
 export function setSessionProvider(
   sessionId: string,
-  provider: WebsocketProvider | null
+  provider: YSyncProvider | null
 ): void {
   const session = docManagerState.sessions.get(sessionId);
   if (!session) return;
@@ -68,7 +78,7 @@ export function setSessionProvider(
 /**
  * Get the WebSocket provider for a session.
  */
-export function getSessionProvider(sessionId: string): WebsocketProvider | null {
+export function getSessionProvider(sessionId: string): YSyncProvider | null {
   return docManagerState.sessions.get(sessionId)?.provider ?? null;
 }
 
@@ -135,7 +145,6 @@ export function destroySession(sessionId: string): void {
   } catch (_err) {}
 
   docManagerState.sessions.delete(sessionId);
-  docManagerState.pendingMutations.delete(sessionId);
 
   if (docManagerState.activeSessionId === sessionId) {
     docManagerState.activeSessionId = null;
@@ -156,3 +165,9 @@ export function cleanupStaleSessions(maxAgeMs: number = 5 * 60 * 1000): void {
   }
 }
 
+export function destroyAllSessions(): void {
+  const sessionIds = Array.from(docManagerState.sessions.keys());
+  sessionIds.forEach((sessionId) => {
+    destroySession(sessionId);
+  });
+}

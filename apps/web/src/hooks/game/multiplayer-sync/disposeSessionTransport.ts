@@ -1,14 +1,14 @@
 import type { Awareness } from "y-protocols/awareness";
-import type { WebsocketProvider } from "y-websocket";
+import type { YSyncProvider } from "@/yjs/provider";
 
 export type SessionTransport = {
-  provider: WebsocketProvider;
+  provider: YSyncProvider;
   awareness: Awareness;
 };
 
 export type DisposeSessionTransportDeps = {
-  getSessionProvider: (sessionId: string) => WebsocketProvider | null;
-  setSessionProvider: (sessionId: string, provider: WebsocketProvider | null) => void;
+  getSessionProvider: (sessionId: string) => YSyncProvider | null;
+  setSessionProvider: (sessionId: string, provider: YSyncProvider | null) => void;
   getSessionAwareness: (sessionId: string) => Awareness | null;
   setSessionAwareness: (sessionId: string, awareness: Awareness | null) => void;
 };
@@ -39,4 +39,3 @@ export const disposeSessionTransport = (
     }
   } catch (_err) {}
 };
-

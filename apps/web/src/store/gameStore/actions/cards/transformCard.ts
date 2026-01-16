@@ -3,17 +3,15 @@ import type { GameState } from "@/types";
 import { ZONE } from "@/constants/zones";
 import { canModifyCardState } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
-import { emitLog } from "@/logging/logStore";
 import { isTransformableCard, syncCardStatsToFace } from "@/lib/cardDisplay";
-import { transformCard as yTransformCard } from "@/yjs/yMutations";
 import { computeTransformTargetIndex } from "../cardsModel";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createTransformCard =
   (
-    set: SetState,
+    _set: SetState,
     get: GetState,
-    { applyShared, buildLogContext }: Deps
+    { dispatchIntent }: Deps
   ): GameState["transformCard"] =>
   (cardId, faceIndex, _isRemote) => {
     const snapshot = get();
@@ -38,31 +36,21 @@ export const createTransformCard =
       return;
     }
 
-    const { targetIndex, toFaceName: targetFaceName } =
-      computeTransformTargetIndex(card, faceIndex);
+    const { targetIndex } = computeTransformTargetIndex(card, faceIndex);
 
-    emitLog(
-      "card.transform",
-      {
-        actorId: actor,
-        cardId,
-        zoneId: card.zoneId,
-        toFaceName: targetFaceName,
-        cardName: card.name,
+    dispatchIntent({
+      type: "card.transform",
+      payload: { cardId, targetIndex, actorId: actor },
+      applyLocal: (state) => {
+        const currentCard = state.cards[cardId];
+        if (!currentCard) return state;
+        return {
+          cards: {
+            ...state.cards,
+            [cardId]: syncCardStatsToFace(currentCard, targetIndex),
+          },
+        };
       },
-      buildLogContext()
-    );
-
-    if (applyShared((maps) => yTransformCard(maps, cardId, targetIndex))) return;
-
-    set((state) => {
-      const currentCard = state.cards[cardId];
-      if (!currentCard) return state;
-      return {
-        cards: {
-          ...state.cards,
-          [cardId]: syncCardStatsToFace(currentCard, targetIndex),
-        },
-      };
+      isRemote: _isRemote,
     });
   };

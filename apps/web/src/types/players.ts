@@ -13,5 +13,8 @@ export interface Player {
   commanderDamage: Record<PlayerId, number>;
   commanderTax: number;
   deckLoaded?: boolean;
-  libraryTopReveal?: LibraryTopRevealMode;
+  handCount?: number;
+  libraryCount?: number;
+  sideboardCount?: number;
+  libraryTopReveal?: LibraryTopRevealMode | null;
 }

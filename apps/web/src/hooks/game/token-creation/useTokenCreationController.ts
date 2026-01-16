@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from "uuid";
 import type { ScryfallCard } from "@/types/scryfall";
 
 import { ZONE } from "@/constants/zones";
-import { emitLog } from "@/logging/logStore";
 import { useGameStore } from "@/store/gameStore";
 import { createDebouncedTokenSearch } from "@/services/scryfall/scryfallTokens";
 import { cacheCards } from "@/services/scryfall/scryfallCache";
@@ -30,7 +29,7 @@ export const useTokenCreationController = ({
   const [selectedToken, setSelectedToken] = React.useState<ScryfallCard | null>(null);
   const [quantity, setQuantity] = React.useState(1);
 
-  const addCard = useGameStore((state) => state.addCard);
+  const addCards = useGameStore((state) => state.addCards);
   const viewerRole = useGameStore((state) => state.viewerRole);
 
   const [debouncedSearch] = React.useState(() => createDebouncedTokenSearch());
@@ -121,20 +120,13 @@ export const useTokenCreationController = ({
       createId: uuidv4,
     });
 
-    planned.forEach((card) => addCard(card));
-
-    const { players, cards, zones } = useGameStore.getState();
-    emitLog(
-      "card.tokenCreate",
-      { actorId: playerId, playerId, tokenName: selectedToken.name, count: quantity },
-      { players, cards, zones }
-    );
+    addCards(planned);
 
     toast.success(
       `Created ${quantity} ${selectedToken.name} token${quantity > 1 ? "s" : ""}`
     );
     handleClose();
-  }, [addCard, handleClose, playerId, quantity, selectedToken, viewerRole]);
+  }, [addCards, handleClose, playerId, quantity, selectedToken, viewerRole]);
 
   return {
     isOpen,

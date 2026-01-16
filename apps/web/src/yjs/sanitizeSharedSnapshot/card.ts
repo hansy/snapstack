@@ -9,7 +9,9 @@ import { clampNumber, normalizePosition } from "./utils";
 
 export const sanitizeCard = (value: any, zones: Record<string, Zone>): Card | null => {
   if (!value || typeof value.id !== "string" || typeof value.zoneId !== "string") return null;
-  if (!zones[value.zoneId]) return null;
+  const zone = zones[value.zoneId];
+  if (!zone) return null;
+  if (zone.type === "hand" || zone.type === "library" || zone.type === "sideboard") return null;
   if (typeof value.ownerId !== "string" || typeof value.controllerId !== "string") return null;
 
   const counters = sanitizeCounters(value.counters);

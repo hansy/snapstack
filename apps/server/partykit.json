@@ -1,0 +1,5 @@
+{
+  "name": "mtg-party",
+  "main": "src/server.ts",
+  "compatibilityDate": "2026-01-13"
+}

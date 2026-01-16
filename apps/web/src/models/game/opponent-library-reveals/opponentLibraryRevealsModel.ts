@@ -1,7 +1,13 @@
-import type { Card, LibraryTopRevealMode, Player, PlayerId, ViewerRole, Zone } from "@/types";
+import type {
+  Card,
+  LibraryRevealsToAll,
+  LibraryTopRevealMode,
+  Player,
+  PlayerId,
+  Zone,
+} from "@/types";
 
 import { ZONE } from "@/constants/zones";
-import { canViewerSeeLibraryCardByReveal } from "@/lib/reveal";
 
 export const resolveZoneOwnerName = (params: {
   zone: Pick<Zone, "ownerId"> | null;
@@ -11,29 +17,77 @@ export const resolveZoneOwnerName = (params: {
   return params.players[params.zone.ownerId]?.name ?? params.zone.ownerId;
 };
 
-export const computeRevealedOpponentLibraryCardIds = (params: {
+const buildLibraryRevealCard = (params: {
+  cardId: string;
+  entry: LibraryRevealsToAll[string];
+  zone: Zone;
+  cardsById: Record<string, Card>;
+}): Card => {
+  const existing = params.cardsById[params.cardId];
+  const ownerId =
+    params.entry.ownerId ?? existing?.ownerId ?? params.zone.ownerId;
+  if (existing) {
+    return {
+      ...existing,
+      ...params.entry.card,
+      revealedToAll: true,
+      zoneId: params.zone.id,
+    };
+  }
+  return {
+    id: params.cardId,
+    ownerId,
+    controllerId: ownerId,
+    zoneId: params.zone.id,
+    tapped: false,
+    faceDown: false,
+    position: { x: 0.5, y: 0.5 },
+    rotation: 0,
+    counters: [],
+    revealedToAll: true,
+    ...params.entry.card,
+  };
+};
+
+export const computeRevealedOpponentLibraryCards = (params: {
   zone: Zone | null;
   cardsById: Record<string, Card>;
   viewerId: PlayerId;
-  viewerRole?: ViewerRole;
-  libraryTopReveal?: LibraryTopRevealMode;
-}): string[] => {
-  if (!params.zone || params.zone.type !== ZONE.LIBRARY) return [];
-  if (params.zone.ownerId === params.viewerId) return [];
+  libraryRevealsToAll: LibraryRevealsToAll;
+  libraryTopReveal?: LibraryTopRevealMode | null;
+}): { cards: Card[]; actualTopCardId: string | null } => {
+  if (!params.zone || params.zone.type !== ZONE.LIBRARY) {
+    return { cards: [], actualTopCardId: null };
+  }
+  const zone = params.zone;
+  if (zone.ownerId === params.viewerId) {
+    return { cards: [], actualTopCardId: null };
+  }
 
-  // zone.cardIds is [bottom..top]; show top-first, preserving relative order.
-  const topCardId = getLibraryTopCardId(params.zone);
-  const revealTopToAll = params.libraryTopReveal === "all" && Boolean(topCardId);
-  const visible = params.zone.cardIds.filter((id) => {
-    const card = params.cardsById[id];
-    if (!card) return false;
-    if (revealTopToAll && id === topCardId) return true;
-    return canViewerSeeLibraryCardByReveal(card, params.viewerId, params.viewerRole);
-  });
-  return visible.reverse();
-};
+  const entries = Object.entries(params.libraryRevealsToAll)
+    .map(([cardId, entry]) => ({
+      cardId,
+      entry,
+      ownerId: entry.ownerId ?? params.cardsById[cardId]?.ownerId,
+    }))
+    .filter((entry) => entry.ownerId === zone.ownerId)
+    .sort((a, b) => a.entry.orderKey.localeCompare(b.entry.orderKey));
 
-export const getLibraryTopCardId = (zone: Zone | null): string | null => {
-  if (!zone || zone.type !== ZONE.LIBRARY) return null;
-  return zone.cardIds.length ? zone.cardIds[zone.cardIds.length - 1] : null;
+  const actualTopCardId =
+    params.libraryTopReveal === "all" && entries.length
+      ? entries[entries.length - 1]?.cardId ?? null
+      : null;
+
+  const cards = entries
+    .map((entry) =>
+      buildLibraryRevealCard({
+        cardId: entry.cardId,
+        entry: entry.entry,
+        zone,
+        cardsById: params.cardsById,
+      })
+    )
+    .reverse();
+
+  return { cards, actualTopCardId };
 };

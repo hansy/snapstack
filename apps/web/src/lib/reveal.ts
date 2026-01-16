@@ -2,7 +2,7 @@ import type { Card, LibraryTopRevealMode, PlayerId, ViewerRole, ZoneType } from 
 import { ZONE } from "@/constants/zones";
 
 export const isHiddenZoneType = (zoneType: ZoneType | undefined) => {
-  return zoneType === ZONE.HAND || zoneType === ZONE.LIBRARY;
+  return zoneType === ZONE.HAND || zoneType === ZONE.LIBRARY || zoneType === ZONE.SIDEBOARD;
 };
 
 export const isPublicZoneType = (zoneType: ZoneType | undefined) => {
@@ -47,7 +47,7 @@ export const canViewerSeeCardIdentity = (
 ) => {
   if (viewerRole === "spectator") {
     if (zoneType === ZONE.HAND) return true;
-    if (zoneType === ZONE.LIBRARY) {
+    if (zoneType === ZONE.LIBRARY || zoneType === ZONE.SIDEBOARD) {
       return Boolean(
         card.knownToAll ||
           card.revealedToAll ||

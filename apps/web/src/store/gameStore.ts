@@ -2,16 +2,14 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 import type { GameState } from '@/types';
-import type { SharedMaps } from '@/yjs/yMutations';
-
 import { createSafeStorage } from '@/lib/safeStorage';
-import { runWithSharedDoc } from '@/yjs/docManager';
-import { isApplyingRemoteUpdate } from '@/yjs/sync';
+import { createIntentDispatcher } from './gameStore/dispatchIntent';
 
 import { createCardActions } from './gameStore/actions/cards';
 import { createCounterActions } from './gameStore/actions/counters';
 import { createDeckActions } from './gameStore/actions/deck';
 import { createMovementActions } from './gameStore/actions/movement';
+import { createPrivateOverlayActions } from './gameStore/actions/privateOverlay';
 import { createPlayerActions } from './gameStore/actions/players';
 import { createRoomActions } from './gameStore/actions/room';
 import { createSessionActions } from './gameStore/actions/session';
@@ -48,30 +46,16 @@ const readNumberRecord = (value: unknown): Record<string, number> => {
 export const useGameStore = create<GameStore>()(
     persist<GameStore, [], [], PersistedGameStoreState>(
         (set, get) => {
-            // Apply mutation to Yjs, but skip if we're processing a remote update
-            // (prevents feedback loop: Yjs -> Zustand -> Yjs)
-            const applyShared = (fn: (maps: SharedMaps) => void) => {
-                if (isApplyingRemoteUpdate()) {
-                    // Skip Yjs mutation - this change came FROM Yjs
-                    return false;
-                }
-                return runWithSharedDoc(fn);
-            };
-
-            const buildLogContext = () => {
-                const snapshot = get();
-                return {
-                    players: snapshot.players,
-                    cards: snapshot.cards,
-                    zones: snapshot.zones,
-                };
-            };
+            const dispatchIntent = createIntentDispatcher(set);
 
             return ({
                 players: {},
                 playerOrder: [],
                 cards: {},
                 zones: {},
+                handRevealsToAll: {},
+                libraryRevealsToAll: {},
+                faceDownRevealsToAll: {},
                 battlefieldViewScale: {},
                 roomHostId: null,
                 roomLockedByHost: false,
@@ -80,15 +64,16 @@ export const useGameStore = create<GameStore>()(
                 globalCounters: {},
                 activeModal: null,
 
-                ...createSessionActions(set, get),
-                ...createPlayerActions(set, get, { applyShared, buildLogContext }),
-                ...createZoneActions(set, get, { applyShared }),
-                ...createCardActions(set, get, { applyShared, buildLogContext }),
-                ...createMovementActions(set, get, { applyShared, buildLogContext }),
-                ...createDeckActions(set, get, { applyShared, buildLogContext }),
-                ...createCounterActions(set, get, { applyShared, buildLogContext }),
-                ...createRoomActions(set, get, { applyShared }),
-                ...createUiActions(set, get, { applyShared }),
+                ...createSessionActions(set, get, { dispatchIntent }),
+                ...createPrivateOverlayActions(set, get),
+                ...createPlayerActions(set, get, { dispatchIntent }),
+                ...createZoneActions(set, get, { dispatchIntent }),
+                ...createCardActions(set, get, { dispatchIntent }),
+                ...createMovementActions(set, get, { dispatchIntent }),
+                ...createDeckActions(set, get, { dispatchIntent }),
+                ...createCounterActions(set, get, { dispatchIntent }),
+                ...createRoomActions(set, get, { dispatchIntent }),
+                ...createUiActions(set, get, { dispatchIntent }),
             });
         },
         {

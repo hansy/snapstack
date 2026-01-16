@@ -1,5 +1,6 @@
 import { buildCardPart, buildPlayerPart, getZoneLabel } from "../helpers";
 import type { LogEventDefinition, LogEventId } from "@/logging/types";
+import { DEFAULT_AGGREGATE_WINDOW_MS } from "./constants";
 
 export type MovePayload = {
   cardId: string;
@@ -7,6 +8,7 @@ export type MovePayload = {
   toZoneId: string;
   actorId?: string;
   gainsControlBy?: string;
+  placement?: "top" | "bottom";
   cardName?: string;
   fromZoneType?: string;
   toZoneType?: string;
@@ -68,6 +70,8 @@ const formatMove: LogEventDefinition<MovePayload>["format"] = (payload, ctx) => 
 
   const fromLabel = getZoneLabel(ctx, payload.fromZoneId);
   const toLabel = getZoneLabel(ctx, payload.toZoneId);
+  const placementLabel =
+    payload.placement === "top" || payload.placement === "bottom" ? payload.placement : null;
 
   if (payload.gainsControlBy && toZone?.type === "battlefield") {
     const controller = buildPlayerPart(ctx, payload.gainsControlBy);
@@ -76,11 +80,28 @@ const formatMove: LogEventDefinition<MovePayload>["format"] = (payload, ctx) => 
 
   // Within the same zone: treat as a reorder/move inside the zone
   if (payload.fromZoneId === payload.toZoneId) {
+    if (toZone?.type === "library" && placementLabel) {
+      return [
+        actor,
+        { kind: "text", text: " moved " },
+        cardPart,
+        { kind: "text", text: ` to the ${placementLabel} of ${toLabel}` },
+      ];
+    }
     return [
       actor,
       { kind: "text", text: " moved " },
       cardPart,
       { kind: "text", text: ` within ${toLabel}` },
+    ];
+  }
+
+  if (toZone?.type === "library" && placementLabel) {
+    return [
+      actor,
+      { kind: "text", text: " moved " },
+      cardPart,
+      { kind: "text", text: ` from ${fromLabel} to the ${placementLabel} of ${toLabel}` },
     ];
   }
 
@@ -196,8 +217,29 @@ export const cardEvents = {
   },
   "card.pt": {
     format: formatPT,
+    aggregate: {
+      key: (payload: PTPayload) => `pt:${payload.cardId}:${payload.actorId ?? "unknown"}`,
+      mergePayload: (existing: PTPayload, incoming: PTPayload) => ({
+        ...incoming,
+        fromPower: existing.fromPower ?? incoming.fromPower,
+        fromToughness: existing.fromToughness ?? incoming.fromToughness,
+      }),
+      windowMs: DEFAULT_AGGREGATE_WINDOW_MS,
+    },
   },
   "card.tokenCreate": {
     format: formatTokenCreate,
+    aggregate: {
+      key: (payload: TokenCreatePayload) => {
+        const name = payload.tokenName?.trim() || "Token";
+        return `token:${payload.playerId}:${name}`;
+      },
+      mergePayload: (existing: TokenCreatePayload, incoming: TokenCreatePayload) => {
+        const existingCount = existing.count ?? 1;
+        const incomingCount = incoming.count ?? 1;
+        return { ...incoming, count: existingCount + incomingCount };
+      },
+      windowMs: DEFAULT_AGGREGATE_WINDOW_MS,
+    },
   },
 } satisfies Partial<Record<LogEventId, LogEventDefinition<any>>>;

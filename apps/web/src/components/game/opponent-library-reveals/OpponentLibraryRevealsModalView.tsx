@@ -1,7 +1,7 @@
 import React from "react";
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../ui/dialog";
-import { CardView } from "../card/Card";
+import { Card } from "../card/Card";
 import { cn } from "@/lib/utils";
 
 import type { OpponentLibraryRevealsController } from "@/hooks/game/opponent-library-reveals/useOpponentLibraryRevealsController";
@@ -38,12 +38,7 @@ export const OpponentLibraryRevealsModalView: React.FC<OpponentLibraryRevealsCon
                     </div>
                   )}
                   <div className={cn("w-[150px] h-[210px] rounded-lg shadow-lg")}>
-                    <CardView
-                      card={card}
-                      faceDown={false}
-                      className="w-full h-full"
-                      disableHoverAnimation
-                    />
+                    <Card card={card} faceDown={false} className="w-full h-full" disableDrag />
                   </div>
                 </div>
               );

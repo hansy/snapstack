@@ -89,7 +89,8 @@ export const computeRevealPatchAfterMove = ({
   toZoneType: string;
   effectiveFaceDown: boolean;
 }): CardPatch | null => {
-  const toHidden = toZoneType === ZONE.HAND || toZoneType === ZONE.LIBRARY;
+  const toHidden =
+    toZoneType === ZONE.HAND || toZoneType === ZONE.LIBRARY || toZoneType === ZONE.SIDEBOARD;
   const enteringLibrary = toZoneType === ZONE.LIBRARY && fromZoneType !== ZONE.LIBRARY;
   const faceDownBattlefield = toZoneType === ZONE.BATTLEFIELD && effectiveFaceDown === true;
 
@@ -98,7 +99,7 @@ export const computeRevealPatchAfterMove = ({
   }
 
   if (!toHidden && !faceDownBattlefield) {
-    return { knownToAll: true };
+    return { knownToAll: true, revealedToAll: false, revealedTo: [] };
   }
 
   return null;

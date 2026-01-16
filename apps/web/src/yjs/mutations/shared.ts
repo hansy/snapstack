@@ -20,6 +20,9 @@ export type SharedMaps = {
   globalCounters: Y.Map<unknown>;
   battlefieldViewScale: Y.Map<unknown>;
   meta: Y.Map<unknown>;
+  handRevealsToAll: Y.Map<unknown>;
+  libraryRevealsToAll: Y.Map<unknown>;
+  faceDownRevealsToAll: Y.Map<unknown>;
 };
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>

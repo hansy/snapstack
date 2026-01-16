@@ -31,6 +31,15 @@ export const MultiplayerBoard: FC<MultiplayerBoardProps> = ({ sessionId }) => {
     );
   }
   if (joinBlocked && !isSpectator) {
+    if (joinBlockedReason === "invite") {
+      return (
+        <RoomFullScreen
+          title="Invite required"
+          description="Use a player or spectator invite link to join this room."
+          onLeave={viewProps.handleLeave}
+        />
+      );
+    }
     return (
       <RoomFullScreen
         onLeave={viewProps.handleLeave}

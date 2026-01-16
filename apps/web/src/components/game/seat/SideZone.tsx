@@ -16,6 +16,7 @@ interface SideZoneProps {
   emptyContent?: React.ReactNode;
   cardClassName?: string;
   faceDown?: boolean;
+  disableCardDrag?: boolean;
   showContextMenuCursor?: boolean;
   rightIndicator?: React.ReactNode;
   indicatorSide?: "left" | "right";
@@ -33,6 +34,7 @@ export const SideZone: React.FC<SideZoneProps> = ({
   emptyContent,
   cardClassName,
   faceDown,
+  disableCardDrag,
   showContextMenuCursor,
   rightIndicator,
   indicatorSide = "right",
@@ -70,6 +72,7 @@ export const SideZone: React.FC<SideZoneProps> = ({
             <Card
               card={card}
               faceDown={faceDown}
+              disableDrag={disableCardDrag}
               className={cn(
                 "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 scale-90 origin-center",
                 cardClassName

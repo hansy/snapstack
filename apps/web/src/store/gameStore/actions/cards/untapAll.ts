@@ -1,37 +1,27 @@
 import type { GameState } from "@/types";
 
-import { emitLog } from "@/logging/logStore";
-import { patchCard as yPatchCard, sharedSnapshot } from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createUntapAll =
   (
-    set: SetState,
+    _set: SetState,
     get: GetState,
-    { applyShared, buildLogContext }: Deps
+    { dispatchIntent }: Deps
   ): GameState["untapAll"] =>
   (playerId, _isRemote) => {
     if (get().viewerRole === "spectator") return;
-    if (
-      applyShared((maps) => {
-        const snapshot = sharedSnapshot(maps);
-        Object.values(snapshot.cards).forEach((card) => {
+    dispatchIntent({
+      type: "card.untapAll",
+      payload: { playerId, actorId: playerId },
+      applyLocal: (state) => {
+        const newCards = { ...state.cards };
+        Object.values(newCards).forEach((card) => {
           if (card.controllerId === playerId && card.tapped) {
-            yPatchCard(maps, card.id, { tapped: false });
+            newCards[card.id] = { ...card, tapped: false };
           }
         });
-      })
-    )
-      return;
-
-    set((state) => {
-      const newCards = { ...state.cards };
-      Object.values(newCards).forEach((card) => {
-        if (card.controllerId === playerId && card.tapped) {
-          newCards[card.id] = { ...card, tapped: false };
-        }
-      });
-      return { cards: newCards };
+        return { cards: newCards };
+      },
+      isRemote: _isRemote,
     });
-    emitLog("card.untapAll", { actorId: playerId, playerId }, buildLogContext());
   };

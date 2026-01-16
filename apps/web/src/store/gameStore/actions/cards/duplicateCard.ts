@@ -4,8 +4,6 @@ import { v4 as uuidv4 } from "uuid";
 
 import { canModifyCardState } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
-import { emitLog } from "@/logging/logStore";
-import { duplicateCard as yDuplicateCard } from "@/yjs/yMutations";
 import {
   buildDuplicateTokenCard,
   computeDuplicateTokenPosition,
@@ -16,7 +14,7 @@ export const createDuplicateCard =
   (
     _set: SetState,
     get: GetState,
-    { applyShared, buildLogContext }: Deps
+    { dispatchIntent }: Deps
   ): GameState["duplicateCard"] =>
   (cardId, actorId, _isRemote) => {
     const actor = actorId ?? get().myPlayerId;
@@ -62,17 +60,10 @@ export const createDuplicateCard =
       allowed: true,
       details: { cardId, newCardId, zoneId: currentZone.id },
     });
-    emitLog(
-      "card.duplicate",
-      {
-        actorId: actor,
-        sourceCardId: cardId,
-        newCardId,
-        zoneId: currentZone.id,
-        cardName: sourceCard.name,
-      },
-      buildLogContext()
-    );
-    if (applyShared((maps) => yDuplicateCard(maps, cardId, newCardId))) return;
-    get().addCard(clonedCard, _isRemote);
+    dispatchIntent({
+      type: "card.duplicate",
+      payload: { cardId, newCardId, actorId: actor },
+      isRemote: _isRemote,
+    });
+    get().addCard(clonedCard, true);
   };

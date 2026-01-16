@@ -16,22 +16,11 @@ describe("OpponentLibraryRevealsModal", () => {
           p1: { id: "p1", name: "Opponent", life: 40, counters: [], commanderDamage: {}, commanderTax: 0 } as any,
         },
         zones: {
-          "lib-p1": { id: "lib-p1", type: ZONE.LIBRARY, ownerId: "p1", cardIds: ["c1"] } as any,
+          "lib-p1": { id: "lib-p1", type: ZONE.LIBRARY, ownerId: "p1", cardIds: [] } as any,
         },
-        cards: {
-          c1: {
-            id: "c1",
-            name: "Revealed Card",
-            ownerId: "p1",
-            controllerId: "p1",
-            zoneId: "lib-p1",
-            tapped: false,
-            faceDown: false,
-            position: { x: 0, y: 0 },
-            rotation: 0,
-            counters: [],
-            revealedTo: ["me"],
-          } as any,
+        cards: {},
+        libraryRevealsToAll: {
+          c1: { card: { name: "Revealed Card" }, orderKey: "000001", ownerId: "p1" },
         },
       } as any);
     });
@@ -46,10 +35,7 @@ describe("OpponentLibraryRevealsModal", () => {
     act(() => {
       useGameStore.setState((state: any) => ({
         ...state,
-        cards: {
-          ...state.cards,
-          c1: { ...state.cards.c1, revealedTo: [] },
-        },
+        libraryRevealsToAll: {},
       }));
     });
 
@@ -58,4 +44,3 @@ describe("OpponentLibraryRevealsModal", () => {
     });
   });
 });
-

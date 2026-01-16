@@ -1,6 +1,6 @@
 import { useClientPrefsStore } from "@/store/clientPrefsStore";
+import { useGameStore } from "@/store/gameStore";
 import { ensureLocalPlayerInitialized } from "./ensureLocalPlayerInitialized";
-import type { SharedMaps } from "@/yjs/yMutations";
 
 export type JoinStateSetter = (
   blocked: boolean,
@@ -8,14 +8,10 @@ export type JoinStateSetter = (
 ) => void;
 
 export function createAttemptJoin({
-  docTransact,
-  sharedMaps,
   playerId,
   setJoinState,
   getRole,
 }: {
-  docTransact: (fn: (tran: unknown) => void) => void;
-  sharedMaps: SharedMaps;
   playerId: string;
   setJoinState: JoinStateSetter;
   getRole: () => string;
@@ -25,9 +21,20 @@ export function createAttemptJoin({
       setJoinState(false, null);
       return;
     }
+    const store = useGameStore.getState();
     const result = ensureLocalPlayerInitialized({
-      transact: (fn) => docTransact(fn),
-      sharedMaps,
+      state: {
+        players: store.players,
+        playerOrder: store.playerOrder,
+        zones: store.zones,
+        roomLockedByHost: store.roomLockedByHost,
+        roomOverCapacity: store.roomOverCapacity,
+      },
+      actions: {
+        addPlayer: store.addPlayer,
+        updatePlayer: store.updatePlayer,
+        addZone: store.addZone,
+      },
       playerId,
       preferredUsername: useClientPrefsStore.getState().username,
     });

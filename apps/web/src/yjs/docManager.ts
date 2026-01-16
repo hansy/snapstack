@@ -5,7 +5,7 @@
  * keyed by sessionId. The docs survive React's StrictMode unmount/remount cycle.
  */
 
-import type { WebsocketProvider } from "y-websocket";
+import type { YSyncProvider } from "./provider";
 
 import type { YDocHandles } from "./yDoc";
 
@@ -15,12 +15,12 @@ import {
   getSessionProvider,
   setSessionProvider,
 } from "./docManager/sessionStore";
-import { batchMutations, flushPendingMutations, runMutation } from "./docManager/mutationQueue";
 
 export {
   acquireSession,
   cleanupStaleSessions,
   destroySession,
+  destroyAllSessions,
   getActiveHandles,
   getActiveSessionId,
   getSessionAwareness,
@@ -32,7 +32,6 @@ export {
   setSessionProvider,
 } from "./docManager/sessionStore";
 
-export { batchMutations, flushPendingMutations, runMutation } from "./docManager/mutationQueue";
 
 // Compatibility exports for existing code
 export const getYDocHandles = getActiveHandles;
@@ -43,10 +42,7 @@ export const getYProvider = () => {
   const sessionId = getActiveSessionId();
   return sessionId ? getSessionProvider(sessionId) : null;
 };
-export const setYProvider = (provider: WebsocketProvider | null) => {
+export const setYProvider = (provider: YSyncProvider | null) => {
   const sessionId = getActiveSessionId();
   if (sessionId) setSessionProvider(sessionId, provider);
 };
-export const runWithSharedDoc = runMutation;
-export const batchSharedMutations = batchMutations;
-export const flushPendingSharedMutations = flushPendingMutations;

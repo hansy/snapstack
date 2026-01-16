@@ -155,7 +155,7 @@ export const useGameContextMenu = (
         const setLibraryTopReveal = (mode: LibraryTopRevealMode | null) => {
           store.updatePlayer(
             zone.ownerId,
-            { libraryTopReveal: mode ?? undefined },
+            { libraryTopReveal: mode ?? null },
             myPlayerId
           );
         };

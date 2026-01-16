@@ -4,26 +4,20 @@ import { v4 as uuidv4 } from "uuid";
 import type { GameState } from "@/types";
 
 import { clearLogs } from "@/logging/logStore";
-import { destroySession, getSessionHandles } from "@/yjs/docManager";
-import { patchRoomMeta, removePlayer as yRemovePlayer, type SharedMaps } from "@/yjs/yMutations";
-
-const resolveNextHostId = (maps: SharedMaps): string | null => {
-  const ordered = maps.playerOrder.toArray().filter((id): id is string => typeof id === "string");
-  for (const id of ordered) {
-    if (maps.players.get(id)) return id;
-  }
-  const fallback = Array.from(maps.players.keys())
-    .map((id) => String(id))
-    .sort()[0];
-  return fallback ?? null;
-};
+import { destroyAllSessions, destroySession } from "@/yjs/docManager";
+import type { DispatchIntent } from "@/store/gameStore/dispatchIntent";
+import { resetIntentState } from "@/store/gameStore/dispatchIntent";
+import { clearRoomHostPending, writeRoomTokensToStorage } from "@/lib/partyKitToken";
+import { useClientPrefsStore } from "@/store/clientPrefsStore";
+import { clearIntentTransport } from "@/partykit/intentTransport";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];
 
 export const createSessionActions = (
   set: SetState,
-  get: GetState
+  get: GetState,
+  { dispatchIntent }: { dispatchIntent: DispatchIntent }
 ): Pick<
   GameState,
   | "playerIdsBySession"
@@ -39,6 +33,8 @@ export const createSessionActions = (
   | "setHasHydrated"
   | "viewerRole"
   | "setViewerRole"
+  | "roomTokens"
+  | "setRoomTokens"
 > => ({
   playerIdsBySession: {},
   sessionVersions: {},
@@ -46,6 +42,7 @@ export const createSessionActions = (
   myPlayerId: uuidv4(),
   hasHydrated: false,
   viewerRole: "player",
+  roomTokens: null,
 
   resetSession: (newSessionId, playerId) => {
     const freshSessionId = newSessionId ?? uuidv4();
@@ -53,16 +50,22 @@ export const createSessionActions = (
       playerId ?? get().playerIdsBySession[freshSessionId] ?? uuidv4();
 
     clearLogs();
+    resetIntentState();
 
     set((state) => ({
       players: {},
       playerOrder: [],
       cards: {},
       zones: {},
+      handRevealsToAll: {},
+      libraryRevealsToAll: {},
+      faceDownRevealsToAll: {},
       battlefieldViewScale: {},
       roomHostId: null,
       roomLockedByHost: false,
       roomOverCapacity: false,
+      privateOverlay: null,
+      roomTokens: null,
       viewerRole: "player",
       sessionId: freshSessionId,
       myPlayerId: freshPlayerId,
@@ -114,33 +117,25 @@ export const createSessionActions = (
     const playerId = get().myPlayerId;
 
     if (sessionId) {
-      const handles = getSessionHandles(sessionId);
-      if (handles) {
-        handles.doc.transact(() => {
-          const maps: SharedMaps = {
-            players: handles.players,
-            playerOrder: handles.playerOrder,
-            zones: handles.zones,
-            cards: handles.cards,
-            zoneCardOrders: handles.zoneCardOrders,
-            globalCounters: handles.globalCounters,
-            battlefieldViewScale: handles.battlefieldViewScale,
-            meta: handles.meta,
-          };
-          const currentHostId = handles.meta.get("hostId");
-          const isHost = typeof currentHostId === "string" && currentHostId === playerId;
-          yRemovePlayer(maps, playerId);
-          if (isHost) {
-            patchRoomMeta(maps, { hostId: resolveNextHostId(maps) });
-          }
-        });
-      }
+      dispatchIntent({
+        type: "player.leave",
+        payload: { playerId },
+      });
 
       try {
         destroySession(sessionId);
       } catch (_err) {}
+      try {
+        destroyAllSessions();
+      } catch (_err) {}
+      try {
+        clearIntentTransport();
+      } catch (_err) {}
 
       get().forgetSessionIdentity(sessionId);
+      writeRoomTokensToStorage(sessionId, null);
+      clearRoomHostPending(sessionId);
+      useClientPrefsStore.getState().clearLastSessionId();
     }
 
     get().resetSession();
@@ -152,5 +147,11 @@ export const createSessionActions = (
 
   setViewerRole: (role) => {
     set({ viewerRole: role });
+  },
+
+  setRoomTokens: (tokens) => {
+    set((state) => ({
+      roomTokens: tokens ? { ...state.roomTokens, ...tokens } : null,
+    }));
   },
 });

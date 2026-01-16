@@ -1,7 +1,7 @@
 # Refactor Roadmap (mtg)
 
 ## Scope
-- Reviewed source under apps/web and apps/server.
+- Reviewed source under apps/web and apps/server2.
 - Ignored generated and vendor artifacts (node_modules, dist, .wrangler, routeTree.gen.ts).
 
 ## Findings (ranked, most -> least critical)
@@ -17,7 +17,7 @@
    - Fix: Define a single MAX_PLAYERS constant and import it from both layers.
 
 3. High: Server debug logging is always enabled.
-   - Files: apps/server/constants.ts, apps/server/signalRoom.ts
+   - Files: apps/server2/constants.ts, apps/server2/signalRoom.ts
    - Impact: Log spam and potential leakage of room metadata in production.
    - Fix: Gate debug logs behind an env flag and default to off.
 
@@ -32,7 +32,7 @@
    - Fix: Split into smaller modules (session lifecycle, provider events, awareness, store hydration).
 
 6. Medium: SignalRoom mixes handshake, rate limiting, persistence, and awareness.
-   - Files: apps/server/signalRoom.ts
+   - Files: apps/server2/signalRoom.ts
    - Impact: High regression risk and limited test coverage for protocol changes.
    - Fix: Extract helpers for handshake validation, rate limiting, awareness updates, persistence.
 

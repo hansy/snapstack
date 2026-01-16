@@ -3,18 +3,16 @@ import type { Card, GameState } from "@/types";
 import { ZONE } from "@/constants/zones";
 import { canModifyCardState } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
-import { emitLog } from "@/logging/logStore";
 import { enforceZoneCounterRules } from "@/lib/counters";
-import { patchCard as yPatchCard } from "@/yjs/yMutations";
 import { syncCommanderDecklistForPlayer } from "@/store/gameStore/actions/deck/commanderDecklist";
 import { buildUpdateCardPatch } from "../cardsModel";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createUpdateCard =
   (
-    set: SetState,
+    _set: SetState,
     get: GetState,
-    { applyShared, buildLogContext }: Deps
+    { dispatchIntent }: Deps
   ): GameState["updateCard"] =>
   (id, updates, actorId, _isRemote) => {
     const actor = actorId ?? get().myPlayerId;
@@ -39,32 +37,6 @@ export const createUpdateCard =
         }
       );
       return;
-    }
-
-    if (cardBefore) {
-      const newPower = updates.power ?? cardBefore.power;
-      const newToughness = updates.toughness ?? cardBefore.toughness;
-      const powerChanged = newPower !== cardBefore.power;
-      const toughnessChanged = newToughness !== cardBefore.toughness;
-      if (
-        (powerChanged || toughnessChanged) &&
-        (newPower !== undefined || newToughness !== undefined)
-      ) {
-        emitLog(
-          "card.pt",
-          {
-            actorId: actor,
-            cardId: id,
-            zoneId: cardBefore.zoneId,
-            fromPower: cardBefore.power,
-            fromToughness: cardBefore.toughness,
-            toPower: newPower ?? cardBefore.power,
-            toToughness: newToughness ?? cardBefore.toughness,
-            cardName: cardBefore.name,
-          },
-          buildLogContext()
-        );
-      }
     }
 
     if (cardBefore) {
@@ -126,111 +98,45 @@ export const createUpdateCard =
       }
     }
 
-    const commanderTaxLog = (() => {
-      if (!cardBefore || !isCommanderTaxUpdate) return null;
-      const { next } = buildUpdateCardPatch(cardBefore, updates);
-      const from = cardBefore.commanderTax ?? 0;
-      const to = next.commanderTax ?? 0;
-      const delta = to - from;
-      if (delta === 0) return null;
-      return { from, to, delta };
-    })();
+    dispatchIntent({
+      type: "card.update",
+      payload: { cardId: id, updates, actorId: actor },
+      applyLocal: (state) => {
+        const current = state.cards[id];
+        if (!current) return state;
 
-    if (commanderTaxLog && cardBefore) {
-      emitLog(
-        "player.commanderTax",
-        {
-          actorId: actor,
-          playerId: cardBefore.ownerId,
-          cardId: cardBefore.id,
-          zoneId: cardBefore.zoneId,
-          cardName: cardBefore.name,
-          from: commanderTaxLog.from,
-          to: commanderTaxLog.to,
-          delta: commanderTaxLog.delta,
-        },
-        buildLogContext()
-      );
-    }
+        const zone = state.zones[current.zoneId];
+        const { next } = buildUpdateCardPatch(current, updates);
+        const shouldMarkKnownAfterFaceUp =
+          updates.faceDown === false &&
+          current.faceDown === true &&
+          zone?.type === ZONE.BATTLEFIELD;
+        const shouldHideAfterFaceDown =
+          updates.faceDown === true &&
+          current.faceDown === false &&
+          zone?.type === ZONE.BATTLEFIELD;
+        const nextWithVisibility = shouldHideAfterFaceDown
+          ? {
+              ...next,
+              knownToAll: false,
+              revealedToAll: false,
+              revealedTo: [],
+            }
+          : shouldMarkKnownAfterFaceUp
+            ? { ...next, knownToAll: true }
+            : next;
 
-    const zoneTypeBefore = cardBefore
-      ? get().zones[cardBefore.zoneId]?.type
-      : undefined;
-    const shouldMarkKnownAfterFaceUp =
-      cardBefore &&
-      updates.faceDown === false &&
-      cardBefore.faceDown === true &&
-      zoneTypeBefore === ZONE.BATTLEFIELD;
-    const shouldHideAfterFaceDown =
-      cardBefore &&
-      updates.faceDown === true &&
-      cardBefore.faceDown === false &&
-      zoneTypeBefore === ZONE.BATTLEFIELD;
-
-    const sharedApplied = applyShared((maps) => {
-      if (!cardBefore) return;
-      const { patch } = buildUpdateCardPatch(cardBefore, updates);
-      if (shouldMarkKnownAfterFaceUp) patch.knownToAll = true;
-      if (shouldHideAfterFaceDown) {
-        patch.knownToAll = false;
-        patch.revealedToAll = false;
-        patch.revealedTo = [];
-      }
-      if (Object.keys(patch).length > 0) {
-        yPatchCard(maps, id, patch);
-      }
-    });
-
-    if (sharedApplied) {
-      if (shouldSyncCommander && cardBefore) {
-        syncCommanderDecklistForPlayer({
-          state: get(),
-          playerId: actor,
-          override: {
-            cardId: id,
-            isCommander: updates.isCommander === true,
-            name: cardBefore.name,
-            ownerId: cardBefore.ownerId,
+        return {
+          cards: {
+            ...state.cards,
+            [id]: {
+              ...nextWithVisibility,
+              counters: enforceZoneCounterRules(nextWithVisibility.counters, zone),
+            },
           },
-        });
-      }
-      return;
-    }
-
-    set((state) => {
-      const current = state.cards[id];
-      if (!current) return state;
-
-      const zone = state.zones[current.zoneId];
-      const { next } = buildUpdateCardPatch(current, updates);
-      const shouldMarkKnownAfterFaceUp =
-        updates.faceDown === false &&
-        current.faceDown === true &&
-        zone?.type === ZONE.BATTLEFIELD;
-      const shouldHideAfterFaceDown =
-        updates.faceDown === true &&
-        current.faceDown === false &&
-        zone?.type === ZONE.BATTLEFIELD;
-      const nextWithVisibility = shouldHideAfterFaceDown
-        ? {
-            ...next,
-            knownToAll: false,
-            revealedToAll: false,
-            revealedTo: [],
-          }
-        : shouldMarkKnownAfterFaceUp
-          ? { ...next, knownToAll: true }
-          : next;
-
-      return {
-        cards: {
-          ...state.cards,
-          [id]: {
-            ...nextWithVisibility,
-            counters: enforceZoneCounterRules(nextWithVisibility.counters, zone),
-          },
-        },
-      };
+        };
+      },
+      isRemote: _isRemote,
     });
 
     if (shouldSyncCommander && cardBefore) {

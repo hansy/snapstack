@@ -10,12 +10,12 @@
   "env": {
     "development": {
       "vars": {
-        "VITE_WEBSOCKET_SERVER": "http://localhost:8787",
+        "VITE_WEBSOCKET_SERVER": "localhost:1999",
       },
     },
     "production": {
       "vars": {
-        "VITE_WEBSOCKET_SERVER": "https://mtg-signal.service-fff.workers.dev",
+        "VITE_WEBSOCKET_SERVER": "mtg-party.partykit.dev",
       },
     },
   },

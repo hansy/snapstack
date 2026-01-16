@@ -2,6 +2,7 @@ import React from "react";
 
 import type {
   Card as CardType,
+  LibraryRevealsToAll,
   Player,
   ViewerRole,
   Zone as ZoneType,
@@ -20,6 +21,7 @@ export interface SeatProps {
   color: string;
   zones: Record<ZoneId, ZoneType>;
   cards: Record<string, CardType>;
+  libraryRevealsToAll?: LibraryRevealsToAll;
   isMe: boolean;
   viewerPlayerId: string;
   viewerRole?: ViewerRole;
@@ -45,6 +47,7 @@ const SeatInner: React.FC<SeatProps> = ({
   color,
   zones,
   cards,
+  libraryRevealsToAll,
   isMe,
   viewerPlayerId,
   viewerRole,
@@ -75,6 +78,7 @@ const SeatInner: React.FC<SeatProps> = ({
         libraryTopReveal: player.libraryTopReveal,
         zones,
         cards,
+        libraryRevealsToAll,
       }),
     [
       cards,
@@ -85,6 +89,7 @@ const SeatInner: React.FC<SeatProps> = ({
       scale,
       viewerPlayerId,
       viewerRole,
+      libraryRevealsToAll,
       zones,
     ]
   );

@@ -1,16 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { ZONE } from '@/constants/zones';
-import type { Card, Zone } from '@/types';
+import { ZONE } from "@/constants/zones";
+import type { Card, Zone } from "@/types";
 
-import { createSeatModel } from '../seatModel';
+import { createSeatModel } from "../seatModel";
 
 const makeCard = (overrides: Partial<Card>): Card => ({
-  id: overrides.id ?? 'c',
-  name: overrides.name ?? 'Card',
-  ownerId: overrides.ownerId ?? 'p1',
-  controllerId: overrides.controllerId ?? overrides.ownerId ?? 'p1',
-  zoneId: overrides.zoneId ?? 'z',
+  id: overrides.id ?? "c",
+  name: overrides.name ?? "Card",
+  ownerId: overrides.ownerId ?? "p1",
+  controllerId: overrides.controllerId ?? overrides.ownerId ?? "p1",
+  zoneId: overrides.zoneId ?? "z",
   tapped: overrides.tapped ?? false,
   faceDown: overrides.faceDown ?? false,
   position: overrides.position ?? { x: 0.5, y: 0.5 },
@@ -33,98 +33,110 @@ const makeCard = (overrides: Partial<Card>): Card => ({
   isToken: overrides.isToken,
 });
 
-describe('createSeatModel', () => {
+describe("createSeatModel", () => {
   it.each([
-    ['top-left', true],
-    ['top-right', true],
-    ['bottom-left', false],
-    ['bottom-right', false],
-  ] as const)('mirrors battlefield Y based on seat position (%s)', (position, expected) => {
-    const model = createSeatModel({
-      playerId: 'p1',
-      position,
-      viewerPlayerId: 'p1',
-      isMe: false,
-      zones: {},
-      cards: {},
-      scale: 1,
-    });
+    ["top-left", true],
+    ["top-right", true],
+    ["bottom-left", false],
+    ["bottom-right", false],
+  ] as const)(
+    "mirrors battlefield Y based on seat position (%s)",
+    (position, expected) => {
+      const model = createSeatModel({
+        playerId: "p1",
+        position,
+        viewerPlayerId: "p1",
+        isMe: false,
+        zones: {},
+        cards: {},
+        scale: 1,
+      });
 
-    expect(model.mirrorBattlefieldY).toBe(expected);
-  });
+      expect(model.mirrorBattlefieldY).toBe(expected);
+    }
+  );
 
-  it('never shows opponent library reveal badge for the viewer seat', () => {
-    const library: Zone = { id: 'lib', type: ZONE.LIBRARY, ownerId: 'p1', cardIds: ['c1'] };
+  it("never shows opponent library reveal badge for the viewer seat", () => {
+    const library: Zone = {
+      id: "lib",
+      type: ZONE.LIBRARY,
+      ownerId: "p1",
+      cardIds: [],
+    };
     const zones = { lib: library };
-    const cards = { c1: makeCard({ id: 'c1', ownerId: 'p1', zoneId: 'lib', revealedToAll: true }) };
 
     const model = createSeatModel({
-      playerId: 'p1',
-      position: 'bottom-left',
-      viewerPlayerId: 'p1',
+      playerId: "p1",
+      position: "bottom-left",
+      viewerPlayerId: "p1",
       isMe: true,
       zones,
-      cards,
+      cards: {},
       scale: 1,
+      libraryRevealsToAll: {
+        c1: { card: { name: "Card" }, orderKey: "000001", ownerId: "p1" },
+      },
     });
 
     expect(model.opponentLibraryRevealCount).toBe(0);
   });
 
-  it('counts only library cards visible to the viewer', () => {
+  it("counts only library reveals for the opponent", () => {
     const library: Zone = {
-      id: 'lib2',
+      id: "lib2",
       type: ZONE.LIBRARY,
-      ownerId: 'p2',
-      cardIds: ['c1', 'c2', 'c3', 'missing'],
+      ownerId: "p2",
+      cardIds: [],
     };
     const zones = { lib2: library };
     const cards = {
-      c1: makeCard({ id: 'c1', ownerId: 'p2', zoneId: 'lib2', revealedTo: ['p1'] }),
-      c2: makeCard({ id: 'c2', ownerId: 'p2', zoneId: 'lib2', revealedToAll: true }),
-      c3: makeCard({ id: 'c3', ownerId: 'p2', zoneId: 'lib2' }),
+      c1: makeCard({ id: "c1", ownerId: "p2", zoneId: "lib2" }),
+      c2: makeCard({ id: "c2", ownerId: "p2", zoneId: "lib2" }),
     };
 
     const model = createSeatModel({
-      playerId: 'p2',
-      position: 'top-right',
-      viewerPlayerId: 'p1',
+      playerId: "p2",
+      position: "top-right",
+      viewerPlayerId: "p1",
       isMe: false,
       zones,
       cards,
       scale: 1,
+      libraryRevealsToAll: {
+        c1: { card: { name: "One" }, orderKey: "000001", ownerId: "p2" },
+        c2: { card: { name: "Two" }, orderKey: "000002", ownerId: "p2" },
+        o1: { card: { name: "Other" }, orderKey: "000003", ownerId: "pX" },
+      },
     });
 
-    expect(model.isTop).toBe(true);
-    expect(model.isRight).toBe(true);
-    expect(model.cards.library).toHaveLength(3);
+    expect(model.cards.library).toHaveLength(2);
     expect(model.opponentLibraryRevealCount).toBe(2);
   });
 
-  it('includes the top card when top reveal is set to all', () => {
+  it("uses overlay order when library view provides cardIds", () => {
     const library: Zone = {
-      id: 'lib3',
+      id: "lib3",
       type: ZONE.LIBRARY,
-      ownerId: 'p2',
-      cardIds: ['c1', 'c2'],
+      ownerId: "p2",
+      cardIds: ["c2", "c1"],
     };
     const zones = { lib3: library };
     const cards = {
-      c1: makeCard({ id: 'c1', ownerId: 'p2', zoneId: 'lib3' }),
-      c2: makeCard({ id: 'c2', ownerId: 'p2', zoneId: 'lib3' }),
+      c1: makeCard({ id: "c1", ownerId: "p2", zoneId: "lib3" }),
+      c2: makeCard({ id: "c2", ownerId: "p2", zoneId: "lib3" }),
     };
 
     const model = createSeatModel({
-      playerId: 'p2',
-      position: 'top-right',
-      viewerPlayerId: 'p1',
-      isMe: false,
+      playerId: "p2",
+      position: "top-right",
+      viewerPlayerId: "p2",
+      isMe: true,
       zones,
       cards,
       scale: 1,
-      libraryTopReveal: 'all',
+      libraryRevealsToAll: {},
     });
 
-    expect(model.opponentLibraryRevealCount).toBe(1);
+    expect(model.cards.library.map((card) => card.id)).toEqual(["c2", "c1"]);
   });
 });

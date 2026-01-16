@@ -2,7 +2,6 @@ import * as React from "react";
 
 import { useGameStore } from "@/store/gameStore";
 import { PRESET_COUNTERS, resolveCounterColor } from "@/lib/counters";
-import { batchSharedMutations } from "@/yjs/docManager";
 
 import { getAllCounterTypes, normalizeCounterCount, normalizeCounterType, planAddCounter } from "@/models/game/add-counter/addCounterModel";
 
@@ -79,10 +78,8 @@ export const useAddCounterController = ({
     const targets = cardIds.length > 0 ? cardIds : [];
     if (targets.length === 0) return;
 
-    batchSharedMutations(() => {
-      targets.forEach((targetId) => {
-        addCounterToCard(targetId, planned.counter);
-      });
+    targets.forEach((targetId) => {
+      addCounterToCard(targetId, planned.counter);
     });
 
     if (planned.shouldAddGlobalCounter) {

@@ -13,14 +13,14 @@ import {
   reorderZoneCards,
   resetDeck,
   setBattlefieldViewScale,
-  SharedMaps,
   sharedSnapshot,
   transformCard,
   unloadDeck,
   upsertCard as yUpsertCard,
   upsertPlayer as yUpsertPlayer,
   upsertZone as yUpsertZone,
-} from '../yMutations';
+} from '../legacyMutations';
+import type { SharedMaps } from '../legacyMutations';
 import { ZONE } from '@/constants/zones';
 import { Card, Player, Zone } from '@/types';
 import { GRID_STEP_Y } from '@/lib/positions';
@@ -37,6 +37,9 @@ const createSharedMaps = (): SharedMaps => {
     globalCounters: doc.getMap('globalCounters'),
     battlefieldViewScale: doc.getMap('battlefieldViewScale'),
     meta: doc.getMap('meta'),
+    handRevealsToAll: doc.getMap('handRevealsToAll'),
+    libraryRevealsToAll: doc.getMap('libraryRevealsToAll'),
+    faceDownRevealsToAll: doc.getMap('faceDownRevealsToAll'),
   };
 };
 
@@ -51,6 +54,9 @@ const createDocAndMaps = (): { doc: Y.Doc; maps: SharedMaps } => {
     globalCounters: doc.getMap('globalCounters'),
     battlefieldViewScale: doc.getMap('battlefieldViewScale'),
     meta: doc.getMap('meta'),
+    handRevealsToAll: doc.getMap('handRevealsToAll'),
+    libraryRevealsToAll: doc.getMap('libraryRevealsToAll'),
+    faceDownRevealsToAll: doc.getMap('faceDownRevealsToAll'),
   };
   return { doc, maps };
 };

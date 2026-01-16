@@ -21,3 +21,4 @@ export const MAX_ORACLE_TEXT_LENGTH = 2_000;
 export const MAX_IMAGE_URL_LENGTH = 1_024;
 export const MAX_SCRYFALL_ID_LENGTH = 64;
 export const MAX_CUSTOM_TEXT_LENGTH = 280;
+export const MAX_REVEAL_ORDER_KEY_LENGTH = 64;

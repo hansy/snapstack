@@ -1,15 +1,14 @@
 import type { GameState } from "@/types";
 
 import { ZONE } from "@/constants/zones";
-import { patchCard as yPatchCard } from "@/yjs/yMutations";
 import { buildRevealPatch } from "../cardsModel";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createSetCardReveal =
   (
-    set: SetState,
+    _set: SetState,
     get: GetState,
-    { applyShared }: Deps
+    { dispatchIntent }: Deps
   ): GameState["setCardReveal"] =>
   (cardId, reveal, actorId, _isRemote) => {
     const actor = actorId ?? get().myPlayerId;
@@ -24,20 +23,18 @@ export const createSetCardReveal =
 
     const updates = buildRevealPatch(card, reveal);
 
-    if (
-      applyShared((maps) => {
-        yPatchCard(maps, cardId, updates);
-      })
-    )
-      return;
-
-    set((state) => ({
-      cards: {
-        ...state.cards,
-        [cardId]: {
-          ...state.cards[cardId],
-          ...updates,
+    dispatchIntent({
+      type: "card.reveal.set",
+      payload: { cardId, reveal, actorId: actor },
+      applyLocal: (state) => ({
+        cards: {
+          ...state.cards,
+          [cardId]: {
+            ...state.cards[cardId],
+            ...updates,
+          },
         },
-      },
-    }));
+      }),
+      isRemote: _isRemote,
+    });
   };

@@ -9,7 +9,7 @@ import {
   validateImportResult,
 } from "@/services/deck-import/deckImport";
 import { useGameStore } from "@/store/gameStore";
-import { batchSharedMutations, getYDocHandles, getYProvider } from "@/yjs/docManager";
+import { getYDocHandles, getYProvider } from "@/yjs/docManager";
 import { useClientPrefsStore } from "@/store/clientPrefsStore";
 import { isMultiplayerProviderReady, planDeckImport } from "@/models/game/load-deck/loadDeckModel";
 
@@ -32,7 +32,7 @@ export const useLoadDeckController = ({
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const wasOpenRef = React.useRef(false);
 
-  const addCard = useGameStore((state) => state.addCard);
+  const addCards = useGameStore((state) => state.addCards);
   const addZone = useGameStore((state) => state.addZone);
   const setDeckLoaded = useGameStore((state) => state.setDeckLoaded);
   const shuffleLibrary = useGameStore((state) => state.shuffleLibrary);
@@ -112,26 +112,20 @@ export const useLoadDeckController = ({
       });
 
       if (missingZones.size) {
-        batchSharedMutations(() => {
-          missingZones.forEach((zoneType, zoneId) => {
-            addZone({ id: zoneId, ownerId: playerId, type: zoneType, cardIds: [] });
-          });
+        missingZones.forEach((zoneType, zoneId) => {
+          addZone({ id: zoneId, ownerId: playerId, type: zoneType, cardIds: [] });
         });
       }
 
       planned.chunks.forEach((chunk) => {
-        batchSharedMutations(() => {
-          chunk.forEach(({ cardData, zoneId }) => {
-            const newCard = createCardFromImport(cardData, playerId, zoneId);
-            addCard(newCard);
-          });
-        });
+        const batch = chunk.map(({ cardData, zoneId }) =>
+          createCardFromImport(cardData, playerId, zoneId)
+        );
+        addCards(batch);
       });
 
-      batchSharedMutations(() => {
-        setDeckLoaded(playerId, true);
-        shuffleLibrary(playerId, playerId);
-      });
+      setDeckLoaded(playerId, true);
+      shuffleLibrary(playerId, playerId);
 
       toast.success("Deck successfully loaded");
       setLastImportedDeckText(importText);
@@ -144,7 +138,7 @@ export const useLoadDeckController = ({
       setIsImporting(false);
     }
   }, [
-    addCard,
+    addCards,
     importText,
     onClose,
     playerId,

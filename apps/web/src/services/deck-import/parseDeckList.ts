@@ -1,90 +1,81 @@
+import { detectSectionHeader, isIgnoredHeader, type DeckSection } from "./decklistParsing";
 import type { ParsedCard } from "./types";
+
+const DETAILED_PATTERN =
+  /^(\d+x?)\s+(.+?)\s+\(([a-zA-Z0-9]{3,})\)\s+(\S+).*$/;
+const SIMPLE_PATTERN = /^(\d+x?)\s+(.+)$/;
+
+const parseQuantity = (token: string) => {
+  const parsed = parseInt(token.replace("x", ""), 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const buildCard = (
+  quantity: number,
+  name: string,
+  section: DeckSection,
+  set = "",
+  collectorNumber = ""
+): ParsedCard => ({
+  quantity,
+  name,
+  set,
+  collectorNumber,
+  section,
+});
 
 export const parseDeckList = (text: string): ParsedCard[] => {
   const lines = text.split("\n");
   const cards: ParsedCard[] = [];
-  let currentSection: "main" | "commander" | "sideboard" = "main";
+  let currentSection: DeckSection = "main";
 
-  lines.forEach((line) => {
+  for (const line of lines) {
     const trimmedLine = line.trim();
-    const lowerLine = trimmedLine.toLowerCase();
-
-    if (trimmedLine === "") {
-      return;
-    }
+    if (trimmedLine === "") continue;
 
     // Detect Section Headers
-    if (lowerLine === "commander" || lowerLine.startsWith("commander:")) {
-      currentSection = "commander";
-      return;
-    }
-    if (lowerLine === "sideboard" || lowerLine.startsWith("sideboard:")) {
-      currentSection = "sideboard";
-      return;
-    }
-    if (lowerLine === "deck" || lowerLine.startsWith("deck:")) {
-      currentSection = "main";
-      return;
+    const header = detectSectionHeader(trimmedLine);
+    if (header) {
+      currentSection = header;
+      continue;
     }
 
     // Headers to ignore (if not section headers)
-    const IGNORED_HEADERS = ["companion", "maybeboard", "about"];
-
-    if (
-      IGNORED_HEADERS.includes(lowerLine) ||
-      lowerLine.startsWith("name ") ||
-      lowerLine.startsWith("about ")
-    ) {
-      return;
-    }
+    if (isIgnoredHeader(trimmedLine)) continue;
 
     // Regex Patterns
 
     // Pattern A: Detailed Export
-    const detailedMatch = trimmedLine.match(
-      /^(\d+x?)\s+(.+?)\s+\(([a-zA-Z0-9]{3,})\)\s+(\S+).*$/
-    );
+    const detailedMatch = trimmedLine.match(DETAILED_PATTERN);
 
     if (detailedMatch) {
-      const card = {
-        quantity: parseInt(detailedMatch[1].replace("x", ""), 10),
-        name: detailedMatch[2].trim(),
-        set: detailedMatch[3].toLowerCase(),
-        collectorNumber: detailedMatch[4],
-        section: currentSection,
-      } as ParsedCard;
-      cards.push(card);
-      return;
+      cards.push(
+        buildCard(
+          parseQuantity(detailedMatch[1]),
+          detailedMatch[2].trim(),
+          currentSection,
+          detailedMatch[3].toLowerCase(),
+          detailedMatch[4]
+        )
+      );
+      continue;
     }
 
     // Pattern B: Simple Quantity + Name
-    const simpleMatch = trimmedLine.match(/^(\d+x?)\s+(.+)$/);
+    const simpleMatch = trimmedLine.match(SIMPLE_PATTERN);
 
     if (simpleMatch) {
-      const card = {
-        quantity: parseInt(simpleMatch[1].replace("x", ""), 10),
-        name: simpleMatch[2].trim(),
-        set: "",
-        collectorNumber: "",
-        section: currentSection,
-      } as ParsedCard;
-      cards.push(card);
-      return;
+      cards.push(
+        buildCard(parseQuantity(simpleMatch[1]), simpleMatch[2].trim(), currentSection)
+      );
+      continue;
     }
 
     // Pattern C: Just Name
     if (trimmedLine.length > 0) {
-      const card = {
-        quantity: 1,
-        name: trimmedLine,
-        set: "",
-        collectorNumber: "",
-        section: currentSection,
-      } as ParsedCard;
-      cards.push(card);
+      cards.push(buildCard(1, trimmedLine, currentSection));
     }
-  });
+  }
 
   return cards;
 };
-

@@ -1,23 +1,20 @@
 import type { StoreApi } from "zustand";
 
 import type { GameState } from "@/types";
-import type { SharedMaps } from "@/yjs/yMutations";
-import { patchRoomMeta } from "@/yjs/yMutations";
+import type { DispatchIntent } from "@/store/gameStore/dispatchIntent";
 import { MAX_PLAYERS } from "@/lib/room";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];
 
-type ApplyShared = (fn: (maps: SharedMaps) => void) => boolean;
-
 type Deps = {
-  applyShared: ApplyShared;
+  dispatchIntent: DispatchIntent;
 };
 
 export const createRoomActions = (
-  set: SetState,
+  _set: SetState,
   get: GetState,
-  { applyShared }: Deps
+  { dispatchIntent }: Deps
 ): Pick<GameState, "setRoomLockedByHost"> => ({
   setRoomLockedByHost: (locked) => {
     const state = get();
@@ -28,13 +25,10 @@ export const createRoomActions = (
     const isFull = playerCount >= MAX_PLAYERS;
     if (!locked && isFull) return;
 
-    if (
-      applyShared((maps) => {
-        patchRoomMeta(maps, { locked });
-      })
-    )
-      return;
-
-    set({ roomLockedByHost: locked });
+    dispatchIntent({
+      type: "room.lock",
+      payload: { locked, actorId: state.myPlayerId },
+      applyLocal: () => ({ roomLockedByHost: locked }),
+    });
   },
 });

@@ -1,4 +1,12 @@
-import type { Card, Player, Zone } from '@/types';
+import type {
+  Card,
+  CardIdentity,
+  FaceDownRevealsToAll,
+  HandRevealsToAll,
+  LibraryRevealsToAll,
+  Player,
+  Zone,
+} from '@/types';
 
 import type { SharedMaps } from './shared';
 import { readCard } from './cards';
@@ -9,6 +17,9 @@ export const sharedSnapshot = (maps: SharedMaps) => {
   const players: Record<string, Player> = {};
   const zones: Record<string, Zone> = {};
   const cards: Record<string, Card> = {};
+  const handRevealsToAll: HandRevealsToAll = {};
+  const libraryRevealsToAll: LibraryRevealsToAll = {};
+  const faceDownRevealsToAll: FaceDownRevealsToAll = {};
   const globalCounters: Record<string, string> = {};
   const battlefieldViewScale: Record<string, number> = {};
   const playerOrder: string[] = [];
@@ -25,6 +36,24 @@ export const sharedSnapshot = (maps: SharedMaps) => {
   maps.cards.forEach((_value, key) => {
     const c = readCard(maps, key as string);
     if (c) cards[key as string] = c;
+  });
+  maps.handRevealsToAll.forEach((value, key) => {
+    if (typeof key !== 'string') return;
+    if (value && typeof value === 'object') {
+      handRevealsToAll[key] = value as CardIdentity;
+    }
+  });
+  maps.libraryRevealsToAll.forEach((value, key) => {
+    if (typeof key !== 'string') return;
+    if (value && typeof value === 'object') {
+      libraryRevealsToAll[key] = value as LibraryRevealsToAll[string];
+    }
+  });
+  maps.faceDownRevealsToAll.forEach((value, key) => {
+    if (typeof key !== 'string') return;
+    if (value && typeof value === 'object') {
+      faceDownRevealsToAll[key] = value as CardIdentity;
+    }
   });
   maps.globalCounters.forEach((value, key) => {
     if (typeof value === 'string') {
@@ -50,5 +79,16 @@ export const sharedSnapshot = (maps: SharedMaps) => {
     }
   });
 
-  return { players, zones, cards, globalCounters, battlefieldViewScale, playerOrder, meta };
+  return {
+    players,
+    zones,
+    cards,
+    handRevealsToAll,
+    libraryRevealsToAll,
+    faceDownRevealsToAll,
+    globalCounters,
+    battlefieldViewScale,
+    playerOrder,
+    meta,
+  };
 };

@@ -137,7 +137,7 @@ describe("cardModel", () => {
       ).toEqual({ kind: "none" });
     });
 
-    it("shows immediate preview for revealed top library cards", () => {
+    it("shows immediate preview for revealed library cards", () => {
       expect(
         getCardHoverPreviewPolicy({
           zoneType: ZONE.LIBRARY,
@@ -158,7 +158,18 @@ describe("cardModel", () => {
           isZoneTopCard: true,
           allowLibraryTopPreview: false,
         })
-      ).toEqual({ kind: "none" });
+      ).toEqual({ kind: "immediate" });
+
+      expect(
+        getCardHoverPreviewPolicy({
+          zoneType: ZONE.LIBRARY,
+          canPeek: true,
+          faceDown: false,
+          isDragging: false,
+          isZoneTopCard: false,
+          allowLibraryTopPreview: false,
+        })
+      ).toEqual({ kind: "immediate" });
     });
   });
 

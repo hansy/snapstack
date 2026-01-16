@@ -23,7 +23,7 @@ interface ZoneActionBuilderParams {
   resetDeck: (playerId: PlayerId) => void;
   mulligan: (playerId: PlayerId, count: number) => void;
   unloadDeck: (playerId: PlayerId) => void;
-  libraryTopReveal?: LibraryTopRevealMode;
+  libraryTopReveal?: LibraryTopRevealMode | null;
   setLibraryTopReveal?: (mode: LibraryTopRevealMode | null) => void;
   openTopCardRevealPrompt?: (opts: {
     title: string;

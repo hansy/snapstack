@@ -18,7 +18,6 @@ import {
   getCardHoverPreviewPolicy,
   shouldDisableHoverAnimation,
 } from "@/models/game/card/cardModel";
-import { batchSharedMutations } from "@/yjs/docManager";
 import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
 
 import type { CardProps, CardViewProps } from "@/components/game/card/types";
@@ -261,15 +260,13 @@ export const useCardController = (props: CardProps): CardController => {
     });
     if (groupIds.length > 1) {
       const targetTapped = !card.tapped;
-      batchSharedMutations(() => {
-        groupIds.forEach((id) => {
-          const targetCard = state.cards[id];
-          if (!targetCard) return;
-          if (targetCard.zoneId !== card.zoneId) return;
-          if (targetCard.controllerId !== actorId) return;
-          if (targetCard.tapped === targetTapped) return;
-          tapCard(targetCard.id, actorId);
-        });
+      groupIds.forEach((id) => {
+        const targetCard = state.cards[id];
+        if (!targetCard) return;
+        if (targetCard.zoneId !== card.zoneId) return;
+        if (targetCard.controllerId !== actorId) return;
+        if (targetCard.tapped === targetTapped) return;
+        tapCard(targetCard.id, actorId);
       });
       return;
     }

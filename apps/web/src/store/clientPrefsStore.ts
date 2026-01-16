@@ -92,6 +92,12 @@ const normalizeUsername = (input: string | null | undefined): string | null => {
   return capped.length ? capped : null;
 };
 
+const normalizeSessionId = (input: string | null | undefined): string | null => {
+  if (!input) return null;
+  const trimmed = input.trim();
+  return trimmed.length ? trimmed : null;
+};
+
 export const normalizeUsernameInput = normalizeUsername;
 
 const takeAlpha = (value: string, maxLen: number) => {
@@ -114,6 +120,7 @@ type ClientPrefsState = {
   hasHydrated: boolean;
   username: string | null;
   lastImportedDeckText: string | null;
+  lastSessionId: string | null;
 
   setHasHydrated: (next: boolean) => void;
   setUsername: (next: string | null) => void;
@@ -122,6 +129,9 @@ type ClientPrefsState = {
 
   setLastImportedDeckText: (next: string | null) => void;
   clearLastImportedDeckText: () => void;
+
+  setLastSessionId: (next: string | null) => void;
+  clearLastSessionId: () => void;
 };
 
 export const useClientPrefsStore = create<ClientPrefsState>()(
@@ -130,6 +140,7 @@ export const useClientPrefsStore = create<ClientPrefsState>()(
       hasHydrated: false,
       username: null,
       lastImportedDeckText: null,
+      lastSessionId: null,
 
       setHasHydrated: (next) => set({ hasHydrated: next }),
       setUsername: (next) => {
@@ -156,25 +167,33 @@ export const useClientPrefsStore = create<ClientPrefsState>()(
         set({ lastImportedDeckText: normalized.length ? normalized : null });
       },
       clearLastImportedDeckText: () => set({ lastImportedDeckText: null }),
+
+      setLastSessionId: (next) => {
+        set({ lastSessionId: normalizeSessionId(next) });
+      },
+      clearLastSessionId: () => set({ lastSessionId: null }),
     }),
     {
       name: STORAGE_KEY,
-      version: 2,
+      version: 3,
       migrate: (persisted: any) => {
         const username = normalizeUsername(persisted?.username);
         const lastImportedDeckTextRaw = String(
           persisted?.lastImportedDeckText ?? ""
         ).trim();
+        const lastSessionId = normalizeSessionId(persisted?.lastSessionId);
         return {
           username,
           lastImportedDeckText: lastImportedDeckTextRaw.length
             ? lastImportedDeckTextRaw
             : null,
+          lastSessionId,
         };
       },
       partialize: (state) => ({
         username: state.username,
         lastImportedDeckText: state.lastImportedDeckText,
+        lastSessionId: state.lastSessionId,
       }),
       storage: createJSONStorage(createSafeStorage),
       onRehydrateStorage: () => (state) => {

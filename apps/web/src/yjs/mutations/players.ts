@@ -47,6 +47,21 @@ const writePlayer = (maps: SharedMaps, player: Player) => {
   target.set('cursor', player.cursor);
   target.set('commanderTax', player.commanderTax);
   target.set('deckLoaded', player.deckLoaded);
+  if (typeof player.handCount === "number" && Number.isFinite(player.handCount)) {
+    target.set("handCount", Math.max(0, Math.floor(player.handCount)));
+  } else {
+    target.delete("handCount");
+  }
+  if (typeof player.libraryCount === "number" && Number.isFinite(player.libraryCount)) {
+    target.set("libraryCount", Math.max(0, Math.floor(player.libraryCount)));
+  } else {
+    target.delete("libraryCount");
+  }
+  if (typeof player.sideboardCount === "number" && Number.isFinite(player.sideboardCount)) {
+    target.set("sideboardCount", Math.max(0, Math.floor(player.sideboardCount)));
+  } else {
+    target.delete("sideboardCount");
+  }
   const libraryTopReveal = normalizeLibraryTopReveal(player.libraryTopReveal);
   if (libraryTopReveal) {
     target.set('libraryTopReveal', libraryTopReveal);
@@ -83,6 +98,9 @@ export const readPlayer = (maps: SharedMaps, playerId: string): Player | null =>
     commanderDamage,
     commanderTax: getVal('commanderTax'),
     deckLoaded: getVal('deckLoaded'),
+    handCount: getVal("handCount"),
+    libraryCount: getVal("libraryCount"),
+    sideboardCount: getVal("sideboardCount"),
     libraryTopReveal,
   } as Player;
 };

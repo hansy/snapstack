@@ -1,8 +1,7 @@
 import type { StoreApi } from "zustand";
 
 import type { GameState } from "@/types";
-import type { SharedMaps } from "@/yjs/yMutations";
-import type { LogContext } from "@/logging/types";
+import type { DispatchIntent } from "@/store/gameStore/dispatchIntent";
 
 import { canModifyCardState } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
@@ -12,27 +11,18 @@ import {
   mergeCounters,
   resolveCounterColor,
 } from "@/lib/counters";
-import { emitLog } from "@/logging/logStore";
-import {
-  addCounterToCard as yAddCounterToCard,
-  removeCounterFromCard as yRemoveCounterFromCard,
-} from "@/yjs/yMutations";
-import { readCard } from "@/yjs/mutations/cards/cardData";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];
 
-type ApplyShared = (fn: (maps: SharedMaps) => void) => boolean;
-
 type Deps = {
-  applyShared: ApplyShared;
-  buildLogContext: () => LogContext;
+  dispatchIntent: DispatchIntent;
 };
 
 export const createCounterActions = (
-  set: SetState,
+  _set: SetState,
   get: GetState,
-  { applyShared, buildLogContext }: Deps
+  { dispatchIntent }: Deps
 ): Pick<
   GameState,
   "addGlobalCounter" | "addCounterToCard" | "removeCounterFromCard"
@@ -48,28 +38,21 @@ export const createCounterActions = (
     const resolvedColor = resolveCounterColor(normalizedName, get().globalCounters);
     const normalizedColor = (color || resolvedColor).slice(0, 16);
 
-    let didInsert = false;
-    const sharedApplied = applyShared((maps) => {
-      const current = maps.globalCounters.get(normalizedName) as string | undefined;
-      if (current) return;
-      maps.globalCounters.set(normalizedName, normalizedColor);
-      didInsert = true;
+    dispatchIntent({
+      type: "counter.global.add",
+      payload: {
+        counterType: normalizedName,
+        color: normalizedColor,
+        actorId: get().myPlayerId,
+      },
+      applyLocal: (state) => {
+        return {
+          globalCounters: { ...state.globalCounters, [normalizedName]: normalizedColor },
+        };
+      },
+      isRemote: _isRemote,
     });
 
-    if (!sharedApplied) {
-      set((state) => ({
-        globalCounters: { ...state.globalCounters, [normalizedName]: normalizedColor },
-      }));
-      didInsert = true;
-    }
-
-    if (!didInsert) return;
-
-    emitLog(
-      "counter.global.add",
-      { counterType: normalizedName, color: normalizedColor },
-      buildLogContext()
-    );
   },
 
   addCounterToCard: (cardId, counter, actorId, _isRemote) => {
@@ -101,24 +84,10 @@ export const createCounterActions = (
     const delta = nextCount - prevCount;
     if (delta <= 0) return;
 
-    let sharedDelta: number | null = null;
-    let sharedNextCount: number | null = null;
-    const sharedApplied = applyShared((maps) => {
-      const before = readCard(maps, cardId);
-      const beforeCount =
-        before?.counters.find((c) => c.type === counter.type)?.count ?? 0;
-      yAddCounterToCard(maps, cardId, counter);
-      const after = readCard(maps, cardId);
-      if (before && after) {
-        const afterCount =
-          after.counters.find((c) => c.type === counter.type)?.count ?? beforeCount;
-        sharedDelta = afterCount - beforeCount;
-        sharedNextCount = afterCount;
-      }
-    });
-
-    if (!sharedApplied) {
-      set((current) => {
+    dispatchIntent({
+      type: "card.counter.adjust",
+      payload: { cardId, counter, actorId: actor },
+      applyLocal: (current) => {
         const currentCard = current.cards[cardId];
         if (!currentCard) return current;
         return {
@@ -130,32 +99,16 @@ export const createCounterActions = (
             },
           },
         };
-      });
-    }
-
-    const logDelta = sharedDelta ?? delta;
-    const logNextTotal = sharedNextCount ?? nextCount;
-    if (sharedDelta !== null && logDelta <= 0) return;
+      },
+      isRemote: _isRemote,
+    });
 
     logPermission({
       action: "addCounterToCard",
       actorId: actor,
       allowed: true,
-      details: { cardId, zoneId: card.zoneId, counterType: counter.type, delta: logDelta },
+      details: { cardId, zoneId: card.zoneId, counterType: counter.type, delta },
     });
-    emitLog(
-      "counter.add",
-      {
-        actorId: actor,
-        cardId,
-        zoneId: card.zoneId,
-        counterType: counter.type,
-        delta: logDelta,
-        newTotal: logNextTotal,
-        cardName: card.name,
-      },
-      buildLogContext()
-    );
   },
 
   removeCounterFromCard: (cardId, counterType, actorId, _isRemote) => {
@@ -186,24 +139,10 @@ export const createCounterActions = (
     const delta = nextCount - prevCount;
     if (delta === 0) return;
 
-    let sharedDelta: number | null = null;
-    let sharedNextCount: number | null = null;
-    const sharedApplied = applyShared((maps) => {
-      const before = readCard(maps, cardId);
-      const beforeCount =
-        before?.counters.find((c) => c.type === counterType)?.count ?? 0;
-      yRemoveCounterFromCard(maps, cardId, counterType);
-      const after = readCard(maps, cardId);
-      if (before && after) {
-        const afterCount =
-          after.counters.find((c) => c.type === counterType)?.count ?? 0;
-        sharedDelta = afterCount - beforeCount;
-        sharedNextCount = afterCount;
-      }
-    });
-
-    if (!sharedApplied) {
-      set((current) => {
+    dispatchIntent({
+      type: "card.counter.adjust",
+      payload: { cardId, counterType, actorId: actor, delta },
+      applyLocal: (current) => {
         const currentCard = current.cards[cardId];
         if (!currentCard) return current;
         return {
@@ -215,31 +154,15 @@ export const createCounterActions = (
             },
           },
         };
-      });
-    }
-
-    const logDelta = sharedDelta ?? delta;
-    const logNextTotal = sharedNextCount ?? nextCount;
-    if (sharedDelta !== null && logDelta === 0) return;
+      },
+      isRemote: _isRemote,
+    });
 
     logPermission({
       action: "removeCounterFromCard",
       actorId: actor,
       allowed: true,
-      details: { cardId, zoneId: card.zoneId, counterType, delta: logDelta },
+      details: { cardId, zoneId: card.zoneId, counterType, delta },
     });
-    emitLog(
-      "counter.remove",
-      {
-        actorId: actor,
-        cardId,
-        zoneId: card.zoneId,
-        counterType,
-        delta: logDelta,
-        newTotal: logNextTotal,
-        cardName: card.name,
-      },
-      buildLogContext()
-    );
   },
 });

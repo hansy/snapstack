@@ -3,19 +3,12 @@ import type { GameState } from "@/types";
 import { ZONE, isCommanderZoneType } from "@/constants/zones";
 import { canMoveCard } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
-import { emitLog } from "@/logging/logStore";
-import type { LogEventPayloadMap } from "@/logging/types";
 import { enforceZoneCounterRules } from "@/lib/counters";
 import {
   resolveBattlefieldCollisionPosition,
   resolveBattlefieldGroupCollisionPositions,
 } from "@/lib/battlefieldCollision";
 import { resetCardToFrontFace } from "@/lib/cardDisplay";
-import {
-  moveCard as yMoveCard,
-  patchCard as yPatchCard,
-  removeCard as yRemoveCard,
-} from "@/yjs/yMutations";
 import { syncCommanderDecklistForPlayer } from "@/store/gameStore/actions/deck/commanderDecklist";
 import {
   computeRevealPatchAfterMove,
@@ -27,7 +20,7 @@ import { moveCardIdBetweenZones, removeCardFromZones } from "../movementState";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createMoveCard =
-  (set: SetState, get: GetState, { applyShared, buildLogContext }: Deps): GameState["moveCard"] =>
+  (set: SetState, get: GetState, { dispatchIntent }: Deps): GameState["moveCard"] =>
   (cardId, toZoneId, position, actorId, _isRemote, opts) => {
     const actor = actorId ?? get().myPlayerId;
     const role = actor === get().myPlayerId ? get().viewerRole : "player";
@@ -73,10 +66,6 @@ export const createMoveCard =
     const shouldSyncCommander =
       shouldMarkCommander && actor === get().myPlayerId && card.ownerId === actor;
 
-    const bothBattlefields =
-      fromZone.type === ZONE.BATTLEFIELD && toZone.type === ZONE.BATTLEFIELD;
-    const sameBattlefield = bothBattlefields && fromZoneId === toZoneId;
-    const controlShift = controlWillChange && toZone.type === ZONE.BATTLEFIELD;
     const faceDownResolution = resolveFaceDownAfterMove({
       fromZoneType: fromZone.type,
       toZoneType: toZone.type,
@@ -85,70 +74,22 @@ export const createMoveCard =
       requestedFaceDown: opts?.faceDown,
       requestedFaceDownMode: opts?.faceDownMode,
     });
-    const leavingFaceDownBattlefield =
-      fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD && card.faceDown;
-    const enteringFaceDownBattlefield =
-      toZone.type === ZONE.BATTLEFIELD && faceDownResolution.effectiveFaceDown;
-    const toPublicZone = toZone.type !== ZONE.HAND && toZone.type !== ZONE.LIBRARY;
-    const shouldHideMoveName =
-      enteringFaceDownBattlefield || (leavingFaceDownBattlefield && !toPublicZone);
     const revealPatch = computeRevealPatchAfterMove({
       fromZoneType: fromZone.type,
       toZoneType: toZone.type,
       effectiveFaceDown: faceDownResolution.effectiveFaceDown,
     });
 
-    if (!opts?.suppressLog && !sameBattlefield) {
-      const movePayload: LogEventPayloadMap["card.move"] = {
-        actorId: actor,
+    dispatchIntent({
+      type: "card.move",
+      payload: {
         cardId,
-        fromZoneId,
         toZoneId,
-        cardName: shouldHideMoveName ? "a card" : card.name,
-        fromZoneType: fromZone.type,
-        toZoneType: toZone.type,
-        faceDown: faceDownResolution.effectiveFaceDown,
-        forceHidden: shouldHideMoveName,
-      };
-      if (controlShift) movePayload.gainsControlBy = nextControllerId;
-      emitLog("card.move", movePayload, buildLogContext());
-    }
-
-    applyShared((maps) => {
-      const tokenLeavingBattlefield =
-        card.isToken && toZone.type !== ZONE.BATTLEFIELD;
-      if (tokenLeavingBattlefield) {
-        yRemoveCard(maps, cardId);
-        return;
-      }
-
-      yMoveCard(maps, cardId, toZoneId, position, {
-        skipCollision: opts?.skipCollision,
-        groupCollision: opts?.groupCollision,
-      });
-
-      if (shouldMarkCommander) {
-        yPatchCard(maps, cardId, { isCommander: true });
-      }
-
-      if (controlWillChange) {
-        yPatchCard(maps, cardId, { controllerId: nextControllerId });
-      }
-
-      if (faceDownResolution.patchFaceDown !== undefined) {
-        yPatchCard(maps, cardId, { faceDown: faceDownResolution.patchFaceDown });
-      }
-      if (faceDownResolution.patchFaceDownMode !== undefined) {
-        const nextMode =
-          faceDownResolution.patchFaceDownMode === null
-            ? undefined
-            : faceDownResolution.patchFaceDownMode;
-        yPatchCard(maps, cardId, { faceDownMode: nextMode });
-      }
-
-      if (revealPatch) {
-        yPatchCard(maps, cardId, revealPatch);
-      }
+        position,
+        actorId: actor,
+        opts: opts ?? null,
+      },
+      isRemote: _isRemote,
     });
 
     const leavingBattlefield =
@@ -173,12 +114,16 @@ export const createMoveCard =
       const cardsCopy = { ...state.cards };
       const nextTapped = toZone.type === ZONE.BATTLEFIELD ? card.tapped : false;
       const nextCounters = enforceZoneCounterRules(card.counters, toZone);
-      const newPosition = normalizeMovePosition(position, card.position);
+      const fallbackPosition =
+        !position && toZone.type === ZONE.BATTLEFIELD && fromZone.type !== ZONE.BATTLEFIELD
+          ? { x: 0.5, y: 0.5 }
+          : position;
+      const newPosition = normalizeMovePosition(fallbackPosition, card.position);
       let resolvedPosition = newPosition;
 
       if (
         toZone.type === ZONE.BATTLEFIELD &&
-        position &&
+        fallbackPosition &&
         (!opts?.skipCollision || opts?.groupCollision)
       ) {
         if (opts?.groupCollision) {

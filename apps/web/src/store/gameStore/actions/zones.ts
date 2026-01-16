@@ -1,31 +1,32 @@
 import type { StoreApi } from "zustand";
 
 import type { GameState, Zone } from "@/types";
-import type { SharedMaps } from "@/yjs/yMutations";
+import type { DispatchIntent } from "@/store/gameStore/dispatchIntent";
 
 import { logPermission } from "@/rules/logger";
-import { reorderZoneCards as yReorderZoneCards, upsertZone as yUpsertZone } from "@/yjs/yMutations";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];
 
-type ApplyShared = (fn: (maps: SharedMaps) => void) => boolean;
-
 type Deps = {
-  applyShared: ApplyShared;
+  dispatchIntent: DispatchIntent;
 };
 
 export const createZoneActions = (
-  set: SetState,
+  _set: SetState,
   get: GetState,
-  { applyShared }: Deps
+  { dispatchIntent }: Deps
 ): Pick<GameState, "addZone" | "reorderZoneCards"> => ({
   addZone: (zone: Zone, _isRemote?: boolean) => {
     if (get().viewerRole === "spectator") return;
-    if (applyShared((maps) => yUpsertZone(maps, zone))) return;
-    set((state) => ({
-      zones: { ...state.zones, [zone.id]: zone },
-    }));
+    dispatchIntent({
+      type: "zone.add",
+      payload: { zone },
+      applyLocal: (state) => ({
+        zones: { ...state.zones, [zone.id]: zone },
+      }),
+      isRemote: _isRemote,
+    });
   },
 
   reorderZoneCards: (zoneId, orderedCardIds, actorId, _isRemote) => {
@@ -65,18 +66,20 @@ export const createZoneActions = (
       currentIds.every((id) => orderedCardIds.includes(id));
     if (!containsSameCards) return;
 
-    if (applyShared((maps) => yReorderZoneCards(maps, zoneId, orderedCardIds))) return;
-
-    set((state) => ({
-      zones: {
-        ...state.zones,
-        [zoneId]: {
-          ...state.zones[zoneId],
-          cardIds: orderedCardIds,
+    dispatchIntent({
+      type: "zone.reorder",
+      payload: { zoneId, orderedCardIds, actorId: actor },
+      applyLocal: (state) => ({
+        zones: {
+          ...state.zones,
+          [zoneId]: {
+            ...state.zones[zoneId],
+            cardIds: orderedCardIds,
+          },
         },
-      },
-    }));
-
+      }),
+      isRemote: _isRemote,
+    });
     logPermission({
       action: "reorderZoneCards",
       actorId: actor,

@@ -1,7 +1,6 @@
 import type { Card, CardId, FaceDownMode, GameState, PlayerId, ZoneId } from "@/types";
 import type { ScryfallRelatedCard } from "@/types/scryfall";
 import { useSelectionStore } from "@/store/selectionStore";
-import { batchSharedMutations } from "@/yjs/docManager";
 import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
 
 type MoveCardFn = (
@@ -76,12 +75,7 @@ export const createCardActionAdapters = (params: {
       });
     };
 
-    if (targetIds.length === 1) {
-      run();
-      return;
-    }
-
-    batchSharedMutations(run);
+    run();
   };
 
   const moveCard: MoveCardFn = (
@@ -127,24 +121,13 @@ export const createCardActionAdapters = (params: {
         });
       };
 
-      if (targetIds.length === 1) {
-        run();
-        return;
-      }
-
-      batchSharedMutations(run);
+      run();
     },
     transformCard: (cardId: CardId, faceIndex?: number) => {
       const targetIds = resolveTargetIds(cardId);
       if (targetIds.length === 0) return;
-      if (targetIds.length === 1) {
-        params.store.transformCard(cardId, faceIndex);
-        return;
-      }
-      batchSharedMutations(() => {
-        targetIds.forEach((id) => {
-          params.store.transformCard(id, faceIndex);
-        });
+      targetIds.forEach((id) => {
+        params.store.transformCard(id, faceIndex);
       });
     },
     duplicateCard: (cardId: CardId) =>
@@ -197,11 +180,7 @@ export const createCardActionAdapters = (params: {
           params.store.removeCard(id, params.myPlayerId);
         });
       };
-      if (targetIds.length === 1) {
-        run();
-        return;
-      }
-      batchSharedMutations(run);
+      run();
     },
     openTextPrompt: params.openTextPrompt,
   };

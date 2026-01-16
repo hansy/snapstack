@@ -4,20 +4,13 @@ import { getZoneByType } from "@/lib/gameSelectors";
 import { ZONE } from "@/constants/zones";
 import { canViewZone } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
-import { emitLog } from "@/logging/logStore";
-import { shuffle } from "@/lib/shuffle";
-import {
-  patchCard as yPatchCard,
-  reorderZoneCards as yReorderZoneCards,
-  sharedSnapshot,
-} from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createShuffleLibrary =
   (
-    set: SetState,
+    _set: SetState,
     get: GetState,
-    { applyShared, buildLogContext }: Deps
+    { dispatchIntent }: Deps
   ): GameState["shuffleLibrary"] =>
   (playerId, actorId, _isRemote) => {
     const actor = actorId ?? playerId;
@@ -40,41 +33,11 @@ export const createShuffleLibrary =
       return;
     }
 
-    const sharedApplied = applyShared((maps) => {
-      const snapshot = sharedSnapshot(maps);
-      const zone = snapshot.zones[libraryZone.id];
-      if (!zone) return;
-      const shuffledIds = shuffle(zone.cardIds);
-      yReorderZoneCards(maps, libraryZone.id, shuffledIds);
-      zone.cardIds.forEach((id) => {
-        yPatchCard(maps, id, { knownToAll: false, revealedToAll: false, revealedTo: [] });
-      });
+    dispatchIntent({
+      type: "library.shuffle",
+      payload: { playerId, actorId: actor },
+      isRemote: _isRemote,
     });
-
-    if (!sharedApplied) {
-      set((state) => {
-        const shuffledIds = shuffle(state.zones[libraryZone.id]?.cardIds || []);
-        const cardsCopy = { ...state.cards };
-        shuffledIds.forEach((id) => {
-          const card = cardsCopy[id];
-          if (!card) return;
-          cardsCopy[id] = {
-            ...card,
-            knownToAll: false,
-            revealedToAll: false,
-            revealedTo: [],
-          };
-        });
-
-        return {
-          cards: cardsCopy,
-          zones: {
-            ...state.zones,
-            [libraryZone.id]: { ...state.zones[libraryZone.id], cardIds: shuffledIds },
-          },
-        };
-      });
-    }
 
     logPermission({
       action: "shuffleLibrary",
@@ -83,5 +46,4 @@ export const createShuffleLibrary =
       details: { playerId },
     });
 
-    emitLog("library.shuffle", { actorId: actor, playerId }, buildLogContext());
   };

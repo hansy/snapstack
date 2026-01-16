@@ -40,6 +40,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   zones,
   cards,
   players,
+  libraryRevealsToAll,
   battlefieldViewScale,
   playerColors,
   gridClass,
@@ -154,6 +155,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                         color={slot.color}
                         zones={zones}
                         cards={cards}
+                        libraryRevealsToAll={libraryRevealsToAll}
                         isMe={seatPlayer.id === myPlayerId}
                         viewerPlayerId={myPlayerId}
                         viewerRole={viewerRole}

@@ -1,10 +1,18 @@
-import type { Card, Player, Zone } from "@/types";
+import type {
+  Card,
+  FaceDownRevealsToAll,
+  HandRevealsToAll,
+  LibraryRevealsToAll,
+  Player,
+  Zone,
+} from "@/types";
 
 import { enforceZoneCounterRules } from "@/lib/counters";
 import { MAX_CARDS, MAX_CARDS_PER_ZONE } from "@/lib/limits";
 import { MAX_PLAYERS, MAX_ZONES } from "../sanitizeLimits";
 
 import { sanitizeCard } from "./card";
+import { sanitizeCardIdentity, sanitizeLibraryRevealEntry } from "./identity";
 import { sanitizePlayer, sanitizePlayerOrder } from "./player";
 import { clampNumber } from "./utils";
 import { sanitizeZone } from "./zone";
@@ -13,6 +21,9 @@ export type SharedSnapshotLike = {
   players: Record<string, any>;
   zones: Record<string, any>;
   cards: Record<string, any>;
+  handRevealsToAll?: Record<string, any>;
+  libraryRevealsToAll?: Record<string, any>;
+  faceDownRevealsToAll?: Record<string, any>;
   globalCounters: Record<string, any>;
   battlefieldViewScale?: Record<string, any>;
   playerOrder: any;
@@ -55,13 +66,56 @@ export function sanitizeSharedSnapshot(snapshot: SharedSnapshotLike) {
     }
   });
 
+  const safeHandRevealsToAll: HandRevealsToAll = {};
+  const handRevealEntries = Object.entries(snapshot.handRevealsToAll ?? {});
+  handRevealEntries.forEach(([slotId, value]) => {
+    if (Object.keys(safeHandRevealsToAll).length >= MAX_CARDS) return;
+    if (typeof slotId !== "string") return;
+    const identity = sanitizeCardIdentity(value);
+    if (identity) safeHandRevealsToAll[slotId] = identity;
+  });
+
+  const safeLibraryRevealsToAll: LibraryRevealsToAll = {};
+  const libraryRevealEntries = Object.entries(snapshot.libraryRevealsToAll ?? {});
+  libraryRevealEntries.forEach(([revealId, value]) => {
+    if (Object.keys(safeLibraryRevealsToAll).length >= MAX_CARDS) return;
+    if (typeof revealId !== "string") return;
+    const entry = sanitizeLibraryRevealEntry(value);
+    if (entry) safeLibraryRevealsToAll[revealId] = entry;
+  });
+
+  const safeFaceDownRevealsToAll: FaceDownRevealsToAll = {};
+  const faceDownEntries = Object.entries(snapshot.faceDownRevealsToAll ?? {});
+  faceDownEntries.forEach(([cardId, value]) => {
+    if (Object.keys(safeFaceDownRevealsToAll).length >= MAX_CARDS) return;
+    if (typeof cardId !== "string") return;
+    const identity = sanitizeCardIdentity(value);
+    if (identity) safeFaceDownRevealsToAll[cardId] = identity;
+  });
+
   Object.values(safeZones).forEach((zone) => {
+    const zoneType = zone.type;
+    if (zoneType === "hand") {
+      zone.cardIds = zone.cardIds.filter((id) => typeof id === "string");
+      if (zone.cardIds.length > MAX_CARDS_PER_ZONE) {
+        zone.cardIds = zone.cardIds.slice(0, MAX_CARDS_PER_ZONE);
+      }
+      return;
+    }
+    if (zoneType === "library" || zoneType === "sideboard") {
+      zone.cardIds = [];
+      return;
+    }
     zone.cardIds = zone.cardIds.filter((id) => safeCards[id]);
   });
 
   Object.values(safeCards).forEach((card) => {
     const zone = safeZones[card.zoneId];
     if (!zone) return;
+
+    if (zone.type === "hand" || zone.type === "library" || zone.type === "sideboard") {
+      return;
+    }
 
     if (!zone.cardIds.includes(card.id)) {
       zone.cardIds.push(card.id);
@@ -101,6 +155,9 @@ export function sanitizeSharedSnapshot(snapshot: SharedSnapshotLike) {
     players: safePlayers,
     zones: safeZones,
     cards: safeCards,
+    handRevealsToAll: safeHandRevealsToAll,
+    libraryRevealsToAll: safeLibraryRevealsToAll,
+    faceDownRevealsToAll: safeFaceDownRevealsToAll,
     globalCounters: safeGlobalCounters,
     playerOrder: safePlayerOrder,
     battlefieldViewScale: safeBattlefieldViewScale,

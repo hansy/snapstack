@@ -3,6 +3,12 @@ import type { Counter } from "./counters";
 import type { Player } from "./players";
 import type { CardId, PlayerId, ViewerRole, ZoneId } from "./ids";
 import type { Zone } from "./zones";
+import type {
+  FaceDownRevealsToAll,
+  HandRevealsToAll,
+  LibraryRevealsToAll,
+} from "./reveals";
+import type { PrivateOverlayPayload, RoomTokensPayload } from "@/partykit/messages";
 
 export interface GameState {
   viewerRole: ViewerRole;
@@ -10,10 +16,15 @@ export interface GameState {
   playerOrder: PlayerId[];
   cards: Record<CardId, Card>;
   zones: Record<ZoneId, Zone>;
+  handRevealsToAll: HandRevealsToAll;
+  libraryRevealsToAll: LibraryRevealsToAll;
+  faceDownRevealsToAll: FaceDownRevealsToAll;
   battlefieldViewScale: Record<PlayerId, number>;
   roomHostId: PlayerId | null;
   roomLockedByHost: boolean;
   roomOverCapacity: boolean;
+  privateOverlay: PrivateOverlayPayload | null;
+  roomTokens: RoomTokensPayload | null;
 
   // Session
   sessionId: string;
@@ -34,6 +45,7 @@ export interface GameState {
   ) => void;
   addZone: (zone: Zone, isRemote?: boolean) => void;
   addCard: (card: Card, isRemote?: boolean) => void;
+  addCards: (cards: Card[], isRemote?: boolean) => void;
   updateCard: (
     id: CardId,
     updates: Partial<Card>,
@@ -156,6 +168,8 @@ export interface GameState {
   leaveGame: () => void;
   setBattlefieldViewScale: (playerId: PlayerId, scale: number) => void;
   setViewerRole: (role: ViewerRole) => void;
+  applyPrivateOverlay: (overlay: PrivateOverlayPayload) => void;
+  setRoomTokens: (tokens: RoomTokensPayload | null) => void;
 
   // Hydration
   hasHydrated: boolean;

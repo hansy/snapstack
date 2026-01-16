@@ -1,32 +1,26 @@
 import type { StoreApi } from "zustand";
 
 import type { GameState } from "@/types";
-import type { SharedMaps } from "@/yjs/yMutations";
+import type { DispatchIntent } from "@/store/gameStore/dispatchIntent";
 import { MAX_PLAYER_LIFE, MIN_PLAYER_LIFE } from "@/lib/limits";
 
 import { canUpdatePlayer } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
-import { emitLog } from "@/logging/logStore";
-import { patchPlayer as yPatchPlayer, upsertPlayer as yUpsertPlayer } from "@/yjs/yMutations";
-import type { LogContext } from "@/logging/types";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];
 
-type ApplyShared = (fn: (maps: SharedMaps) => void) => boolean;
-
 type Deps = {
-  applyShared: ApplyShared;
-  buildLogContext: () => LogContext;
+  dispatchIntent: DispatchIntent;
 };
 
 const clampLife = (life: number) =>
   Math.min(MAX_PLAYER_LIFE, Math.max(MIN_PLAYER_LIFE, life));
 
 export const createPlayerActions = (
-  set: SetState,
+  _set: SetState,
   get: GetState,
-  { applyShared, buildLogContext }: Deps
+  { dispatchIntent }: Deps
 ): Pick<
   GameState,
   "addPlayer" | "updatePlayer" | "setDeckLoaded"
@@ -34,13 +28,17 @@ export const createPlayerActions = (
   addPlayer: (player, _isRemote) => {
     if (get().viewerRole === "spectator") return;
     const normalized = { ...player, deckLoaded: false, commanderTax: 0 };
-    if (applyShared((maps) => yUpsertPlayer(maps, normalized))) return;
-    set((state) => ({
-      players: { ...state.players, [normalized.id]: normalized },
-      playerOrder: state.playerOrder.includes(normalized.id)
-        ? state.playerOrder
-        : [...state.playerOrder, normalized.id],
-    }));
+    dispatchIntent({
+      type: "player.join",
+      payload: { player: normalized },
+      applyLocal: (state) => ({
+        players: { ...state.players, [normalized.id]: normalized },
+        playerOrder: state.playerOrder.includes(normalized.id)
+          ? state.playerOrder
+          : [...state.playerOrder, normalized.id],
+      }),
+      isRemote: _isRemote,
+    });
   },
 
   updatePlayer: (id, updates, actorId, _isRemote) => {
@@ -81,67 +79,31 @@ export const createPlayerActions = (
       details: { playerId: id, updates: normalizedUpdates },
     });
 
-    if (
-      typeof normalizedUpdates.life === "number" &&
-      normalizedUpdates.life !== player.life
-    ) {
-      emitLog(
-        "player.life",
-        {
-          actorId: actor,
-          playerId: id,
-          from: player.life,
-          to: normalizedUpdates.life,
-          delta: normalizedUpdates.life - player.life,
+    dispatchIntent({
+      type: "player.update",
+      payload: { playerId: id, updates: normalizedUpdates, actorId: actor },
+      applyLocal: (state) => ({
+        players: {
+          ...state.players,
+          [id]: { ...state.players[id], ...normalizedUpdates },
         },
-        buildLogContext()
-      );
-    }
-
-    if (
-      "libraryTopReveal" in updates &&
-      updates.libraryTopReveal !== player.libraryTopReveal
-    ) {
-      const enabled = Boolean(updates.libraryTopReveal);
-      const mode = enabled ? updates.libraryTopReveal : player.libraryTopReveal;
-      if (mode) {
-        emitLog(
-          "library.topReveal",
-          { actorId: actor, playerId: id, enabled, mode },
-          buildLogContext()
-        );
-      }
-    }
-
-    if (
-      applyShared((maps) => {
-        yPatchPlayer(maps, id, normalizedUpdates);
-      })
-    )
-      return;
-
-    set((state) => ({
-      players: {
-        ...state.players,
-        [id]: { ...state.players[id], ...normalizedUpdates },
-      },
-    }));
+      }),
+      isRemote: _isRemote,
+    });
   },
 
   setDeckLoaded: (playerId, loaded, _isRemote) => {
     if (get().viewerRole === "spectator") return;
-    if (
-      applyShared((maps) => {
-        yPatchPlayer(maps, playerId, { deckLoaded: loaded });
-      })
-    )
-      return;
-
-    set((state) => ({
-      players: {
-        ...state.players,
-        [playerId]: { ...state.players[playerId], deckLoaded: loaded },
-      },
-    }));
+    dispatchIntent({
+      type: loaded ? "deck.load" : "deck.unload",
+      payload: { playerId },
+      applyLocal: (state) => ({
+        players: {
+          ...state.players,
+          [playerId]: { ...state.players[playerId], deckLoaded: loaded },
+        },
+      }),
+      isRemote: _isRemote,
+    });
   },
 });

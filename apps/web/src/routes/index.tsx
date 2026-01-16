@@ -1,12 +1,74 @@
+import { useEffect, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { v4 as uuidv4 } from 'uuid';
+import { createRoomId } from '@/lib/roomId';
+import {
+  clearRoomHostPending,
+  isRoomHostPending,
+  markRoomAsHostPending,
+  readRoomTokensFromStorage,
+  writeRoomTokensToStorage,
+} from '@/lib/partyKitToken';
+import { clearIntentTransport } from '@/partykit/intentTransport';
+import { destroyAllSessions } from '@/yjs/docManager';
+import { useClientPrefsStore } from '@/store/clientPrefsStore';
+import { useGameStore } from '@/store/gameStore';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const hasHydrated = useClientPrefsStore((state) => state.hasHydrated);
+  const lastSessionId = useClientPrefsStore((state) => state.lastSessionId);
+  const setLastSessionId = useClientPrefsStore((state) => state.setLastSessionId);
+  const clearLastSessionId = useClientPrefsStore((state) => state.clearLastSessionId);
+  const [resumeSessionId, setResumeSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    destroyAllSessions();
+    clearIntentTransport();
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (!lastSessionId) {
+      setResumeSessionId(null);
+      return;
+    }
+    const storedTokens = readRoomTokensFromStorage(lastSessionId);
+    const canResume = Boolean(
+      storedTokens?.playerToken ||
+        storedTokens?.spectatorToken ||
+        isRoomHostPending(lastSessionId)
+    );
+    if (canResume) {
+      setResumeSessionId(lastSessionId);
+    } else {
+      setResumeSessionId(null);
+      clearLastSessionId();
+    }
+  }, [hasHydrated, lastSessionId, clearLastSessionId]);
 
   const handleCreateGame = () => {
-    const sessionId = uuidv4();
+    const sessionId = createRoomId();
+    markRoomAsHostPending(sessionId);
+    setLastSessionId(sessionId);
     navigate({ to: '/game/$sessionId', params: { sessionId } });
+  };
+
+  const handleReconnect = () => {
+    if (!resumeSessionId) return;
+    navigate({ to: '/game/$sessionId', params: { sessionId: resumeSessionId } });
+  };
+
+  const handleLeave = () => {
+    if (!resumeSessionId) return;
+    clearRoomHostPending(resumeSessionId);
+    writeRoomTokensToStorage(resumeSessionId, null);
+    const store = useGameStore.getState();
+    store.setRoomTokens(null);
+    store.forgetSessionIdentity(resumeSessionId);
+    clearLastSessionId();
+    destroyAllSessions();
+    clearIntentTransport();
+    setResumeSessionId(null);
   };
 
   return (
@@ -16,12 +78,36 @@ const LandingPage = () => {
         <p className="text-zinc-300 mb-8">
           Start a multiplayer table and share the link so others can join. State is synced in realtime.
         </p>
-        <button
-          onClick={handleCreateGame}
-          className="w-full py-3 px-4 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-zinc-50 font-medium transition"
-        >
-          Create game
-        </button>
+        {resumeSessionId ? (
+          <div className="mb-8 rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
+            <h2 className="text-lg font-semibold text-zinc-100">You're already in a game</h2>
+            <p className="text-sm text-zinc-300 mt-1">
+              Reconnect to your last session or leave it to stop syncing.
+            </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={handleReconnect}
+                className="flex-1 py-2.5 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-medium transition"
+              >
+                Reconnect
+              </button>
+              <button
+                onClick={handleLeave}
+                className="flex-1 py-2.5 px-4 rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-100 font-medium transition"
+              >
+                Leave game
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {resumeSessionId ? null : (
+          <button
+            onClick={handleCreateGame}
+            className="w-full py-3 px-4 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-zinc-50 font-medium transition"
+          >
+            Create game
+          </button>
+        )}
       </div>
     </div>
   );

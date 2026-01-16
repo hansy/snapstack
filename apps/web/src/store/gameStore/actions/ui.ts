@@ -1,23 +1,20 @@
 import type { StoreApi } from "zustand";
 
 import type { GameState } from "@/types";
-import type { SharedMaps } from "@/yjs/yMutations";
+import type { DispatchIntent } from "@/store/gameStore/dispatchIntent";
 
-import { setBattlefieldViewScale as ySetBattlefieldViewScale } from "@/yjs/yMutations";
 
 type SetState = StoreApi<GameState>["setState"];
 type GetState = StoreApi<GameState>["getState"];
 
-type ApplyShared = (fn: (maps: SharedMaps) => void) => boolean;
-
 type Deps = {
-  applyShared: ApplyShared;
+  dispatchIntent: DispatchIntent;
 };
 
 export const createUiActions = (
   set: SetState,
   get: GetState,
-  { applyShared }: Deps
+  { dispatchIntent }: Deps
 ): Pick<GameState, "setActiveModal" | "setBattlefieldViewScale"> => ({
   setActiveModal: (modal) => {
     set({ activeModal: modal });
@@ -28,17 +25,15 @@ export const createUiActions = (
     const current = get().battlefieldViewScale[playerId];
     if (current === clamped) return;
 
-    // Apply to Yjs for multiplayer sync, but also update local store immediately.
-    // The shared-doc -> store sync is debounced; without an optimistic local update,
-    // continuous changes (like drag-to-zoom) can appear unresponsive.
-    applyShared((maps) => ySetBattlefieldViewScale(maps, playerId, clamped));
-
-    set((state) => ({
-      battlefieldViewScale: {
-        ...state.battlefieldViewScale,
-        [playerId]: clamped,
-      },
-    }));
+    dispatchIntent({
+      type: "ui.battlefieldScale.set",
+      payload: { playerId, scale: clamped },
+      applyLocal: (state) => ({
+        battlefieldViewScale: {
+          ...state.battlefieldViewScale,
+          [playerId]: clamped,
+        },
+      }),
+    });
   },
 });
-

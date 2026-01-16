@@ -2,8 +2,7 @@ import type { GameState } from "@/types";
 
 import { ZONE } from "@/constants/zones";
 import { getZoneByType } from "@/lib/gameSelectors";
-import { emitLog } from "@/logging/logStore";
-import { canMoveCard } from "@/rules/permissions";
+import { canViewZone } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
 
 import type { Deps, GetState, SetState } from "./types";
@@ -11,57 +10,47 @@ import type { Deps, GetState, SetState } from "./types";
 export const createDiscardFromLibrary = (
   _set: SetState,
   get: GetState,
-  { buildLogContext }: Deps
+  { dispatchIntent }: Deps
 ): GameState["discardFromLibrary"] =>
   (playerId, count = 1, actorId, _isRemote) => {
     const actor = actorId ?? playerId;
     const normalizedCount = Math.max(1, Math.floor(count));
+    const state = get();
+    const role = actor === state.myPlayerId ? state.viewerRole : "player";
+    const libraryZone = getZoneByType(state.zones, playerId, ZONE.LIBRARY);
 
-    let movedCount = 0;
-    for (let i = 0; i < normalizedCount; i++) {
-      const state = get();
-      const role = actor === state.myPlayerId ? state.viewerRole : "player";
-      const libraryZone = getZoneByType(state.zones, playerId, ZONE.LIBRARY);
-      const graveyardZone = getZoneByType(state.zones, playerId, ZONE.GRAVEYARD);
+    if (!libraryZone) return;
 
-      if (!libraryZone || !graveyardZone || libraryZone.cardIds.length === 0) break;
+    const viewPermission = canViewZone({ actorId: actor, role }, libraryZone, {
+      viewAll: true,
+    });
 
-      const cardId = libraryZone.cardIds[libraryZone.cardIds.length - 1];
-      const card = state.cards[cardId];
-      if (!card) break;
-
-      const permission = canMoveCard({
-        actorId: actor,
-        role,
-        card,
-        fromZone: libraryZone,
-        toZone: graveyardZone,
-      });
-
-      if (!permission.allowed) {
-        logPermission({
-          action: "discardFromLibrary",
-          actorId: actor,
-          allowed: false,
-          reason: permission.reason,
-          details: { playerId, cardId },
-        });
-        break;
-      }
-
+    if (!viewPermission.allowed) {
       logPermission({
         action: "discardFromLibrary",
         actorId: actor,
-        allowed: true,
-        details: { playerId, cardId },
+        allowed: false,
+        reason: viewPermission.reason,
+        details: { playerId, count: normalizedCount },
       });
-
-      state.moveCard(cardId, graveyardZone.id, undefined, actor, undefined, { suppressLog: true });
-      movedCount += 1;
+      return;
     }
 
-    if (movedCount > 0) {
-      emitLog("card.discard", { actorId: actor, playerId, count: movedCount }, buildLogContext());
+    const player = state.players[playerId];
+    if (player && typeof player.libraryCount === "number" && player.libraryCount <= 0) {
+      return;
     }
+
+    dispatchIntent({
+      type: "library.discard",
+      payload: { playerId, count: normalizedCount, actorId: actor },
+      isRemote: _isRemote,
+    });
+
+    logPermission({
+      action: "discardFromLibrary",
+      actorId: actor,
+      allowed: true,
+      details: { playerId, count: normalizedCount },
+    });
   };
-

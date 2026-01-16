@@ -37,8 +37,9 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.0.6",
     "uuid": "^13.0.0",
+    "partysocket": "^1.1.5",
     "vite-tsconfig-paths": "^5.1.4",
-    "y-websocket": "^3.0.0",
+    "y-partykit": "^0.0.33",
     "yjs": "^13.6.27",
     "zustand": "^5.0.8"
   },

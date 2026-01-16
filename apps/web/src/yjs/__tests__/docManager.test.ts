@@ -5,77 +5,42 @@ describe("docManager", () => {
     vi.restoreAllMocks();
   });
 
-  it("runMutation executes immediately when an active session exists", async () => {
+  it("acquires a session and tracks the active session", async () => {
     vi.resetModules();
     const docManager = await import("../docManager");
 
-    const sessionId = "s-docmanager-immediate";
+    const sessionId = "s-docmanager-active";
     const handles = docManager.acquireSession(sessionId);
 
-    const ran = docManager.runMutation((maps) => {
-      maps.globalCounters.set("test", "#fff");
-    });
-
-    expect(ran).toBe(true);
-    expect(handles.globalCounters.get("test")).toBe("#fff");
+    expect(handles.doc).toBeDefined();
+    expect(docManager.getActiveSessionId()).toBe(sessionId);
+    expect(docManager.getActiveHandles()).toBe(handles);
 
     docManager.destroySession(sessionId);
   });
 
-  it("queues mutations when no session is active, then flushes them later", async () => {
+  it("replaces session providers cleanly", async () => {
     vi.resetModules();
     const docManager = await import("../docManager");
 
-    docManager.setActiveSession(null);
+    const sessionId = "s-docmanager-provider";
+    docManager.acquireSession(sessionId);
 
-    const queued = docManager.runMutation((maps) => {
-      maps.globalCounters.set("queued", "1");
-    });
-    expect(queued).toBe(false);
+    const firstProvider = {
+      disconnect: vi.fn(),
+      destroy: vi.fn(),
+    } as any;
+    const nextProvider = {
+      disconnect: vi.fn(),
+      destroy: vi.fn(),
+    } as any;
 
-    const sessionId = "s-docmanager-flush";
-    const handles = docManager.acquireSession(sessionId);
-    docManager.setActiveSession(sessionId);
+    docManager.setSessionProvider(sessionId, firstProvider);
+    docManager.setSessionProvider(sessionId, nextProvider);
 
-    docManager.flushPendingMutations();
-    expect(handles.globalCounters.get("queued")).toBe("1");
-
-    docManager.destroySession(sessionId);
-  });
-
-  it("batchMutations groups multiple runMutation calls into one transaction", async () => {
-    vi.resetModules();
-    const docManager = await import("../docManager");
-
-    const sessionId = "s-docmanager-batch";
-    const handles = docManager.acquireSession(sessionId);
-    docManager.setActiveSession(sessionId);
-
-    let txCount = 0;
-    handles.doc.on("afterTransaction", () => {
-      txCount += 1;
-    });
-
-    docManager.runMutation((maps) => {
-      maps.globalCounters.set("a", "1");
-    });
-    docManager.runMutation((maps) => {
-      maps.globalCounters.set("b", "2");
-    });
-    expect(txCount).toBe(2);
-
-    docManager.batchMutations(() => {
-      docManager.runMutation((maps) => {
-        maps.globalCounters.set("c", "3");
-      });
-      docManager.runMutation((maps) => {
-        maps.globalCounters.set("d", "4");
-      });
-    });
-
-    expect(txCount).toBe(3);
-    expect(handles.globalCounters.get("c")).toBe("3");
-    expect(handles.globalCounters.get("d")).toBe("4");
+    expect(firstProvider.disconnect).toHaveBeenCalled();
+    expect(firstProvider.destroy).toHaveBeenCalled();
+    expect(docManager.getSessionProvider(sessionId)).toBe(nextProvider);
 
     docManager.destroySession(sessionId);
   });

@@ -1,10 +1,17 @@
 /**
- * WebSocket-based Yjs sync via the Cloudflare Durable Object relay.
+ * WebSocket-based Yjs sync via PartyKit.
  *
- * This keeps transport simple and reliable: one server relay, one provider.
+ * This keeps transport simple and reliable: one provider and room-backed storage.
  */
 import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
+import {
+  clearRoomHostPending,
+  isRoomHostPending,
+  readRoomTokensFromStorage,
+  resolveInviteTokenFromUrl,
+  writeRoomTokensToStorage,
+} from "@/lib/partyKitToken";
 import { isApplyingRemoteUpdate } from "@/yjs/sync";
 import { type LocalPlayerInitResult } from "./ensureLocalPlayerInitialized";
 import { type PeerCounts } from "./peerCount";
@@ -19,13 +26,18 @@ import {
 } from "./sessionResources";
 import { createAwarenessLifecycle } from "./awarenessLifecycle";
 import { createAttemptJoin } from "./attemptJoin";
+import { useClientPrefsStore } from "@/store/clientPrefsStore";
 
 export type SyncStatus = "connecting" | "connected";
-type JoinBlockedReason = NonNullable<LocalPlayerInitResult>["reason"] | null;
+type JoinBlockedReason =
+  | NonNullable<LocalPlayerInitResult>["reason"]
+  | "invite"
+  | null;
 
 export function useMultiplayerSync(sessionId: string) {
   const hasHydrated = useGameStore((state) => state.hasHydrated);
   const viewerRole = useGameStore((state) => state.viewerRole);
+  const roomTokens = useGameStore((state) => state.roomTokens);
   const [status, setStatus] = useState<SyncStatus>("connecting");
   const [peerCounts, setPeerCounts] = useState<PeerCounts>(() => ({
     total: 1,
@@ -41,6 +53,10 @@ export function useMultiplayerSync(sessionId: string) {
   const postSyncFullSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postSyncInitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptJoinRef = useRef<(() => void) | null>(null);
+  const resourcesRef = useRef<SessionSetupResult | null>(null);
+  const authFailureHandled = useRef(false);
+  const setLastSessionId = useClientPrefsStore((state) => state.setLastSessionId);
+  const clearLastSessionId = useClientPrefsStore((state) => state.clearLastSessionId);
 
   useEffect(() => {
     attemptJoinRef.current?.();
@@ -59,20 +75,79 @@ export function useMultiplayerSync(sessionId: string) {
     setJoinBlocked(false);
     setJoinBlockedReason(null);
 
+    const inviteToken = resolveInviteTokenFromUrl(window.location.href);
+    const storedTokens = readRoomTokensFromStorage(sessionId);
+    const hasToken = Boolean(
+      inviteToken.token ||
+        storedTokens?.playerToken ||
+        storedTokens?.spectatorToken ||
+        roomTokens?.playerToken ||
+        roomTokens?.spectatorToken
+    );
+    const canConnect = hasToken || isRoomHostPending(sessionId);
+    if (!canConnect) {
+      const activeResources = resourcesRef.current;
+      if (activeResources) {
+        teardownSessionResources(sessionId, {
+          awareness: activeResources.awareness,
+          provider: activeResources.provider,
+          intentTransport: activeResources.intentTransport,
+        });
+        resourcesRef.current = null;
+      }
+      setJoinBlocked(true);
+      setJoinBlockedReason("invite");
+      if (useClientPrefsStore.getState().lastSessionId === sessionId) {
+        clearLastSessionId();
+      }
+      return;
+    }
+
     const resources = setupSessionResources({
       sessionId,
       statusSetter: setStatus,
+      onAuthFailure: () => {
+        if (authFailureHandled.current) return;
+        authFailureHandled.current = true;
+        const store = useGameStore.getState();
+        store.setRoomTokens(null);
+        writeRoomTokensToStorage(sessionId, null);
+        clearRoomHostPending(sessionId);
+        if (useClientPrefsStore.getState().lastSessionId === sessionId) {
+          clearLastSessionId();
+        }
+        setJoinBlocked(true);
+        setJoinBlockedReason("invite");
+
+        const activeResources = resourcesRef.current;
+        if (activeResources) {
+          teardownSessionResources(sessionId, {
+            awareness: activeResources.awareness,
+            provider: activeResources.provider,
+            intentTransport: activeResources.intentTransport,
+          });
+          resourcesRef.current = null;
+        }
+      },
     });
 
     if (!resources) return;
+    setLastSessionId(sessionId);
 
-    const { awareness, provider, sharedMaps, ensuredPlayerId, fullSyncToStore, doc } = resources;
+    const {
+      awareness,
+      provider,
+      intentTransport,
+      ensuredPlayerId,
+      fullSyncToStore,
+      doc,
+    } = resources;
     awarenessRef.current = awareness;
     localPlayerIdRef.current = ensuredPlayerId;
+    resourcesRef.current = resources;
+    authFailureHandled.current = false;
 
     const attemptJoin = createAttemptJoin({
-      docTransact: (fn) => doc.transact(fn),
-      sharedMaps,
       playerId: ensuredPlayerId,
       setJoinState: (blocked, reason) => {
         setJoinBlocked(blocked);
@@ -127,11 +202,18 @@ export function useMultiplayerSync(sessionId: string) {
       cancelDebouncedTimeout(postSyncFullSyncTimer);
       cancelDebouncedTimeout(postSyncInitTimer);
 
-      teardownSessionResources(sessionId, { awareness, provider });
+      teardownSessionResources(sessionId, { awareness, provider, intentTransport });
+      resourcesRef.current = null;
 
       attemptJoinRef.current = null;
     };
-  }, [sessionId, hasHydrated]);
+  }, [
+    sessionId,
+    hasHydrated,
+    viewerRole,
+    setLastSessionId,
+    clearLastSessionId,
+  ]);
 
   return { status, peerCounts, joinBlocked, joinBlockedReason };
 }

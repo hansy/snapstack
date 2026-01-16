@@ -2,15 +2,13 @@ import type { GameState } from "@/types";
 
 import { canTapCard } from "@/rules/permissions";
 import { logPermission } from "@/rules/logger";
-import { emitLog } from "@/logging/logStore";
-import { patchCard as yPatchCard } from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createTapCard =
   (
-    set: SetState,
+    _set: SetState,
     get: GetState,
-    { applyShared, buildLogContext }: Deps
+    { dispatchIntent }: Deps
   ): GameState["tapCard"] =>
   (cardId, actorId, _isRemote) => {
     const actor = actorId ?? get().myPlayerId;
@@ -33,22 +31,19 @@ export const createTapCard =
     logPermission({ action: "tapCard", actorId: actor, allowed: true, details: { cardId } });
 
     const newTapped = !card.tapped;
-    emitLog(
-      "card.tap",
-      { actorId: actor, cardId, zoneId: card.zoneId, tapped: newTapped, cardName: card.name },
-      buildLogContext()
-    );
-
-    if (applyShared((maps) => yPatchCard(maps, cardId, { tapped: newTapped }))) return;
-
-    set((state) => {
-      const next = state.cards[cardId];
-      if (!next) return state;
-      return {
-        cards: {
-          ...state.cards,
-          [cardId]: { ...next, tapped: !next.tapped },
-        },
-      };
+    dispatchIntent({
+      type: "card.tap",
+      payload: { cardId, tapped: newTapped, actorId: actor },
+      applyLocal: (state) => {
+        const next = state.cards[cardId];
+        if (!next) return state;
+        return {
+          cards: {
+            ...state.cards,
+            [cardId]: { ...next, tapped: !next.tapped },
+          },
+        };
+      },
+      isRemote: _isRemote,
     });
   };

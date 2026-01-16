@@ -1,5 +1,6 @@
 import type {
   Card,
+  LibraryRevealsToAll,
   LibraryTopRevealMode,
   PlayerId,
   ViewerRole,
@@ -44,9 +45,10 @@ export const createSeatModel = (params: {
   viewerRole?: ViewerRole;
   isMe: boolean;
   scale?: number;
-  libraryTopReveal?: LibraryTopRevealMode;
+  libraryTopReveal?: LibraryTopRevealMode | null;
   zones: Record<ZoneId, Zone>;
   cards: Record<string, Card>;
+  libraryRevealsToAll?: LibraryRevealsToAll;
 }): SeatModel => {
   const isTop = params.position.startsWith('top');
   const isRight = params.position.endsWith('right');
@@ -67,8 +69,72 @@ export const createSeatModel = (params: {
     commander: playerZones.commander,
   };
 
+  const resolveLibraryRevealOwner = (
+    cardId: string,
+    entry: LibraryRevealsToAll[string]
+  ) => entry.ownerId ?? params.cards[cardId]?.ownerId ?? zones.library?.ownerId;
+
+  const buildRevealedLibraryCards = () => {
+    if (!zones.library) return [];
+    const libraryZoneId = zones.library.id;
+    const entries = Object.entries(params.libraryRevealsToAll ?? {})
+      .map(([cardId, entry]) => ({
+        cardId,
+        entry,
+        ownerId: resolveLibraryRevealOwner(cardId, entry),
+      }))
+      .filter((entry) => entry.ownerId === zones.library?.ownerId)
+      .sort((a, b) => a.entry.orderKey.localeCompare(b.entry.orderKey));
+
+    return entries.map(({ cardId, entry, ownerId }) => {
+      const existing = params.cards[cardId];
+      if (existing) {
+        return {
+          ...existing,
+          ...entry.card,
+          revealedToAll: true,
+          zoneId: libraryZoneId,
+        };
+      }
+      const fallbackOwner = ownerId ?? zones.library?.ownerId ?? params.playerId;
+      return {
+        id: cardId,
+        ownerId: fallbackOwner,
+        controllerId: fallbackOwner,
+        zoneId: libraryZoneId,
+        tapped: false,
+        faceDown: false,
+        position: { x: 0.5, y: 0.5 },
+        rotation: 0,
+        counters: [],
+        revealedToAll: true,
+        ...entry.card,
+      } as Card;
+    });
+  };
+
+  let libraryCards = zones.library?.cardIds.length
+    ? getCardsInZone(params.cards, zones.library)
+    : buildRevealedLibraryCards();
+
+  if (
+    (!zones.library || zones.library.cardIds.length === 0) &&
+    params.isMe &&
+    params.libraryTopReveal === "self"
+  ) {
+    const topCard = Object.values(params.cards).find((card) => {
+      if (card.zoneId !== zones.library?.id) return false;
+      return canViewerSeeLibraryCardByReveal(
+        card,
+        params.viewerPlayerId,
+        params.viewerRole
+      );
+    });
+    if (topCard) libraryCards = [topCard];
+  }
+
   const cardsByZone = {
-    library: getCardsInZone(params.cards, zones.library),
+    library: libraryCards,
     graveyard: getCardsInZone(params.cards, zones.graveyard),
     exile: getCardsInZone(params.cards, zones.exile),
     battlefield: getCardsInZone(params.cards, zones.battlefield),
@@ -78,36 +144,11 @@ export const createSeatModel = (params: {
 
   const opponentLibraryRevealCount =
     !params.isMe && zones.library
-      ? (() => {
-          const baseCount = zones.library.cardIds.reduce((count, id) => {
-            const card = params.cards[id];
-            if (!card) return count;
-            return canViewerSeeLibraryCardByReveal(
-              card,
-              params.viewerPlayerId,
-              params.viewerRole
-            )
-              ? count + 1
-              : count;
-          }, 0);
-          const topCardId = zones.library.cardIds.length
-            ? zones.library.cardIds[zones.library.cardIds.length - 1]
-            : null;
-          if (params.libraryTopReveal === "all" && topCardId) {
-            const topCard = params.cards[topCardId];
-            if (
-              topCard &&
-              !canViewerSeeLibraryCardByReveal(
-                topCard,
-                params.viewerPlayerId,
-                params.viewerRole
-              )
-            ) {
-              return baseCount + 1;
-            }
-          }
-          return baseCount;
-        })()
+      ? Object.entries(params.libraryRevealsToAll ?? {}).reduce((count, [cardId, entry]) => {
+          const ownerId = resolveLibraryRevealOwner(cardId, entry);
+          if (ownerId !== zones.library?.ownerId) return count;
+          return count + 1;
+        }, 0)
       : 0;
 
   return {

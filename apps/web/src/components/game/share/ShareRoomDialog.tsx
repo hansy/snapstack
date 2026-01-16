@@ -86,11 +86,13 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
   onToggleRoomLock,
 }) => {
   const sortedPlayers = React.useMemo(() => {
-    return Object.values(players).sort((a, b) => {
-      const aKey = (a.name || a.id).toLowerCase();
-      const bKey = (b.name || b.id).toLowerCase();
+    return Object.values(players)
+      .filter((player): player is Player => Boolean(player && player.id))
+      .sort((a, b) => {
+        const aKey = (a.name || a.id || "").toLowerCase();
+        const bKey = (b.name || b.id || "").toLowerCase();
       return aKey.localeCompare(bKey);
-    });
+      });
   }, [players]);
 
   const resolvedPlayerLink =
@@ -98,10 +100,6 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
   const resolvedSpectatorLink = spectatorLink || resolvedPlayerLink;
 
   const roomIsLocked = roomLockedByHost || roomIsFull;
-  const activeLinkLabel = roomIsLocked ? "Spectator link" : "Player link";
-  const activeLinkValue = roomIsLocked
-    ? resolvedSpectatorLink
-    : resolvedPlayerLink;
 
   const handleCopy = React.useCallback(async (label: string, value: string) => {
     if (!value) return;
@@ -115,7 +113,7 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
   }, []);
 
   const lockLabel = roomIsFull
-    ? "Room is full (spectators can still join)"
+    ? "Room is full"
     : roomIsLocked
       ? "Unlock room"
       : "Lock room";
@@ -184,32 +182,18 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
               </div>
             </div>
 
-            <div className="border-t border-zinc-800 pt-4">
+            <div className="border-t border-zinc-800 pt-4 space-y-4">
               <ShareLinkField
-                label={activeLinkLabel}
-                value={activeLinkValue}
+                label="Player invite link"
+                value={resolvedPlayerLink}
+                onCopy={handleCopy}
+              />
+              <ShareLinkField
+                label="Spectator invite link"
+                value={resolvedSpectatorLink}
                 onCopy={handleCopy}
               />
             </div>
-            {!roomIsLocked && (
-              <div className="border-t border-zinc-800 pt-4 space-y-2">
-                <div className="flex flex-col items-center text-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onToggleRoomLock}
-                    disabled={!isHost}
-                    className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
-                  >
-                    Allow spectators?
-                  </Button>
-                  <p className="text-xs text-zinc-500">
-                    Allowing spectators will lock the room so no other player may
-                    join
-                  </p>
-                </div>
-              </div>
-            )}
           </section>
 
         </div>

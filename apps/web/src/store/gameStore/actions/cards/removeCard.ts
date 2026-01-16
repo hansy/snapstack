@@ -1,15 +1,13 @@
 import type { GameState } from "@/types";
 
 import { logPermission } from "@/rules/logger";
-import { emitLog } from "@/logging/logStore";
-import { removeCard as yRemoveCard } from "@/yjs/yMutations";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createRemoveCard =
   (
-    set: SetState,
+    _set: SetState,
     get: GetState,
-    { applyShared, buildLogContext }: Deps
+    { dispatchIntent }: Deps
   ): GameState["removeCard"] =>
   (cardId, actorId, _isRemote) => {
     const actor = actorId ?? get().myPlayerId;
@@ -57,24 +55,21 @@ export const createRemoveCard =
       return;
     }
 
-    emitLog(
-      "card.remove",
-      { actorId: actor, cardId, zoneId: zone.id, cardName: card.name },
-      buildLogContext()
-    );
+    dispatchIntent({
+      type: "card.remove",
+      payload: { cardId, actorId: actor },
+      applyLocal: (state) => {
+        const nextCards = { ...state.cards };
+        delete nextCards[cardId];
 
-    if (applyShared((maps) => yRemoveCard(maps, cardId))) return;
+        const nextZones = {
+          ...state.zones,
+          [zone.id]: { ...zone, cardIds: zone.cardIds.filter((id) => id !== cardId) },
+        };
 
-    set((state) => {
-      const nextCards = { ...state.cards };
-      delete nextCards[cardId];
-
-      const nextZones = {
-        ...state.zones,
-        [zone.id]: { ...zone, cardIds: zone.cardIds.filter((id) => id !== cardId) },
-      };
-
-      return { cards: nextCards, zones: nextZones };
+        return { cards: nextCards, zones: nextZones };
+      },
+      isRemote: _isRemote,
     });
 
     logPermission({ action: "removeCard", actorId: actor, allowed: true, details: { cardId } });

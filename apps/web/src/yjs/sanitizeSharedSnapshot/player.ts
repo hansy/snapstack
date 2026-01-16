@@ -25,6 +25,18 @@ export const sanitizePlayer = (value: any): Player | null => {
     value.libraryTopReveal === "self" || value.libraryTopReveal === "all"
       ? value.libraryTopReveal
       : undefined;
+  const handCount =
+    typeof value.handCount === "number"
+      ? clampNumber(value.handCount, 0, 999, 0)
+      : undefined;
+  const libraryCount =
+    typeof value.libraryCount === "number"
+      ? clampNumber(value.libraryCount, 0, 999, 0)
+      : undefined;
+  const sideboardCount =
+    typeof value.sideboardCount === "number"
+      ? clampNumber(value.sideboardCount, 0, 999, 0)
+      : undefined;
   return {
     id,
     name,
@@ -40,6 +52,9 @@ export const sanitizePlayer = (value: any): Player | null => {
     commanderDamage,
     commanderTax: clampNumber(value.commanderTax, 0, 99, 0),
     deckLoaded: Boolean(value.deckLoaded),
+    handCount,
+    libraryCount,
+    sideboardCount,
     libraryTopReveal,
   };
 };

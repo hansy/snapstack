@@ -1,6 +1,8 @@
 # Cloudflare WebSocket Worker (Durable Object)
 
-Run commands from `apps/server`:
+Legacy transport. The PartyKit server now lives in `apps/server`.
+
+Run commands from `apps/server2`:
 
 - Dev: `wrangler dev --config wrangler.jsonc`
 - Deploy: `wrangler deploy --config wrangler.jsonc`

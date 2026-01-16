@@ -14,7 +14,6 @@ import { useDragStore } from "@/store/dragStore";
 import { useSelectionStore } from "@/store/selectionStore";
 import type { CardId, ViewerRole, ZoneId } from "@/types";
 import { computeDragEndPlan, computeDragMoveUiState } from "./model";
-import { batchSharedMutations } from "@/yjs/docManager";
 import { getEffectiveCardSize } from "@/lib/dndBattlefield";
 import {
   fromNormalizedPosition,
@@ -365,18 +364,16 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
               movingIds.push(id);
             });
 
-            batchSharedMutations(() => {
-              const groupCollision = {
-                movingCardIds: movingIds,
-                targetPositions,
-              };
-              movingIds.forEach((id) => {
-                const snapped = targetPositions[id];
-                if (!snapped) return;
-                moveCard(id, plan.toZoneId, snapped, myPlayerId, undefined, {
-                  suppressLog: id !== group.activeCardId,
-                  groupCollision,
-                });
+            const groupCollision = {
+              movingCardIds: movingIds,
+              targetPositions,
+            };
+            movingIds.forEach((id) => {
+              const snapped = targetPositions[id];
+              if (!snapped) return;
+              moveCard(id, plan.toZoneId, snapped, myPlayerId, undefined, {
+                suppressLog: id !== group.activeCardId,
+                groupCollision,
               });
             });
             if (targetZone.ownerId !== myPlayerId) {
@@ -385,15 +382,13 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
             return;
           }
 
-          batchSharedMutations(() => {
-            group.groupCardIds.forEach((id) => {
-              const card = state.cards[id];
-              if (!card) return;
-              if (card.zoneId !== group.startZoneId) return;
-              moveCard(id, plan.toZoneId, plan.position, myPlayerId, undefined, {
-                suppressLog: id !== group.activeCardId,
-                skipCollision: true,
-              });
+          group.groupCardIds.forEach((id) => {
+            const card = state.cards[id];
+            if (!card) return;
+            if (card.zoneId !== group.startZoneId) return;
+            moveCard(id, plan.toZoneId, plan.position, myPlayerId, undefined, {
+              suppressLog: id !== group.activeCardId,
+              skipCollision: true,
             });
           });
           if (targetZone.type !== ZONE.BATTLEFIELD || targetZone.ownerId !== myPlayerId) {

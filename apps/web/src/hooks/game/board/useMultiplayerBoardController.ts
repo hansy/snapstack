@@ -7,7 +7,8 @@ import { useGameStore } from "@/store/gameStore";
 import { useSelectionStore } from "@/store/selectionStore";
 import { resolvePlayerColors } from "@/lib/playerColors";
 import { ZONE } from "@/constants/zones";
-import { emitLog } from "@/logging/logStore";
+import { v4 as uuidv4 } from "uuid";
+import { sendIntent } from "@/partykit/intentTransport";
 import { useBoardScale } from "./useBoardScale";
 import { useGameContextMenu } from "../context-menu/useGameContextMenu";
 import { useGameDnD } from "../dnd/useGameDnD";
@@ -38,6 +39,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const zones = useGameStore((state) => state.zones);
   const cards = useGameStore((state) => state.cards);
   const players = useGameStore((state) => state.players);
+  const libraryRevealsToAll = useGameStore((state) => state.libraryRevealsToAll);
   const playerOrder = useGameStore((state) => state.playerOrder);
   const battlefieldViewScale = useGameStore(
     (state) => state.battlefieldViewScale
@@ -47,6 +49,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const roomHostId = useGameStore((state) => state.roomHostId);
   const roomLockedByHost = useGameStore((state) => state.roomLockedByHost);
   const roomOverCapacity = useGameStore((state) => state.roomOverCapacity);
+  const roomTokens = useGameStore((state) => state.roomTokens);
   const setRoomLockedByHost = useGameStore((state) => state.setRoomLockedByHost);
   const activeModal = useGameStore((state) => state.activeModal);
   const setActiveModal = useGameStore((state) => state.setActiveModal);
@@ -72,6 +75,13 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     count?: number;
   }>({ isOpen: false, zoneId: null });
 
+  const sendLogIntent = React.useCallback(
+    (type: string, payload: Record<string, unknown>) => {
+      sendIntent({ id: uuidv4(), type, payload });
+    },
+    []
+  );
+
   const handleViewZone = React.useCallback((zoneId: string, count?: number) => {
     setZoneViewerState({ isOpen: true, zoneId, count });
 
@@ -86,12 +96,12 @@ export const useMultiplayerBoardController = (sessionId: string) => {
         ? Math.floor(count)
         : undefined;
 
-    emitLog(
-      "library.view",
-      { actorId: state.myPlayerId, playerId: state.myPlayerId, count: safeCount },
-      { players: state.players, cards: state.cards, zones: state.zones }
-    );
-  }, []);
+    sendLogIntent("library.view", {
+      actorId: state.myPlayerId,
+      playerId: state.myPlayerId,
+      count: safeCount,
+    });
+  }, [sendLogIntent]);
 
   const handleLeave = React.useCallback(() => {
     useGameStore.getState().leaveGame();
@@ -137,13 +147,41 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     players: "",
     spectators: "",
   });
+  const buildShareLink = React.useCallback(
+    (tokenParam?: { name: "gt" | "st"; value: string }) => {
+      if (typeof window === "undefined") return "";
+      const url = new URL(window.location.href);
+      url.searchParams.delete("gt");
+      url.searchParams.delete("st");
+      url.searchParams.delete("viewerRole");
+      url.searchParams.delete("playerToken");
+      url.searchParams.delete("spectatorToken");
+      url.searchParams.delete("token");
+      url.searchParams.delete("role");
+      if (tokenParam) {
+        url.searchParams.set(tokenParam.name, tokenParam.value);
+      }
+      return url.toString();
+    },
+    []
+  );
 
   React.useEffect(() => {
     if (!isShareDialogOpen) return;
-    if (typeof window === "undefined") return;
-    const href = window.location.href;
-    setShareLinks({ players: href, spectators: href });
-  }, [isShareDialogOpen]);
+    const base = buildShareLink();
+    const playerLink = roomTokens?.playerToken
+      ? buildShareLink({ name: "gt", value: roomTokens.playerToken })
+      : base;
+    const spectatorLink = roomTokens?.spectatorToken
+      ? buildShareLink({ name: "st", value: roomTokens.spectatorToken })
+      : base;
+    setShareLinks({ players: playerLink, spectators: spectatorLink });
+  }, [
+    buildShareLink,
+    isShareDialogOpen,
+    roomTokens?.playerToken,
+    roomTokens?.spectatorToken,
+  ]);
 
   const preferredUsername = useClientPrefsStore((state) => state.username);
   const setPreferredUsername = useClientPrefsStore(
@@ -177,14 +215,13 @@ export const useMultiplayerBoardController = (sessionId: string) => {
         { length: safeCount },
         () => (Math.random() < 0.5 ? "heads" : "tails") as "heads" | "tails"
       );
-      const state = useGameStore.getState();
-      emitLog(
-        "coin.flip",
-        { actorId: myPlayerId, count: safeCount, results },
-        { players: state.players, cards: state.cards, zones: state.zones }
-      );
+      sendLogIntent("coin.flip", {
+        actorId: myPlayerId,
+        count: safeCount,
+        results,
+      });
     },
-    [isSpectator, myPlayerId]
+    [isSpectator, myPlayerId, sendLogIntent]
   );
 
   const handleRollDice = React.useCallback(
@@ -196,14 +233,14 @@ export const useMultiplayerBoardController = (sessionId: string) => {
         { length: safeCount },
         () => 1 + Math.floor(Math.random() * safeSides)
       );
-      const state = useGameStore.getState();
-      emitLog(
-        "dice.roll",
-        { actorId: myPlayerId, sides: safeSides, count: safeCount, results },
-        { players: state.players, cards: state.cards, zones: state.zones }
-      );
+      sendLogIntent("dice.roll", {
+        actorId: myPlayerId,
+        sides: safeSides,
+        count: safeCount,
+        results,
+      });
     },
-    [isSpectator, myPlayerId]
+    [isSpectator, myPlayerId, sendLogIntent]
   );
 
   const handleOpenCoinFlipper = React.useCallback(() => {
@@ -320,6 +357,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     zones,
     cards,
     players,
+    libraryRevealsToAll,
     battlefieldViewScale,
     playerColors,
     gridClass,
