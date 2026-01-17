@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 
 import { useGameStore } from "@/store/gameStore";
-import { ensureLocalStorage } from "@/store/testUtils";
+import { ensureLocalStorage } from '@test/utils/storage';
 import { useBattlefieldZoomControls } from "@/hooks/game/board/useBattlefieldZoomControls";
 import { useGameShortcuts } from "../useGameShortcuts";
 
@@ -22,8 +22,6 @@ const TestHarness = () => {
     closeCountPrompt: noop,
     textPromptOpen: false,
     closeTextPrompt: noop,
-    topCardRevealPromptOpen: false,
-    closeTopCardRevealPrompt: noop,
     activeModalOpen: false,
     closeActiveModal: noop,
     tokenModalOpen: false,

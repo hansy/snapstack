@@ -222,6 +222,34 @@ describe("server migration behavior", () => {
     expect(spectatorOverlay.cards.map((card) => card.id)).toEqual(["fd1"]);
   });
 
+  it("should reveal the top library card to all when a player enables top reveal", () => {
+    const doc = createDoc();
+    seedPlayers(doc, [
+      createPlayer("p1", { libraryTopReveal: "all" }),
+      createPlayer("p2"),
+    ]);
+    const library = createZone("lib-p1", "library", "p1");
+    seedZones(doc, [library]);
+
+    const hidden = createEmptyHiddenState();
+    hidden.libraryOrder = { p1: ["l1", "l2"] };
+    hidden.cards = {
+      l1: createCard("l1", "p1", library.id),
+      l2: createCard("l2", "p1", library.id),
+    };
+
+    const maps = getMaps(doc);
+    const p2Overlay = buildOverlayForViewer({
+      maps,
+      hidden,
+      viewerId: "p2",
+      viewerRole: "player",
+    });
+
+    expect(p2Overlay.cards.map((card) => card.id)).toEqual(["l2"]);
+  });
+
+
   it("denies moving cards from another player's hidden zone", () => {
     const doc = createDoc();
     seedPlayers(doc, [createPlayer("p1"), createPlayer("p2")]);

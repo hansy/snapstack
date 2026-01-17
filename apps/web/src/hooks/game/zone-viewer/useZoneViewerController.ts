@@ -75,13 +75,67 @@ export const useZoneViewerController = ({
       setFrozenCardIds(null);
       return;
     }
-    setFrozenCardIds(zone.cardIds.slice(-count));
+    setFrozenCardIds(null);
   }, [isOpen, zoneId, count]);
+
+  const expectedViewCount = React.useMemo(() => {
+    if (!zone || zone.type !== ZONE.LIBRARY || !count || count <= 0) return null;
+    const safeCount = Math.floor(count);
+    const libraryCount = players[zone.ownerId]?.libraryCount;
+    if (typeof libraryCount === "number" && Number.isFinite(libraryCount)) {
+      if (libraryCount === 0 && zone.cardIds.length > 0) {
+        return safeCount;
+      }
+      return Math.max(0, Math.min(safeCount, Math.floor(libraryCount)));
+    }
+    return safeCount;
+  }, [count, players, zone]);
+
+  const shouldDelayTopView =
+    Boolean(
+      isOpen &&
+        zone?.type === ZONE.LIBRARY &&
+        count &&
+        count > 0 &&
+        expectedViewCount &&
+        expectedViewCount > 0 &&
+        frozenCardIds === null
+    ) && (zone?.cardIds.length ?? 0) < (expectedViewCount ?? 0);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (!zone || zone.type !== ZONE.LIBRARY || !count || count <= 0) return;
+    if (expectedViewCount == null) return;
+
+    if (expectedViewCount <= 0) {
+      if (frozenCardIds !== null) return;
+      const owner = players[zone.ownerId];
+      const libraryCount = owner?.libraryCount;
+      const deckLoaded = Boolean(owner?.deckLoaded);
+      if (deckLoaded && libraryCount === 0 && zone.cardIds.length === 0) {
+        setFrozenCardIds([]);
+      }
+      return;
+    }
+
+    if (frozenCardIds !== null) return;
+    if (zone.cardIds.length < expectedViewCount) return;
+    setFrozenCardIds(zone.cardIds.slice(-expectedViewCount));
+  }, [
+    count,
+    expectedViewCount,
+    frozenCardIds,
+    isOpen,
+    players,
+    zone,
+    zone?.cardIds,
+  ]);
 
   const viewMode = React.useMemo(() => getZoneViewerMode(zone, count), [zone, count]);
 
   const displayCards = React.useMemo(() => {
     if (!zone) return [];
+    if (shouldDelayTopView) return [];
     return computeZoneViewerCards({
       zone,
       cardsById: cards,
@@ -89,7 +143,7 @@ export const useZoneViewerController = ({
       frozenCardIds,
       filterText,
     });
-  }, [zone, cards, count, filterText, frozenCardIds]);
+  }, [zone, cards, count, filterText, frozenCardIds, shouldDelayTopView]);
 
   React.useEffect(() => {
     setOrderedCardIds(displayCards.map((card) => card.id));
@@ -234,6 +288,8 @@ export const useZoneViewerController = ({
     isOpen,
     onClose,
     count,
+    isLoading: shouldDelayTopView,
+    expectedViewCount,
     zone,
     filterText,
     setFilterText,

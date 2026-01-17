@@ -12,6 +12,8 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
   onClose,
   zone,
   count,
+  isLoading,
+  expectedViewCount,
   filterText,
   setFilterText,
   containerRef,
@@ -41,7 +43,11 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
           <div className="p-6 border-b border-zinc-800">
             <ZoneViewerModalHeader
               zoneType={zone.type}
-              totalCards={displayCards.length}
+              totalCards={
+                isLoading && typeof expectedViewCount === "number"
+                  ? expectedViewCount
+                  : displayCards.length
+              }
               count={count}
               filterText={filterText}
               onFilterTextChange={setFilterText}
@@ -51,7 +57,7 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
           <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 py-6 bg-zinc-950/50">
             {displayCards.length === 0 ? (
               <div className="h-full flex items-center justify-center text-zinc-500">
-                No cards found matching your filter.
+                {isLoading ? "Loading cards..." : "No cards found matching your filter."}
               </div>
             ) : viewMode === "grouped" ? (
               <ZoneViewerGroupedView

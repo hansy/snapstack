@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 const superOnConnect = vi.fn();
@@ -46,6 +46,10 @@ vi.mock("../domain/intents/applyIntentToDoc", () => ({
 }));
 
 import { Room, createEmptyHiddenState } from "../server";
+
+beforeEach(() => {
+  superOnConnect.mockClear();
+});
 
 const createDeferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -203,5 +207,39 @@ describe("server lifecycle guards", () => {
     const roles = (server as any).connectionRoles as Map<unknown, unknown>;
     expect(roles.size).toBe(0);
     expect(superOnConnect).not.toHaveBeenCalled();
+  });
+
+  it("keeps the room alive while player auth is pending", async () => {
+    vi.useFakeTimers();
+    try {
+      const state = createState();
+      const server = new Room(state, { rooms: {} as any });
+      const loadDeferred = createDeferred<unknown>();
+      vi.spyOn(server as any, "loadRoomTokens").mockReturnValue(
+        loadDeferred.promise
+      );
+
+      (server as any).scheduleEmptyRoomTeardown();
+
+      const conn = new TestConnection();
+      const url = new URL(
+        "https://example.test/?gt=player-token&playerId=p1"
+      );
+      const bindPromise = (server as any).bindSyncConnection(conn, url, {
+        request: new Request(url.toString()),
+      });
+
+      vi.advanceTimersByTime(30_000);
+      expect((server as any).resetGeneration).toBe(0);
+
+      loadDeferred.resolve({
+        playerToken: "player-token",
+        spectatorToken: "spectator-token",
+      });
+      await bindPromise;
+      expect(superOnConnect).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

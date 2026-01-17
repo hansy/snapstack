@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../gameStore';
 import { ZONE } from '@/constants/zones';
-import { ensureLocalStorage } from '../testUtils';
+import { ensureLocalStorage } from '@test/utils/storage';
 
 describe('gameStore counter actions', () => {
   beforeAll(() => {

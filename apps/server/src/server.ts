@@ -2,6 +2,7 @@ import {
   routePartykitRequest,
   type Connection,
   type ConnectionContext,
+  type WSMessage,
 } from "partyserver";
 import { YServer } from "y-partyserver";
 import * as Y from "yjs";
@@ -81,6 +82,7 @@ export class Room extends YServer<Env> {
     { cardCount: number; cardsWithArt: number }
   >();
   private connectionRoles = new Map<Connection, "player" | "spectator">();
+  private pendingPlayerConnections = 0;
   private emptyRoomTimer: number | null = null;
   private teardownGeneration = 0;
   private resetGeneration = 0;
@@ -118,6 +120,25 @@ export class Room extends YServer<Env> {
         error: err?.message ?? String(err),
       });
     }
+  }
+
+  onMessage(conn: Connection, message: WSMessage) {
+    if (this.intentConnections.has(conn)) {
+      return;
+    }
+    return super.onMessage(conn, message);
+  }
+
+  onError(conn: Connection, error: unknown) {
+    const message =
+      error && typeof error === "object" && "message" in error
+        ? String((error as { message?: unknown }).message)
+        : String(error);
+    const normalized = message.trim().replace(/\.$/, "").toLowerCase();
+    if (normalized === "network connection lost") {
+      return;
+    }
+    return super.onError(conn, error);
   }
 
   isReadOnly(): boolean {
@@ -314,6 +335,7 @@ export class Room extends YServer<Env> {
   }
 
   private hasPlayerConnections(): boolean {
+    if (this.pendingPlayerConnections > 0) return true;
     for (const role of this.connectionRoles.values()) {
       if (role === "player") return true;
     }
@@ -516,6 +538,21 @@ export class Room extends YServer<Env> {
     const now = Date.now();
     if (now - this.lastPerfMetricsAt < this.perfMetricsIntervalMs) return;
     this.logPerfMetrics(reason);
+  }
+
+  private beginPendingPlayerConnection() {
+    this.pendingPlayerConnections += 1;
+    this.clearEmptyRoomTimer();
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.pendingPlayerConnections = Math.max(
+        0,
+        this.pendingPlayerConnections - 1
+      );
+      this.scheduleEmptyRoomTeardown();
+    };
   }
 
   private scheduleEmptyRoomTeardown() {
@@ -771,21 +808,46 @@ export class Room extends YServer<Env> {
   ) {
     let connectionClosed = false;
     let connectionRegistered = false;
-    conn.addEventListener("close", () => {
-      connectionClosed = true;
-      if (!connectionRegistered) return;
-      this.unregisterConnection(conn);
-    });
     const state = parseConnectionParams(url);
-    const storedTokens = await this.loadRoomTokens();
     const providedToken = state.token;
     const resolvedRole = state.viewerRole ?? "player";
+    const pendingRelease =
+      resolvedRole === "player" ? this.beginPendingPlayerConnection() : null;
+    let pendingReleased = false;
+    const finalizePending = () => {
+      if (pendingReleased) return;
+      pendingReleased = true;
+      pendingRelease?.();
+    };
+    conn.addEventListener("close", () => {
+      connectionClosed = true;
+      if (!connectionRegistered) {
+        finalizePending();
+        return;
+      }
+      this.unregisterConnection(conn);
+    });
 
     const rejectConnection = (reason: string) => {
+      finalizePending();
       try {
         conn.close(1008, reason);
       } catch (_err) {}
     };
+    const rejectForReset = () => {
+      finalizePending();
+      try {
+        conn.close(ROOM_TEARDOWN_CLOSE_CODE, "room reset");
+      } catch (_err) {}
+    };
+
+    let storedTokens: RoomTokens | null = null;
+    try {
+      storedTokens = await this.loadRoomTokens();
+    } catch (err) {
+      finalizePending();
+      throw err;
+    }
 
     if (!providedToken) {
       if (storedTokens) {
@@ -800,14 +862,28 @@ export class Room extends YServer<Env> {
         rejectConnection("missing player");
         return;
       }
-      if (connectionClosed) return;
+      if (connectionClosed) {
+        finalizePending();
+        return;
+      }
+      if (this.teardownInProgress) {
+        rejectForReset();
+        return;
+      }
       this.capturePerfMetricsFlag(url);
       this.registerConnection(conn, resolvedRole);
       connectionRegistered = true;
+      finalizePending();
       return super.onConnect(conn, ctx);
     }
 
-    const activeTokens = storedTokens ?? (await this.ensureRoomTokens());
+    let activeTokens: RoomTokens;
+    try {
+      activeTokens = storedTokens ?? (await this.ensureRoomTokens());
+    } catch (err) {
+      finalizePending();
+      throw err;
+    }
     if (
       providedToken !== activeTokens.playerToken &&
       providedToken !== activeTokens.spectatorToken
@@ -816,10 +892,18 @@ export class Room extends YServer<Env> {
       return;
     }
 
-    if (connectionClosed) return;
+    if (connectionClosed) {
+      finalizePending();
+      return;
+    }
+    if (this.teardownInProgress) {
+      rejectForReset();
+      return;
+    }
     this.capturePerfMetricsFlag(url);
     this.registerConnection(conn, resolvedRole);
     connectionRegistered = true;
+    finalizePending();
     return super.onConnect(conn, ctx);
   }
 

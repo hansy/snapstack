@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { useGameStore } from '../gameStore';
-import { ensureLocalStorage } from '../testUtils';
+import { ensureLocalStorage } from '@test/utils/storage';
 import { MAX_PLAYER_LIFE, MIN_PLAYER_LIFE } from '@/lib/limits';
 
 describe('gameStore updatePlayer permissions', () => {
