@@ -17,7 +17,6 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const hasHydrated = useClientPrefsStore((state) => state.hasHydrated);
   const lastSessionId = useClientPrefsStore((state) => state.lastSessionId);
-  const setLastSessionId = useClientPrefsStore((state) => state.setLastSessionId);
   const clearLastSessionId = useClientPrefsStore((state) => state.clearLastSessionId);
   const [resumeSessionId, setResumeSessionId] = useState<string | null>(null);
 
@@ -49,7 +48,6 @@ const LandingPage = () => {
   const handleCreateGame = () => {
     const sessionId = createRoomId();
     markRoomAsHostPending(sessionId);
-    setLastSessionId(sessionId);
     navigate({ to: '/game/$sessionId', params: { sessionId } });
   };
 
@@ -65,6 +63,7 @@ const LandingPage = () => {
     const store = useGameStore.getState();
     store.setRoomTokens(null);
     store.forgetSessionIdentity(resumeSessionId);
+    store.resetSession();
     clearLastSessionId();
     destroyAllSessions();
     clearIntentTransport();
