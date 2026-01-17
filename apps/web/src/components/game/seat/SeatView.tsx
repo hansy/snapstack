@@ -317,7 +317,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
             isTop={isTop}
             isRight={isRight}
             height={handHeight}
-            onHeightChange={setHandHeight}
+            onHeightChange={isMe ? setHandHeight : undefined}
           >
             {/* Commander Zone */}
             {commander && (

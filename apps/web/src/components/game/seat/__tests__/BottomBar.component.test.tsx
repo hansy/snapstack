@@ -84,7 +84,7 @@ describe("BottomBar", () => {
   describe("Resize Handle Positioning", () => {
     it("positions resize handle at top when isTop is false", () => {
       const { container } = render(
-        <BottomBar isTop={false} isRight={false}>
+        <BottomBar isTop={false} isRight={false} onHeightChange={onHeightChange}>
           <div>Content</div>
         </BottomBar>
       );
@@ -97,7 +97,7 @@ describe("BottomBar", () => {
 
     it("positions resize handle at bottom when isTop is true", () => {
       const { container } = render(
-        <BottomBar isTop={true} isRight={false}>
+        <BottomBar isTop={true} isRight={false} onHeightChange={onHeightChange}>
           <div>Content</div>
         </BottomBar>
       );
@@ -112,7 +112,7 @@ describe("BottomBar", () => {
   describe("Mouse Interactions", () => {
     it("changes cursor to ns-resize when hovering over resize handle", () => {
       const { container } = render(
-        <BottomBar isTop={false} isRight={false}>
+        <BottomBar isTop={false} isRight={false} onHeightChange={onHeightChange}>
           <div>Content</div>
         </BottomBar>
       );
@@ -177,7 +177,7 @@ describe("BottomBar", () => {
       fireEvent.mouseUp(document);
     });
 
-    it("does not call onHeightChange when onHeightChange prop is not provided", () => {
+    it("does not render a resize handle when onHeightChange is not provided", () => {
       const { container } = render(
         <BottomBar isTop={false} isRight={false} height={160}>
           <div>Content</div>
@@ -185,18 +185,9 @@ describe("BottomBar", () => {
       );
 
       const resizeHandle = container.querySelector(".absolute.left-0.right-0.z-30");
-
-      // Simulate mousedown
-      fireEvent.mouseDown(resizeHandle!, { clientY: 100 });
-
-      // Simulate mousemove
-      fireEvent.mouseMove(document, { clientY: 50 });
-
-      // Should not throw error even without onHeightChange
-      expect(onHeightChange).not.toHaveBeenCalled();
-
-      // Cleanup
-      fireEvent.mouseUp(document);
+      const hitArea = container.querySelector(".cursor-ns-resize");
+      expect(resizeHandle).toBeNull();
+      expect(hitArea).toBeNull();
     });
 
     it("stops calling onHeightChange after mouseup", () => {
@@ -294,16 +285,20 @@ describe("BottomBar", () => {
   describe("Visual Feedback", () => {
     it("shows hover state on resize indicator", () => {
       const { container } = render(
-        <BottomBar isTop={false} isRight={false}>
+        <BottomBar isTop={false} isRight={false} onHeightChange={onHeightChange}>
           <div>Content</div>
         </BottomBar>
       );
 
       const visualIndicator = container.querySelector(
-        ".absolute.left-0.right-0.h-\\[1px\\].transition-all"
+        ".absolute.left-0.right-0.transition-all"
       );
       expect(visualIndicator).toBeTruthy();
-      expect(visualIndicator?.classList.contains("group-hover:bg-indigo-400/50")).toBe(true);
+
+      const resizeHandle = container.querySelector(".cursor-ns-resize");
+      fireEvent.mouseEnter(resizeHandle!);
+      expect(visualIndicator?.classList.contains("bg-indigo-400/50")).toBe(true);
+      fireEvent.mouseLeave(resizeHandle!);
     });
 
     it("shows dragging state on resize indicator", () => {
