@@ -52,12 +52,16 @@ export type SessionSetupDeps = {
   sessionId: string;
   statusSetter: (next: SyncStatus) => void;
   onAuthFailure?: (reason: string) => void;
+  onIntentOpen?: () => void;
+  onIntentClose?: (event: CloseEvent) => void;
 };
 
 export function setupSessionResources({
   sessionId,
   statusSetter,
   onAuthFailure,
+  onIntentOpen,
+  onIntentClose,
 }: SessionSetupDeps): SessionSetupResult | null {
   const envHost = resolvePartyKitHost(import.meta.env.VITE_WEBSOCKET_SERVER);
   const defaultHost =
@@ -226,6 +230,10 @@ export function setupSessionResources({
     viewerRole: intentViewerRole,
     socketOptions: {
       maxEnqueuedMessages: 0,
+      maxRetries: 0,
+    },
+    onOpen: () => {
+      onIntentOpen?.();
     },
     onMessage: (message) => {
       if (message.type === "ack") {
@@ -262,7 +270,9 @@ export function setupSessionResources({
     onClose: (event) => {
       if (event.code === 1008) {
         onAuthFailure?.(event.reason || "policy");
+        return;
       }
+      onIntentClose?.(event);
     },
   });
   setIntentTransport(intentTransport);

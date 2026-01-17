@@ -26,6 +26,12 @@ import {
 } from "./sessionResources";
 import { createAwarenessLifecycle } from "./awarenessLifecycle";
 import { createAttemptJoin } from "./attemptJoin";
+import {
+  DEFAULT_BACKOFF_CONFIG,
+  computeBackoffDelay,
+  isRoomResetClose,
+  type BackoffReason,
+} from "./connectionBackoff";
 import { useClientPrefsStore } from "@/store/clientPrefsStore";
 
 export type SyncStatus = "connecting" | "connected";
@@ -47,16 +53,65 @@ export function useMultiplayerSync(sessionId: string) {
   const [joinBlocked, setJoinBlocked] = useState(false);
   const [joinBlockedReason, setJoinBlockedReason] =
     useState<JoinBlockedReason>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [connectEpoch, setConnectEpoch] = useState(0);
   const awarenessRef = useRef<SessionSetupResult["awareness"] | null>(null);
   const localPlayerIdRef = useRef<string | null>(null);
   const fullSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postSyncFullSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postSyncInitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stableResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttempt = useRef(0);
+  const lastConnectEpoch = useRef(0);
+  const pausedRef = useRef(false);
+  const stoppedRef = useRef(false);
+  const connectionGeneration = useRef(0);
   const attemptJoinRef = useRef<(() => void) | null>(null);
   const resourcesRef = useRef<SessionSetupResult | null>(null);
   const authFailureHandled = useRef(false);
   const setLastSessionId = useClientPrefsStore((state) => state.setLastSessionId);
   const clearLastSessionId = useClientPrefsStore((state) => state.clearLastSessionId);
+
+  const clearReconnectTimer = () => {
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+    }
+  };
+
+  const clearStableResetTimer = () => {
+    if (stableResetTimer.current) {
+      clearTimeout(stableResetTimer.current);
+      stableResetTimer.current = null;
+    }
+  };
+
+  const markStableConnected = () => {
+    clearStableResetTimer();
+    stableResetTimer.current = setTimeout(() => {
+      reconnectAttempt.current = 0;
+      stableResetTimer.current = null;
+    }, DEFAULT_BACKOFF_CONFIG.stableResetMs);
+  };
+
+  const scheduleReconnect = (reason: BackoffReason, resetAttempt = false) => {
+    if (stoppedRef.current || pausedRef.current) return;
+    if (reconnectTimer.current) return;
+    if (resetAttempt) {
+      reconnectAttempt.current = 0;
+    }
+    const delay = computeBackoffDelay(
+      reconnectAttempt.current,
+      reason,
+      DEFAULT_BACKOFF_CONFIG
+    );
+    reconnectAttempt.current += 1;
+    reconnectTimer.current = setTimeout(() => {
+      reconnectTimer.current = null;
+      setConnectEpoch((prev) => prev + 1);
+    }, delay);
+  };
 
   useEffect(() => {
     attemptJoinRef.current?.();
@@ -68,9 +123,72 @@ export function useMultiplayerSync(sessionId: string) {
   }, [viewerRole]);
 
   useEffect(() => {
+    pausedRef.current = isPaused;
+  }, [isPaused]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updatePauseState = () => {
+      const hidden = typeof document !== "undefined" && document.visibilityState === "hidden";
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      setIsPaused(hidden || offline);
+    };
+    updatePauseState();
+    window.addEventListener("online", updatePauseState);
+    window.addEventListener("offline", updatePauseState);
+    document.addEventListener("visibilitychange", updatePauseState);
+    return () => {
+      window.removeEventListener("online", updatePauseState);
+      window.removeEventListener("offline", updatePauseState);
+      document.removeEventListener("visibilitychange", updatePauseState);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!sessionId) return;
     if (typeof window === "undefined") return;
     if (!hasHydrated) return;
+
+    if (isPaused) {
+      clearReconnectTimer();
+      clearStableResetTimer();
+      const activeResources = resourcesRef.current;
+      if (activeResources) {
+        teardownSessionResources(sessionId, {
+          awareness: activeResources.awareness,
+          provider: activeResources.provider,
+          intentTransport: activeResources.intentTransport,
+        });
+        resourcesRef.current = null;
+        connectionGeneration.current += 1;
+      }
+      setStatus("connecting");
+      return;
+    }
+
+    if (
+      !resourcesRef.current &&
+      !reconnectTimer.current &&
+      connectEpoch === lastConnectEpoch.current
+    ) {
+      scheduleReconnect("resume", true);
+    }
+  }, [sessionId, hasHydrated, viewerRole, isPaused, connectEpoch]);
+
+  useEffect(() => {
+    return () => {
+      stoppedRef.current = true;
+      clearReconnectTimer();
+      clearStableResetTimer();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    if (typeof window === "undefined") return;
+    if (!hasHydrated) return;
+    if (isPaused) return;
+    if (connectEpoch === lastConnectEpoch.current) return;
 
     setJoinBlocked(false);
     setJoinBlockedReason(null);
@@ -86,6 +204,9 @@ export function useMultiplayerSync(sessionId: string) {
     );
     const canConnect = hasToken || isRoomHostPending(sessionId);
     if (!canConnect) {
+      clearReconnectTimer();
+      clearStableResetTimer();
+      reconnectAttempt.current = 0;
       const activeResources = resourcesRef.current;
       if (activeResources) {
         teardownSessionResources(sessionId, {
@@ -94,6 +215,7 @@ export function useMultiplayerSync(sessionId: string) {
           intentTransport: activeResources.intentTransport,
         });
         resourcesRef.current = null;
+        connectionGeneration.current += 1;
       }
       setJoinBlocked(true);
       setJoinBlockedReason("invite");
@@ -103,12 +225,39 @@ export function useMultiplayerSync(sessionId: string) {
       return;
     }
 
+    lastConnectEpoch.current = connectEpoch;
+
+    const nextGeneration = connectionGeneration.current + 1;
+    const handleDisconnect = (event?: { code?: number; reason?: string } | null) => {
+      if (stoppedRef.current || pausedRef.current) return;
+      if (connectionGeneration.current !== nextGeneration) return;
+      if (event?.code === 1008) return;
+      clearStableResetTimer();
+      setStatus("connecting");
+
+      const activeResources = resourcesRef.current;
+      if (activeResources) {
+        teardownSessionResources(sessionId, {
+          awareness: activeResources.awareness,
+          provider: activeResources.provider,
+          intentTransport: activeResources.intentTransport,
+        });
+        resourcesRef.current = null;
+      }
+      connectionGeneration.current += 1;
+      scheduleReconnect(isRoomResetClose(event) ? "room-reset" : "close");
+    };
+
     const resources = setupSessionResources({
       sessionId,
       statusSetter: setStatus,
+      onIntentClose: handleDisconnect,
       onAuthFailure: () => {
         if (authFailureHandled.current) return;
         authFailureHandled.current = true;
+        clearReconnectTimer();
+        clearStableResetTimer();
+        reconnectAttempt.current = 0;
         const store = useGameStore.getState();
         store.setRoomTokens(null);
         writeRoomTokensToStorage(sessionId, null);
@@ -127,11 +276,13 @@ export function useMultiplayerSync(sessionId: string) {
             intentTransport: activeResources.intentTransport,
           });
           resourcesRef.current = null;
+          connectionGeneration.current += 1;
         }
       },
     });
 
     if (!resources) return;
+    connectionGeneration.current = nextGeneration;
     setLastSessionId(sessionId);
 
     const {
@@ -180,10 +331,20 @@ export function useMultiplayerSync(sessionId: string) {
     handleAwarenessChange();
 
     provider.on("status", ({ status: s }: any) => {
+      if (connectionGeneration.current !== nextGeneration) return;
       if (s === "connected") {
         pushLocalAwareness();
+        markStableConnected();
+      }
+      if (s === "disconnected") {
+        clearStableResetTimer();
       }
     });
+
+    if ("on" in provider && typeof provider.on === "function") {
+      provider.on("connection-close", handleDisconnect as any);
+      provider.on("connection-error", handleDisconnect as any);
+    }
 
     provider.on("sync", (isSynced: boolean) => {
       if (!isSynced) return;
@@ -201,9 +362,11 @@ export function useMultiplayerSync(sessionId: string) {
       cancelDebouncedTimeout(fullSyncTimer);
       cancelDebouncedTimeout(postSyncFullSyncTimer);
       cancelDebouncedTimeout(postSyncInitTimer);
+      clearStableResetTimer();
 
       teardownSessionResources(sessionId, { awareness, provider, intentTransport });
       resourcesRef.current = null;
+      connectionGeneration.current += 1;
 
       attemptJoinRef.current = null;
     };
@@ -211,6 +374,8 @@ export function useMultiplayerSync(sessionId: string) {
     sessionId,
     hasHydrated,
     viewerRole,
+    connectEpoch,
+    isPaused,
     setLastSessionId,
     clearLastSessionId,
   ]);
