@@ -2,6 +2,7 @@ import {
   routePartykitRequest,
   type Connection,
   type ConnectionContext,
+  type WSMessage,
 } from "partyserver";
 import { YServer } from "y-partyserver";
 import * as Y from "yjs";
@@ -100,6 +101,25 @@ export class Room extends YServer<Env> {
         error: err?.message ?? String(err),
       });
     }
+  }
+
+  onMessage(conn: Connection, message: WSMessage) {
+    if (this.intentConnections.has(conn)) {
+      return;
+    }
+    return super.onMessage(conn, message);
+  }
+
+  onError(conn: Connection, error: unknown) {
+    const message =
+      error && typeof error === "object" && "message" in error
+        ? String((error as { message?: unknown }).message)
+        : String(error);
+    const normalized = message.trim().replace(/\.$/, "").toLowerCase();
+    if (normalized === "network connection lost") {
+      return;
+    }
+    return super.onError(conn, error);
   }
 
   isReadOnly(): boolean {

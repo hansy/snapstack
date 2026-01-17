@@ -10,9 +10,9 @@ import {
   canUpdatePlayer,
   canViewHiddenZone,
 } from "../permissions";
-import type { Card } from "../../../web/src/types/cards";
-import type { Player } from "../../../web/src/types/players";
-import type { Zone, ZoneType } from "../../../web/src/types/zones";
+import type { Card } from "../../../../web/src/types/cards";
+import type { Player } from "../../../../web/src/types/players";
+import type { Zone, ZoneType } from "../../../../web/src/types/zones";
 
 const makeCard = (overrides: Partial<Card> = {}): Card => ({
   id: overrides.id ?? "c1",
