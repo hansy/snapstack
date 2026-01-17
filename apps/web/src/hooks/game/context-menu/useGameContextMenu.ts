@@ -48,9 +48,6 @@ export const useGameContextMenu = (
         textPrompt,
         openTextPrompt,
         closeTextPrompt,
-        topCardRevealPrompt,
-        openTopCardRevealPrompt,
-        closeTopCardRevealPrompt,
     } = useContextMenuState();
 
     const seatHasDeckLoaded = React.useCallback((playerId?: string) => {
@@ -166,7 +163,6 @@ export const useGameContextMenu = (
             viewerRole,
             onViewZone,
             openCountPrompt,
-            openTopCardRevealPrompt,
             libraryTopReveal,
             setLibraryTopReveal,
             ...createZoneActionAdapters({ store, myPlayerId }),
@@ -175,7 +171,7 @@ export const useGameContextMenu = (
             contextMenuRequestRef.current += 1;
             openContextMenu(e, items);
         }
-    }, [isSpectator, myPlayerId, onViewZone, openContextMenu, openCountPrompt, openTopCardRevealPrompt, seatHasDeckLoaded]);
+    }, [isSpectator, myPlayerId, onViewZone, openContextMenu, openCountPrompt, seatHasDeckLoaded]);
 
     const handleBattlefieldContextMenu = React.useCallback(
         (e: React.MouseEvent, actions: { onCreateToken: () => void; onOpenCoinFlipper?: () => void; onOpenDiceRoller?: () => void }) => {
@@ -270,8 +266,5 @@ export const useGameContextMenu = (
         textPrompt,
         openTextPrompt,
         closeTextPrompt,
-        topCardRevealPrompt,
-        openTopCardRevealPrompt,
-        closeTopCardRevealPrompt,
     };
 };

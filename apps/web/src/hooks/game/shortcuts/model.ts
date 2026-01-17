@@ -47,8 +47,6 @@ export type CloseTopmostUiArgs = {
   closeCountPrompt: () => void;
   textPromptOpen: boolean;
   closeTextPrompt: () => void;
-  topCardRevealPromptOpen: boolean;
-  closeTopCardRevealPrompt: () => void;
   activeModalOpen: boolean;
   closeActiveModal: () => void;
   tokenModalOpen: boolean;
@@ -82,10 +80,6 @@ export const closeTopmostUi = (args: CloseTopmostUiArgs): boolean => {
   }
   if (args.textPromptOpen) {
     args.closeTextPrompt();
-    return true;
-  }
-  if (args.topCardRevealPromptOpen) {
-    args.closeTopCardRevealPrompt();
     return true;
   }
   if (args.activeModalOpen) {
@@ -135,7 +129,6 @@ export const areShortcutsBlockedByUi = (args: {
   contextMenuOpen: boolean;
   countPromptOpen: boolean;
   textPromptOpen: boolean;
-  topCardRevealPromptOpen: boolean;
   activeModalOpen: boolean;
   tokenModalOpen: boolean;
   coinFlipperOpen: boolean;
@@ -149,7 +142,6 @@ export const areShortcutsBlockedByUi = (args: {
     args.contextMenuOpen ||
     args.countPromptOpen ||
     args.textPromptOpen ||
-    args.topCardRevealPromptOpen ||
     args.activeModalOpen ||
     args.tokenModalOpen ||
     args.coinFlipperOpen ||

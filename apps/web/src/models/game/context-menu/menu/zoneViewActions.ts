@@ -25,11 +25,6 @@ interface ZoneActionBuilderParams {
   unloadDeck: (playerId: PlayerId) => void;
   libraryTopReveal?: LibraryTopRevealMode | null;
   setLibraryTopReveal?: (mode: LibraryTopRevealMode | null) => void;
-  openTopCardRevealPrompt?: (opts: {
-    title: string;
-    message?: string;
-    onSelect: (mode: LibraryTopRevealMode) => void;
-  }) => void;
   openCountPrompt?: (opts: {
     title: string;
     message: string;
@@ -178,7 +173,6 @@ export const buildZoneViewActions = ({
   unloadDeck,
   libraryTopReveal,
   setLibraryTopReveal,
-  openTopCardRevealPrompt,
   openCountPrompt,
 }: ZoneActionBuilderParams): ContextMenuItem[] => {
   const items: ContextMenuItem[] = [];
@@ -215,20 +209,23 @@ export const buildZoneViewActions = ({
           onSelect: () => setLibraryTopReveal(null),
         });
       } else {
+        const submenu: ContextMenuItem[] = [
+          {
+            type: "action",
+            label: "To me only",
+            onSelect: () => setLibraryTopReveal("self"),
+          },
+          {
+            type: "action",
+            label: "To everybody",
+            onSelect: () => setLibraryTopReveal("all"),
+          },
+        ];
         items.push({
           type: "action",
-          label: "Reveal top card (until turned off)",
-          onSelect: () => {
-            if (!openTopCardRevealPrompt) return;
-            openTopCardRevealPrompt({
-              title: "Reveal top card (until turned off)",
-              message: "Who should see the top card?",
-              onSelect: (mode) => setLibraryTopReveal(mode),
-            });
-          },
-          disabledReason: openTopCardRevealPrompt
-            ? undefined
-            : "Prompt unavailable",
+          label: "Toggle top card reveal ...",
+          onSelect: () => {},
+          submenu,
         });
       }
     }

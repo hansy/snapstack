@@ -23,7 +23,6 @@ import { OpponentLibraryRevealsModal } from "../opponent-library-reveals/Opponen
 import { ShortcutsDrawer } from "../shortcuts/ShortcutsDrawer";
 import { Sidenav } from "../sidenav/Sidenav";
 import { TextPromptDialog } from "../prompts/TextPromptDialog";
-import { TopCardRevealDialog } from "../prompts/TopCardRevealDialog";
 import { TokenCreationModal } from "../token-creation/TokenCreationModal";
 import { ZoneViewerModal } from "../zone-viewer/ZoneViewerModal";
 import { EditUsernameDialog } from "@/components/username/EditUsernameDialog";
@@ -78,8 +77,6 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   closeCountPrompt,
   textPrompt,
   closeTextPrompt,
-  topCardRevealPrompt,
-  closeTopCardRevealPrompt,
   isLoadDeckModalOpen,
   setIsLoadDeckModalOpen,
   isTokenModalOpen,
@@ -229,14 +226,6 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
           onSubmit={(value) => textPrompt?.onSubmit(value)}
           onClose={closeTextPrompt}
         />
-        <TopCardRevealDialog
-          open={Boolean(topCardRevealPrompt)}
-          title={topCardRevealPrompt?.title}
-          message={topCardRevealPrompt?.message}
-          onSelect={(mode) => topCardRevealPrompt?.onSelect(mode)}
-          onClose={closeTopCardRevealPrompt}
-        />
-
         <LoadDeckModal
           isOpen={isLoadDeckModalOpen}
           onClose={() => setIsLoadDeckModalOpen(false)}

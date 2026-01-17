@@ -1,6 +1,5 @@
 import * as React from "react";
 
-import type { LibraryTopRevealMode } from "@/types";
 import type { ContextMenuItem } from "@/models/game/context-menu/menu";
 
 type MouseEventLike = { preventDefault: () => void; clientX: number; clientY: number };
@@ -29,20 +28,10 @@ export type TextPromptState =
     }
   | null;
 
-export type TopCardRevealPromptState =
-  | {
-      title: string;
-      message?: string;
-      onSelect: (mode: LibraryTopRevealMode) => void;
-    }
-  | null;
-
 export const useContextMenuState = () => {
   const [contextMenu, setContextMenu] = React.useState<ContextMenuState>(null);
   const [countPrompt, setCountPrompt] = React.useState<CountPromptState>(null);
   const [textPrompt, setTextPrompt] = React.useState<TextPromptState>(null);
-  const [topCardRevealPrompt, setTopCardRevealPrompt] =
-    React.useState<TopCardRevealPromptState>(null);
 
   const openContextMenu = React.useCallback(
     (e: MouseEventLike, items: ContextMenuItem[], title?: string) => {
@@ -79,17 +68,6 @@ export const useContextMenuState = () => {
     setTextPrompt(null);
   }, []);
 
-  const openTopCardRevealPrompt = React.useCallback(
-    (next: NonNullable<TopCardRevealPromptState>) => {
-      setTopCardRevealPrompt(next);
-    },
-    []
-  );
-
-  const closeTopCardRevealPrompt = React.useCallback(() => {
-    setTopCardRevealPrompt(null);
-  }, []);
-
   return {
     contextMenu,
     openContextMenu,
@@ -101,8 +79,5 @@ export const useContextMenuState = () => {
     textPrompt,
     openTextPrompt,
     closeTextPrompt,
-    topCardRevealPrompt,
-    openTopCardRevealPrompt,
-    closeTopCardRevealPrompt,
   };
 };

@@ -22,8 +22,6 @@ const TestHarness = () => {
     closeCountPrompt: noop,
     textPromptOpen: false,
     closeTextPrompt: noop,
-    topCardRevealPromptOpen: false,
-    closeTopCardRevealPrompt: noop,
     activeModalOpen: false,
     closeActiveModal: noop,
     tokenModalOpen: false,
