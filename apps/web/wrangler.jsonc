@@ -19,4 +19,10 @@
       },
     },
   },
+  "routes": [
+    {
+      "pattern": "drawspell.space",
+      "custom_domain": true,
+    },
+  ],
 }
