@@ -108,4 +108,25 @@ describe("dispatchIntent", () => {
     const reconciled = applyPendingIntents(baseState);
     expect(reconciled).toEqual(baseState);
   });
+
+  it("throttles dropped intent warnings", () => {
+    sendIntentMock.mockReturnValue(false);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-01-01T00:00:00.000Z"));
+
+    const setState = vi.fn();
+    const dispatchIntent = createIntentDispatcher(setState);
+    dispatchIntent({ type: "card.tap", payload: { cardId: "c1" } });
+    dispatchIntent({ type: "card.tap", payload: { cardId: "c2" } });
+
+    expect(warningToastMock).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(2000);
+    vi.setSystemTime(new Date("2024-01-01T00:00:02.000Z"));
+    dispatchIntent({ type: "card.tap", payload: { cardId: "c3" } });
+
+    expect(warningToastMock).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
 });

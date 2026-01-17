@@ -303,4 +303,22 @@ describe("useMultiplayerSync", () => {
       })
     );
   });
+
+  it("reconnects when the intent socket closes", async () => {
+    renderHook(() => useMultiplayerSync("session-909"));
+
+    await waitFor(() => {
+      expect(intentTransportMocks.createIntentTransport).toHaveBeenCalledTimes(1);
+    });
+
+    const [{ onClose }] = intentTransportMocks.createIntentTransport.mock.calls[0] as any;
+
+    act(() => {
+      onClose({ code: 1006, reason: "abnormal" });
+    });
+
+    await waitFor(() => {
+      expect(intentTransportMocks.createIntentTransport).toHaveBeenCalledTimes(2);
+    });
+  });
 });
