@@ -242,7 +242,7 @@ export const buildDuplicateTokenCard = (params: {
 export const computeDuplicateTokenPosition = (params: {
   sourceCard: Card;
   orderedCardIds: string[];
-  cardsById: Record<string, Card>;
+  cardsById: Record<string, { position: Card["position"] }>;
 }): Card["position"] => {
   const basePosition = bumpPosition(clampNormalizedPosition(params.sourceCard.position));
   return findAvailablePositionNormalized(basePosition, params.orderedCardIds, params.cardsById);

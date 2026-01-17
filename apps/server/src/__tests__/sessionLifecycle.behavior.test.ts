@@ -106,36 +106,84 @@ class TestConnection {
 
 describe("server lifecycle guards", () => {
   it("skips hidden-state persistence when a reset happens mid-intent", async () => {
-    const state = createState();
-    const server = new Room(state, { rooms: {} as any });
-    (server as any).hiddenState = createEmptyHiddenState();
+    vi.useFakeTimers();
+    try {
+      const state = createState();
+      const server = new Room(state, { rooms: {} as any });
+      (server as any).hiddenState = createEmptyHiddenState();
 
-    const broadcastGate = createDeferred<void>();
-    const broadcastSpy = vi
-      .spyOn(server as any, "broadcastOverlays")
-      .mockReturnValue(broadcastGate.promise);
+      const broadcastGate = createDeferred<void>();
+      const broadcastSpy = vi
+        .spyOn(server as any, "broadcastOverlays")
+        .mockReturnValue(broadcastGate.promise);
 
-    const conn = new TestConnection();
-    conn.state = { playerId: "p1", viewerRole: "player" };
+      const conn = new TestConnection();
+      conn.state = { playerId: "p1", viewerRole: "player" };
 
-    const intent = {
-      id: "intent-1",
-      type: "card.add",
-      payload: { actorId: "p1" },
-    };
-    const intentPromise = (server as any).handleIntent(conn, intent);
+      const intent = {
+        id: "intent-1",
+        type: "card.add",
+        payload: { actorId: "p1" },
+      };
+      const intentPromise = (server as any).handleIntent(conn, intent);
 
-    for (let i = 0; i < 3 && broadcastSpy.mock.calls.length === 0; i += 1) {
-      await Promise.resolve();
+      for (let i = 0; i < 3 && broadcastSpy.mock.calls.length === 0; i += 1) {
+        await Promise.resolve();
+      }
+
+      expect(broadcastSpy).toHaveBeenCalledTimes(1);
+      (server as any).resetGeneration += 1;
+      broadcastGate.resolve();
+
+      await intentPromise;
+      await vi.runAllTimersAsync();
+
+      expect(state.storage.put).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
     }
+  });
 
-    expect(broadcastSpy).toHaveBeenCalledTimes(1);
-    (server as any).resetGeneration += 1;
-    broadcastGate.resolve();
+  it("debounces hidden-state persistence across rapid intents", async () => {
+    vi.useFakeTimers();
+    try {
+      const state = createState();
+      const server = new Room(state, { rooms: {} as any });
+      (server as any).hiddenState = createEmptyHiddenState();
+      vi
+        .spyOn(server as any, "broadcastOverlays")
+        .mockResolvedValue(undefined);
+      const persistSpy = vi
+        .spyOn(server as any, "persistHiddenState")
+        .mockResolvedValue(undefined);
 
-    await intentPromise;
+      const conn = new TestConnection();
+      conn.state = { playerId: "p1", viewerRole: "player" };
 
-    expect(state.storage.put).not.toHaveBeenCalled();
+      const intent = {
+        id: "intent-1",
+        type: "card.add",
+        payload: { actorId: "p1" },
+      };
+      const intentTwo = {
+        id: "intent-2",
+        type: "card.add",
+        payload: { actorId: "p1" },
+      };
+
+      await Promise.all([
+        (server as any).handleIntent(conn, intent),
+        (server as any).handleIntent(conn, intentTwo),
+      ]);
+
+      expect(persistSpy).not.toHaveBeenCalled();
+
+      await vi.runAllTimersAsync();
+
+      expect(persistSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not register sync connections that close before auth resolves", async () => {

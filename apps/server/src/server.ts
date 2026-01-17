@@ -21,9 +21,10 @@ import type {
   Intent,
   IntentConnectionState,
   RoomTokens,
+  Snapshot,
 } from "./domain/types";
 import { applyIntentToDoc } from "./domain/intents/applyIntentToDoc";
-import { buildOverlayForViewer } from "./domain/overlay";
+import { buildOverlayForViewer, buildOverlayZoneLookup } from "./domain/overlay";
 import {
   chunkHiddenCards,
   createEmptyHiddenState,
@@ -31,6 +32,7 @@ import {
   normalizeHiddenState,
 } from "./domain/hiddenState";
 import {
+  buildSnapshot,
   clearYMap,
   getMaps,
   isRecord,
@@ -41,9 +43,17 @@ const INTENT_ROLE = "intent";
 const EMPTY_ROOM_GRACE_MS = 30_000;
 const ROOM_TEARDOWN_CLOSE_CODE = 1013;
 const Y_DOC_STORAGE_KEY = "yjs:doc";
+const HIDDEN_STATE_PERSIST_DEBOUNCE_MS = 250;
+const HIDDEN_STATE_CLEANUP_INTERVAL_MS = 10 * 60_000;
+const PERF_METRICS_INTERVAL_MS = 30_000;
+const PERF_METRICS_MIN_INTERVAL_MS = 5_000;
+const PERF_METRICS_MAX_INTERVAL_MS = 300_000;
 
 export type Env = {
   rooms: DurableObjectNamespace;
+  PERF_METRICS?: string;
+  PERF_METRICS_INTERVAL_MS?: string;
+  PERF_METRICS_ALLOW_PARAM?: string;
 };
 
 export { applyIntentToDoc } from "./domain/intents/applyIntentToDoc";
@@ -77,6 +87,15 @@ export class Room extends YServer<Env> {
   private teardownGeneration = 0;
   private resetGeneration = 0;
   private teardownInProgress = false;
+  private hiddenStatePersistTimer: number | null = null;
+  private hiddenStatePersistInFlight: Promise<void> | null = null;
+  private hiddenStatePersistQueued: { resetGeneration: number; connId?: string | null } | null =
+    null;
+  private lastHiddenStateCleanupAt = 0;
+  private lastPerfMetricsAt = 0;
+  private perfMetricsEnabledFlag = false;
+  private perfMetricsIntervalMs = PERF_METRICS_INTERVAL_MS;
+  private perfMetricsTimer: number | null = null;
 
   async onLoad() {
     const stored = await this.ctx.storage.get<ArrayBuffer>(Y_DOC_STORAGE_KEY);
@@ -177,8 +196,9 @@ export class Room extends YServer<Env> {
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     const { cards, ...rest } = this.hiddenState;
     const chunks = chunkHiddenCards(cards);
+    const writeId = crypto.randomUUID();
     const chunkKeys = chunks.map(
-      (_chunk, index) => `${HIDDEN_STATE_CARDS_PREFIX}${index}`
+      (_chunk, index) => `${HIDDEN_STATE_CARDS_PREFIX}${writeId}:${index}`
     );
 
     for (let index = 0; index < chunks.length; index += 1) {
@@ -191,6 +211,14 @@ export class Room extends YServer<Env> {
     const prevMeta = await this.ctx.storage.get<HiddenStateMeta>(
       HIDDEN_STATE_META_KEY
     );
+
+    const nextMeta: HiddenStateMeta = {
+      ...rest,
+      cardChunkKeys: chunkKeys,
+    };
+    await this.ctx.storage.put(HIDDEN_STATE_META_KEY, nextMeta);
+
+    if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     if (prevMeta?.cardChunkKeys?.length) {
       for (const key of prevMeta.cardChunkKeys) {
         if (!chunkKeys.includes(key)) {
@@ -203,16 +231,67 @@ export class Room extends YServer<Env> {
     }
 
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
-    const nextMeta: HiddenStateMeta = {
-      ...rest,
-      cardChunkKeys: chunkKeys,
-    };
-    await this.ctx.storage.put(HIDDEN_STATE_META_KEY, nextMeta);
+    await this.maybeCleanupHiddenStateChunks(nextMeta, expectedResetGeneration);
 
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     try {
       await this.ctx.storage.delete(HIDDEN_STATE_KEY);
     } catch (_err) {}
+  }
+
+  private async maybeCleanupHiddenStateChunks(
+    meta: HiddenStateMeta,
+    expectedResetGeneration?: number
+  ) {
+    if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
+    const now = Date.now();
+    if (now - this.lastHiddenStateCleanupAt < HIDDEN_STATE_CLEANUP_INTERVAL_MS) return;
+    this.lastHiddenStateCleanupAt = now;
+    if (!Array.isArray(meta.cardChunkKeys)) return;
+
+    const storage = this.ctx.storage as unknown as {
+      list?: () => Promise<
+        Map<string, unknown> | Iterable<[string, unknown]> | string[]
+      >;
+      delete?: (key: string) => Promise<void>;
+    };
+    if (typeof storage.list !== "function" || typeof storage.delete !== "function") return;
+
+    let listed: Map<string, unknown> | Iterable<[string, unknown]> | string[];
+    try {
+      listed = await storage.list();
+    } catch (_err) {
+      return;
+    }
+
+    const allowed = new Set(meta.cardChunkKeys);
+    const orphanKeys: string[] = [];
+    const recordKey = (key: string) => {
+      if (!key.startsWith(HIDDEN_STATE_CARDS_PREFIX)) return;
+      if (allowed.has(key)) return;
+      orphanKeys.push(key);
+    };
+
+    if (Array.isArray(listed)) {
+      listed.forEach((key) => {
+        if (typeof key === "string") recordKey(key);
+      });
+    } else if (listed instanceof Map) {
+      listed.forEach((_value, key) => {
+        if (typeof key === "string") recordKey(key);
+      });
+    } else if (Symbol.iterator in Object(listed)) {
+      for (const entry of listed as Iterable<[string, unknown]>) {
+        if (entry && typeof entry[0] === "string") recordKey(entry[0]);
+      }
+    }
+
+    for (const key of orphanKeys) {
+      if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
+      try {
+        await storage.delete(key);
+      } catch (_err) {}
+    }
   }
 
   private async loadRoomTokens(): Promise<RoomTokens | null> {
@@ -270,6 +349,197 @@ export class Room extends YServer<Env> {
     }
   }
 
+  private clearHiddenStatePersistTimer() {
+    if (this.hiddenStatePersistTimer !== null) {
+      clearTimeout(this.hiddenStatePersistTimer);
+      this.hiddenStatePersistTimer = null;
+    }
+    this.hiddenStatePersistQueued = null;
+  }
+
+  private clearPerfMetricsTimer() {
+    if (this.perfMetricsTimer !== null) {
+      clearInterval(this.perfMetricsTimer);
+      this.perfMetricsTimer = null;
+    }
+  }
+
+  private scheduleHiddenStatePersist(
+    expectedResetGeneration: number,
+    connId?: string
+  ) {
+    if (!this.hiddenState) return;
+    if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
+    if (this.hiddenStatePersistTimer !== null) {
+      clearTimeout(this.hiddenStatePersistTimer);
+    }
+    const scheduledGeneration = expectedResetGeneration;
+    const scheduledConnId = connId ?? null;
+    this.hiddenStatePersistTimer = setTimeout(() => {
+      this.hiddenStatePersistTimer = null;
+      this.enqueueHiddenStatePersist(scheduledGeneration, scheduledConnId);
+    }, HIDDEN_STATE_PERSIST_DEBOUNCE_MS) as unknown as number;
+    this.maybeLogPerfMetrics("hidden-state-change");
+  }
+
+  private enqueueHiddenStatePersist(
+    expectedResetGeneration: number,
+    connId?: string | null
+  ) {
+    if (this.hiddenStatePersistInFlight) {
+      this.hiddenStatePersistQueued = {
+        resetGeneration: expectedResetGeneration,
+        connId: connId ?? null,
+      };
+      return;
+    }
+    this.hiddenStatePersistInFlight = this.flushHiddenStatePersist(
+      expectedResetGeneration,
+      connId
+    ).finally(() => {
+      this.hiddenStatePersistInFlight = null;
+      const queued = this.hiddenStatePersistQueued;
+      this.hiddenStatePersistQueued = null;
+      if (queued && this.shouldPersistHiddenState(queued.resetGeneration)) {
+        this.enqueueHiddenStatePersist(queued.resetGeneration, queued.connId ?? null);
+      }
+    });
+  }
+
+  private async flushHiddenStatePersist(
+    expectedResetGeneration?: number,
+    connId?: string | null
+  ) {
+    try {
+      await this.persistHiddenState(expectedResetGeneration);
+    } catch (err: any) {
+      let hiddenSize: number | null = null;
+      try {
+        hiddenSize = JSON.stringify(this.hiddenState ?? {}).length;
+      } catch (_err) {
+        hiddenSize = null;
+      }
+      console.error("[party] hidden state persist failed", {
+        room: this.name,
+        connId: connId ?? undefined,
+        error: err?.message ?? String(err),
+        hiddenSize,
+      });
+    }
+  }
+
+  private perfMetricsEnabled(): boolean {
+    const flag = (this.env as Env | undefined)?.PERF_METRICS;
+    return flag === "1" || flag === "true" || this.perfMetricsEnabledFlag;
+  }
+
+  private perfMetricsParamsAllowed(): boolean {
+    const flag = (this.env as Env | undefined)?.PERF_METRICS_ALLOW_PARAM;
+    return flag === "1" || flag === "true";
+  }
+
+  private clampPerfMetricsInterval(value: number) {
+    const min = PERF_METRICS_MIN_INTERVAL_MS;
+    const max = PERF_METRICS_MAX_INTERVAL_MS;
+    return Math.min(max, Math.max(min, Math.floor(value)));
+  }
+
+  private capturePerfMetricsFlag(url: URL) {
+    const allowParams = this.perfMetricsParamsAllowed();
+    if (allowParams) {
+      const param = url.searchParams.get("perfMetrics");
+      if (param === "1" || param === "true") {
+        this.perfMetricsEnabledFlag = true;
+      }
+    }
+    const intervalParam = allowParams
+      ? url.searchParams.get("perfMetricsIntervalMs")
+      : null;
+    const envInterval = (this.env as Env | undefined)?.PERF_METRICS_INTERVAL_MS;
+    const rawInterval = intervalParam ?? envInterval ?? null;
+    if (rawInterval) {
+      const parsed = Number(rawInterval);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        this.perfMetricsIntervalMs = this.clampPerfMetricsInterval(parsed);
+      }
+    }
+    this.ensurePerfMetricsTimer();
+  }
+
+  private ensurePerfMetricsTimer() {
+    if (!this.perfMetricsEnabled()) return;
+    if (this.perfMetricsTimer !== null) return;
+    this.perfMetricsTimer = setInterval(() => {
+      this.logPerfMetrics("interval");
+    }, this.perfMetricsIntervalMs) as unknown as number;
+    this.logPerfMetrics("interval");
+  }
+
+  private logPerfMetrics(reason: string) {
+    if (!this.perfMetricsEnabled()) return;
+    const now = Date.now();
+    this.lastPerfMetricsAt = now;
+
+    const maps = getMaps(this.document);
+    const hidden = this.hiddenState;
+    const countRecord = (record: Record<string, unknown>) =>
+      Object.keys(record).length;
+    const countOrderTotal = (record: Record<string, string[]>) => {
+      let total = 0;
+      for (const key in record) {
+        const list = record[key];
+        if (Array.isArray(list)) total += list.length;
+      }
+      return total;
+    };
+
+    const metrics = {
+      ts: now,
+      timestamp: new Date(now).toISOString(),
+      intervalMs: this.perfMetricsIntervalMs,
+      room: this.name,
+      reason,
+      connections: this.connectionRoles.size,
+      intentConnections: this.intentConnections.size,
+      overlays: this.overlaySummaries.size,
+      libraryViews: this.libraryViews.size,
+      yjs: {
+        players: maps.players.size,
+        zones: maps.zones.size,
+        cards: maps.cards.size,
+        zoneCardOrders: maps.zoneCardOrders.size,
+        handRevealsToAll: maps.handRevealsToAll.size,
+        libraryRevealsToAll: maps.libraryRevealsToAll.size,
+        faceDownRevealsToAll: maps.faceDownRevealsToAll.size,
+        playerOrder: maps.playerOrder.length,
+      },
+      hidden: hidden
+        ? {
+            cards: countRecord(hidden.cards),
+            handPlayers: countRecord(hidden.handOrder),
+            handCards: countOrderTotal(hidden.handOrder),
+            libraryPlayers: countRecord(hidden.libraryOrder),
+            libraryCards: countOrderTotal(hidden.libraryOrder),
+            sideboardPlayers: countRecord(hidden.sideboardOrder),
+            sideboardCards: countOrderTotal(hidden.sideboardOrder),
+            faceDownBattlefield: countRecord(hidden.faceDownBattlefield),
+            handReveals: countRecord(hidden.handReveals),
+            libraryReveals: countRecord(hidden.libraryReveals),
+            faceDownReveals: countRecord(hidden.faceDownReveals),
+          }
+        : null,
+    };
+
+    console.log("[perf] room metrics", metrics);
+  }
+
+  private maybeLogPerfMetrics(reason: string) {
+    if (!this.perfMetricsEnabled()) return;
+    const now = Date.now();
+    if (now - this.lastPerfMetricsAt < this.perfMetricsIntervalMs) return;
+    this.logPerfMetrics(reason);
+  }
+
   private beginPendingPlayerConnection() {
     this.pendingPlayerConnections += 1;
     this.clearEmptyRoomTimer();
@@ -311,6 +581,9 @@ export class Room extends YServer<Env> {
   private unregisterConnection(conn: Connection) {
     this.connectionRoles.delete(conn);
     this.scheduleEmptyRoomTeardown();
+    if (this.connectionRoles.size === 0) {
+      this.clearPerfMetricsTimer();
+    }
   }
 
   private async clearRoomStorage() {
@@ -371,6 +644,8 @@ export class Room extends YServer<Env> {
     if (this.hasPlayerConnections()) return;
 
     this.teardownInProgress = true;
+    this.clearHiddenStatePersistTimer();
+    this.clearPerfMetricsTimer();
     this.resetGeneration += 1;
     try {
       const connections = Array.from(this.connectionRoles.keys());
@@ -485,6 +760,7 @@ export class Room extends YServer<Env> {
     }
 
     if (connectionClosed) return;
+    this.capturePerfMetricsFlag(url);
     conn.setState({
       playerId: resolvedPlayerId,
       viewerRole: resolvedRole,
@@ -594,6 +870,7 @@ export class Room extends YServer<Env> {
         rejectForReset();
         return;
       }
+      this.capturePerfMetricsFlag(url);
       this.registerConnection(conn, resolvedRole);
       connectionRegistered = true;
       finalizePending();
@@ -623,6 +900,7 @@ export class Room extends YServer<Env> {
       rejectForReset();
       return;
     }
+    this.capturePerfMetricsFlag(url);
     this.registerConnection(conn, resolvedRole);
     connectionRegistered = true;
     finalizePending();
@@ -688,22 +966,7 @@ export class Room extends YServer<Env> {
 
     if (ok && hiddenChanged) {
       await this.broadcastOverlays();
-      try {
-        await this.persistHiddenState(resetGeneration);
-      } catch (err: any) {
-        let hiddenSize: number | null = null;
-        try {
-          hiddenSize = JSON.stringify(this.hiddenState ?? {}).length;
-        } catch (_err) {
-          hiddenSize = null;
-        }
-        console.error("[party] hidden state persist failed", {
-          room: this.name,
-          connId: conn.id,
-          error: err?.message ?? String(err),
-          hiddenSize,
-        });
-      }
+      this.scheduleHiddenStatePersist(resetGeneration, conn.id);
     }
 
     if (ok && logEvents.length > 0) {
@@ -747,46 +1010,43 @@ export class Room extends YServer<Env> {
   private async sendOverlayForConnection(
     conn: Connection,
     maps?: ReturnType<typeof getMaps>,
-    hidden?: HiddenState
+    hidden?: HiddenState,
+    snapshot?: Snapshot,
+    zoneLookup?: ReturnType<typeof buildOverlayZoneLookup>
   ) {
     try {
-      const activeMaps = maps ?? getMaps(this.document);
-      if (!activeMaps) return;
       const activeHidden =
         hidden ?? (await this.ensureHiddenState(this.document));
       if (!activeHidden) return;
+      const overlaySnapshot =
+        snapshot ?? buildSnapshot(maps ?? getMaps(this.document));
+      const overlayZoneLookup =
+        zoneLookup ?? buildOverlayZoneLookup(overlaySnapshot);
       const state = (conn.state ?? {}) as IntentConnectionState;
       const viewerRole = state.viewerRole ?? "player";
       const viewerId = state.playerId;
       const libraryView = this.libraryViews.get(conn.id);
-      const overlay = buildOverlayForViewer({
-        maps: activeMaps,
+      const overlayResult = this.buildOverlayPayload({
+        snapshot: overlaySnapshot,
+        zoneLookup: overlayZoneLookup,
         hidden: activeHidden,
         viewerRole,
         viewerId,
         libraryView,
       });
-      const cardCount = Array.isArray(overlay.cards) ? overlay.cards.length : 0;
-      const cardsWithArt = Array.isArray(overlay.cards)
-        ? overlay.cards.filter(
-            (card) =>
-              typeof card.imageUrl === "string" && card.imageUrl.length > 0
-          ).length
-        : 0;
-      const viewerHandCount =
-        viewerRole !== "spectator" && viewerId
-          ? (activeHidden.handOrder[viewerId]?.length ?? 0)
-          : 0;
       const previous = this.overlaySummaries.get(conn.id);
       const changed =
         !previous ||
-        previous.cardCount !== cardCount ||
-        previous.cardsWithArt !== cardsWithArt ||
-        (viewerHandCount > 0 && cardCount === 0);
+        previous.cardCount !== overlayResult.cardCount ||
+        previous.cardsWithArt !== overlayResult.cardsWithArt ||
+        (overlayResult.viewerHandCount > 0 && overlayResult.cardCount === 0);
       if (changed) {
-        this.overlaySummaries.set(conn.id, { cardCount, cardsWithArt });
+        this.overlaySummaries.set(conn.id, {
+          cardCount: overlayResult.cardCount,
+          cardsWithArt: overlayResult.cardsWithArt,
+        });
       }
-      conn.send(JSON.stringify({ type: "privateOverlay", payload: overlay }));
+      conn.send(overlayResult.message);
     } catch (_err) {}
   }
 
@@ -795,9 +1055,86 @@ export class Room extends YServer<Env> {
 
     const maps = getMaps(this.document);
     const hidden = await this.ensureHiddenState(this.document);
+    const snapshot = buildSnapshot(maps);
+    const zoneLookup = buildOverlayZoneLookup(snapshot);
+    const overlayCache = new Map<
+      string,
+      { message: string; cardCount: number; cardsWithArt: number; viewerHandCount: number }
+    >();
     for (const connection of this.intentConnections) {
-      await this.sendOverlayForConnection(connection, maps, hidden);
+      const state = (connection.state ?? {}) as IntentConnectionState;
+      const viewerRole = state.viewerRole ?? "player";
+      const viewerId = state.playerId;
+      const libraryView = this.libraryViews.get(connection.id);
+      const cacheKey = `${viewerRole}|${viewerId ?? ""}|${libraryView?.playerId ?? ""}|${
+        libraryView?.count ?? ""
+      }`;
+      let overlayResult = overlayCache.get(cacheKey);
+      if (!overlayResult) {
+        overlayResult = this.buildOverlayPayload({
+          snapshot,
+          zoneLookup,
+          hidden,
+          viewerRole,
+          viewerId,
+          libraryView,
+        });
+        overlayCache.set(cacheKey, overlayResult);
+      }
+      const previous = this.overlaySummaries.get(connection.id);
+      const changed =
+        !previous ||
+        previous.cardCount !== overlayResult.cardCount ||
+        previous.cardsWithArt !== overlayResult.cardsWithArt ||
+        (overlayResult.viewerHandCount > 0 && overlayResult.cardCount === 0);
+      if (changed) {
+        this.overlaySummaries.set(connection.id, {
+          cardCount: overlayResult.cardCount,
+          cardsWithArt: overlayResult.cardsWithArt,
+        });
+      }
+      try {
+        connection.send(overlayResult.message);
+      } catch (_err) {}
     }
+    this.maybeLogPerfMetrics("overlay-broadcast");
+  }
+
+  private buildOverlayPayload(params: {
+    snapshot: Snapshot;
+    zoneLookup: ReturnType<typeof buildOverlayZoneLookup>;
+    hidden: HiddenState;
+    viewerRole: "player" | "spectator";
+    viewerId?: string;
+    libraryView?: { playerId: string; count?: number };
+  }): { message: string; cardCount: number; cardsWithArt: number; viewerHandCount: number } {
+    const overlay = buildOverlayForViewer({
+      snapshot: params.snapshot,
+      zoneLookup: params.zoneLookup,
+      hidden: params.hidden,
+      viewerRole: params.viewerRole,
+      viewerId: params.viewerId,
+      libraryView: params.libraryView,
+    });
+    const cardCount = Array.isArray(overlay.cards) ? overlay.cards.length : 0;
+    let cardsWithArt = 0;
+    if (Array.isArray(overlay.cards)) {
+      for (const card of overlay.cards) {
+        if (typeof card.imageUrl === "string" && card.imageUrl.length > 0) {
+          cardsWithArt += 1;
+        }
+      }
+    }
+    const viewerHandCount =
+      params.viewerRole !== "spectator" && params.viewerId
+        ? (params.hidden.handOrder[params.viewerId]?.length ?? 0)
+        : 0;
+    return {
+      message: JSON.stringify({ type: "privateOverlay", payload: overlay }),
+      cardCount,
+      cardsWithArt,
+      viewerHandCount,
+    };
   }
 
   private async handleLibraryViewIntent(conn: Connection, intent: Intent) {

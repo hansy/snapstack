@@ -84,6 +84,10 @@ bun install
 - Durable Object migrations are defined in `apps/server/wrangler.jsonc`.
 - CI: **TBD** (no CI config found in the repo; add one under `.github/` or similar).
 
+## Performance
+
+See `docs/performance-report.md` for the latest benchmarks, load scripts, and measurement notes.
+
 ## Contributing
 
 - Use Bun for scripts and dependency management.

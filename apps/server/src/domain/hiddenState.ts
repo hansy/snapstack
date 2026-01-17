@@ -73,31 +73,44 @@ export const normalizeHiddenState = (value: unknown): HiddenState => {
   };
 };
 
-const estimateJsonSize = (value: unknown): number => {
+const estimateEntrySize = (key: string, value: unknown): number => {
   try {
-    return JSON.stringify(value).length;
+    const keyJson = JSON.stringify(key);
+    const valueJson = JSON.stringify(value);
+    if (typeof keyJson !== "string" || typeof valueJson !== "string") return Number.POSITIVE_INFINITY;
+    return keyJson.length + 1 + valueJson.length;
   } catch (_err) {
     return Number.POSITIVE_INFINITY;
   }
 };
+
 
 export const chunkHiddenCards = (cards: Record<string, Card>): Record<string, Card>[] => {
   const entries = Object.entries(cards);
   if (entries.length === 0) return [];
   const chunks: Record<string, Card>[] = [];
   let current: Record<string, Card> = {};
+  let currentSize = 2;
+  let currentCount = 0;
 
-  entries.forEach(([cardId, card]) => {
-    const next = { ...current, [cardId]: card };
-    if (Object.keys(current).length > 0 && estimateJsonSize(next) > MAX_HIDDEN_STATE_CHUNK_SIZE) {
+  for (const [cardId, card] of entries) {
+    const entrySize = estimateEntrySize(cardId, card);
+    const nextSize = currentCount === 0 ? 2 + entrySize : currentSize + 1 + entrySize;
+
+    if (currentCount > 0 && nextSize > MAX_HIDDEN_STATE_CHUNK_SIZE) {
       chunks.push(current);
       current = { [cardId]: card };
-      return;
+      currentCount = 1;
+      currentSize = 2 + entrySize;
+      continue;
     }
-    current = next;
-  });
 
-  if (Object.keys(current).length) {
+    current[cardId] = card;
+    currentCount += 1;
+    currentSize = nextSize;
+  }
+
+  if (currentCount > 0) {
     chunks.push(current);
   }
   return chunks;
@@ -171,11 +184,12 @@ export const syncLibraryRevealsToAllForPlayer = (
   const player = readPlayer(maps, playerId);
   if (!player) return;
   const order = hidden.libraryOrder[playerId] ?? [];
-  const libraryCardIds = new Set(order);
+  const orderIndexById = new Map<string, number>();
   const toAllIds = new Set<string>();
   const topCardId = order.length ? order[order.length - 1] : null;
 
-  order.forEach((cardId) => {
+  order.forEach((cardId, index) => {
+    orderIndexById.set(cardId, index);
     if (hidden.libraryReveals[cardId]?.toAll) {
       toAllIds.add(cardId);
     }
@@ -199,7 +213,7 @@ export const syncLibraryRevealsToAllForPlayer = (
 
   maps.libraryRevealsToAll.forEach((value, key) => {
     const cardId = String(key);
-    if (libraryCardIds.has(cardId)) {
+    if (orderIndexById.has(cardId)) {
       if (!toAllIds.has(cardId)) {
         maps.libraryRevealsToAll.delete(cardId);
       }
@@ -219,8 +233,8 @@ export const syncLibraryRevealsToAllForPlayer = (
   toAllIds.forEach((cardId) => {
     const card = hidden.cards[cardId];
     if (!card) return;
-    const index = order.indexOf(cardId);
-    const orderKey = buildLibraryOrderKey(index >= 0 ? index : order.length);
+    const index = orderIndexById.get(cardId);
+    const orderKey = buildLibraryOrderKey(typeof index === "number" ? index : order.length);
     maps.libraryRevealsToAll.set(cardId, {
       card: buildCardIdentity(card),
       orderKey,
@@ -228,6 +242,7 @@ export const syncLibraryRevealsToAllForPlayer = (
     });
   });
 };
+
 
 export const migrateHiddenStateFromSnapshot = (maps: Maps): HiddenState => {
   const snapshot = buildSnapshot(maps);

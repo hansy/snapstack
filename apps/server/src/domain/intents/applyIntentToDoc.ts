@@ -53,7 +53,7 @@ import type { ApplyResult, HiddenState, InnerApplyResult, Intent, LogEvent } fro
 import { applyCardMove } from "../movement";
 import { applyMulligan, applyResetDeck, applyUnloadDeck } from "../deck";
 import { shuffle } from "../random";
-import { findZoneByType } from "../zones";
+import { findZoneByTypeInMaps } from "../zones";
 
 export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState): ApplyResult => {
   if (!intent || typeof intent.type !== "string") {
@@ -846,11 +846,18 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
         if (!permission.allowed) {
           return { ok: false, error: permission.reason ?? "not permitted" };
         }
-        const snapshot = buildSnapshot(maps);
+        const cardsById: Record<string, { position: Card["position"] }> = {};
+        zone.cardIds.forEach((id) => {
+          const raw = readRecord(maps.cards.get(id));
+          if (!raw) return;
+          const position = (raw as { position?: { x?: unknown; y?: unknown } }).position;
+          if (!position || typeof position.x !== "number" || typeof position.y !== "number") return;
+          cardsById[id] = { position: { x: position.x, y: position.y } };
+        });
         const position = computeDuplicateTokenPosition({
           sourceCard: card,
           orderedCardIds: zone.cardIds,
-          cardsById: snapshot.cards,
+          cardsById,
         });
         const clone = buildDuplicateTokenCard({ sourceCard: card, newCardId, position });
         writeCard(maps, clone);
@@ -891,9 +898,8 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         const count = typeof payload.count === "number" ? payload.count : 1;
         if (!playerId) return { ok: false, error: "invalid player" };
-        const snapshot = buildSnapshot(maps);
-        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
-        const handZone = findZoneByType(snapshot.zones, playerId, ZONE.HAND);
+        const libraryZone = findZoneByTypeInMaps(maps, playerId, ZONE.LIBRARY);
+        const handZone = findZoneByTypeInMaps(maps, playerId, ZONE.HAND);
         if (!libraryZone || !handZone) return { ok: false, error: "zone not found" };
         const permission = canViewHiddenZone(actorId, libraryZone);
         if (!permission.allowed) {
@@ -921,9 +927,8 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         const count = typeof payload.count === "number" ? payload.count : 1;
         if (!playerId) return { ok: false, error: "invalid player" };
-        const snapshot = buildSnapshot(maps);
-        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
-        const graveyardZone = findZoneByType(snapshot.zones, playerId, ZONE.GRAVEYARD);
+        const libraryZone = findZoneByTypeInMaps(maps, playerId, ZONE.LIBRARY);
+        const graveyardZone = findZoneByTypeInMaps(maps, playerId, ZONE.GRAVEYARD);
         if (!libraryZone || !graveyardZone) return { ok: false, error: "zone not found" };
         const permission = canViewHiddenZone(actorId, libraryZone);
         if (!permission.allowed) {
@@ -950,8 +955,7 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
       case "library.shuffle": {
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
-        const snapshot = buildSnapshot(maps);
-        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
+        const libraryZone = findZoneByTypeInMaps(maps, playerId, ZONE.LIBRARY);
         if (!libraryZone) return { ok: false, error: "zone not found" };
         const permission = canViewHiddenZone(actorId, libraryZone);
         if (!permission.allowed) {
@@ -980,8 +984,7 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
       case "deck.reset": {
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
-        const snapshot = buildSnapshot(maps);
-        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
+        const libraryZone = findZoneByTypeInMaps(maps, playerId, ZONE.LIBRARY);
         if (!libraryZone) return { ok: false, error: "zone not found" };
         const permission = canViewHiddenZone(actorId, libraryZone);
         if (!permission.allowed) {
@@ -998,8 +1001,7 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
       case "deck.unload": {
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
-        const snapshot = buildSnapshot(maps);
-        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
+        const libraryZone = findZoneByTypeInMaps(maps, playerId, ZONE.LIBRARY);
         if (!libraryZone) return { ok: false, error: "zone not found" };
         const permission = canViewHiddenZone(actorId, libraryZone);
         if (!permission.allowed) {
@@ -1017,8 +1019,7 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         const count = typeof payload.count === "number" ? payload.count : 0;
         if (!playerId) return { ok: false, error: "invalid player" };
-        const snapshot = buildSnapshot(maps);
-        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
+        const libraryZone = findZoneByTypeInMaps(maps, playerId, ZONE.LIBRARY);
         if (!libraryZone) return { ok: false, error: "zone not found" };
         const permission = canViewHiddenZone(actorId, libraryZone);
         if (!permission.allowed) {
@@ -1054,8 +1055,7 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
         const playerId = typeof payload.playerId === "string" ? payload.playerId : null;
         if (!playerId) return { ok: false, error: "invalid player" };
         const count = typeof payload.count === "number" ? payload.count : undefined;
-        const snapshot = buildSnapshot(maps);
-        const libraryZone = findZoneByType(snapshot.zones, playerId, ZONE.LIBRARY);
+        const libraryZone = findZoneByTypeInMaps(maps, playerId, ZONE.LIBRARY);
         if (!libraryZone) return { ok: false, error: "zone not found" };
         const permission = canViewHiddenZone(actorId, libraryZone);
         if (!permission.allowed) {

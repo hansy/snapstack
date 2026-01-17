@@ -1,18 +1,36 @@
 import type { Card } from "../../../web/src/types/cards";
 
 import { ZONE } from "./constants";
-import type { HiddenState, Maps, PrivateOverlayPayload } from "./types";
+import type { HiddenState, Maps, PrivateOverlayPayload, Snapshot } from "./types";
 import { buildSnapshot, uniqueStrings } from "./yjsStore";
 import { applyRevealToCard } from "./hiddenState";
 
-export const buildOverlayForViewer = (params: {
-  maps: Maps;
+export type OverlayZoneLookup = {
+  handZoneIds: Record<string, string>;
+  libraryZoneIds: Record<string, string>;
+};
+
+export const buildOverlayZoneLookup = (snapshot: Snapshot): OverlayZoneLookup => {
+  const handZoneIds: Record<string, string> = {};
+  const libraryZoneIds: Record<string, string> = {};
+  Object.values(snapshot.zones).forEach((zone) => {
+    if (zone.type === ZONE.HAND) handZoneIds[zone.ownerId] = zone.id;
+    if (zone.type === ZONE.LIBRARY) libraryZoneIds[zone.ownerId] = zone.id;
+  });
+  return { handZoneIds, libraryZoneIds };
+};
+
+type OverlayParams = {
   hidden: HiddenState;
   viewerId?: string;
   viewerRole?: "player" | "spectator";
   libraryView?: { playerId: string; count?: number };
-}): PrivateOverlayPayload => {
-  const snapshot = buildSnapshot(params.maps);
+  zoneLookup?: OverlayZoneLookup;
+} & ({ maps: Maps } | { snapshot: Snapshot; maps?: Maps });
+
+export const buildOverlayForViewer = (params: OverlayParams): PrivateOverlayPayload => {
+  const snapshot = "snapshot" in params ? params.snapshot : buildSnapshot(params.maps);
+  const zoneLookup = params.zoneLookup ?? buildOverlayZoneLookup(snapshot);
   const overlayCardsById = new Map<string, Card>();
   const addOverlayCard = (card: Card) => {
     if (!overlayCardsById.has(card.id)) {
@@ -23,12 +41,7 @@ export const buildOverlayForViewer = (params: {
   const viewerRole = params.viewerRole ?? "player";
   const viewerId = params.viewerId;
 
-  const handZoneIds: Record<string, string> = {};
-  const libraryZoneIds: Record<string, string> = {};
-  Object.values(snapshot.zones).forEach((zone) => {
-    if (zone.type === ZONE.HAND) handZoneIds[zone.ownerId] = zone.id;
-    if (zone.type === ZONE.LIBRARY) libraryZoneIds[zone.ownerId] = zone.id;
-  });
+  const { handZoneIds, libraryZoneIds } = zoneLookup;
 
   const canSeeHand = (ownerId: string) =>
     viewerRole === "spectator" || (viewerId && viewerId === ownerId);
