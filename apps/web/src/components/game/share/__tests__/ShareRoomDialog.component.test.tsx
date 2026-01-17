@@ -90,6 +90,15 @@ describe("ShareRoomDialog", () => {
     ).toBeTruthy();
   });
 
+  it("shows a loading state before links are ready", () => {
+    renderDialog({ linksReady: false });
+
+    expect(screen.getByText("Generating invite links...")).toBeTruthy();
+    expect(screen.queryByText("Player invite link")).toBeNull();
+    expect(screen.queryByText("Spectator invite link")).toBeNull();
+    expect(screen.queryByDisplayValue("https://example.com/room")).toBeNull();
+  });
+
   it("disables lock controls for non-hosts", () => {
     renderDialog({ isHost: false });
 

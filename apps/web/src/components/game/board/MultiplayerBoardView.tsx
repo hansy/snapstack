@@ -105,6 +105,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   handleRollDice,
   handleLeave,
   shareLinks,
+  shareLinksReady,
 }) => {
   const suppressSingleOverlay = isGroupDragging && !showGroupDragOverlay;
 
@@ -137,6 +138,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
             syncStatus={syncStatus}
             peerCounts={peerCounts}
             isSpectator={viewerRole === "spectator"}
+            shareLinksReady={shareLinksReady}
           />
 
           <div className="flex h-full w-full">
@@ -281,6 +283,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
           onClose={() => setIsShareDialogOpen(false)}
           playerLink={shareLinks.players}
           spectatorLink={shareLinks.spectators}
+          linksReady={shareLinksReady}
           players={players}
           isHost={isHost}
           roomLockedByHost={roomLockedByHost}

@@ -38,4 +38,22 @@ describe("Sidenav", () => {
     fireEvent.click(screen.getByRole("button", { name: "Share room" }));
     expect(onOpenShareDialog).toHaveBeenCalledTimes(1);
   });
+
+  it("disables the share button before invite links are ready", () => {
+    const onOpenShareDialog = vi.fn();
+
+    render(
+      <Sidenav
+        onOpenCoinFlipper={vi.fn()}
+        onOpenDiceRoller={vi.fn()}
+        onOpenShareDialog={onOpenShareDialog}
+        shareLinksReady={false}
+      />
+    );
+
+    const shareButton = screen.getByRole("button", { name: "Share room" });
+    expect((shareButton as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(shareButton);
+    expect(onOpenShareDialog).not.toHaveBeenCalled();
+  });
 });

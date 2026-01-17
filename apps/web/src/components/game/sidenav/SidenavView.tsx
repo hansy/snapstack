@@ -54,6 +54,7 @@ export const SidenavView: React.FC<SidenavController> = ({
   onOpenDiceRoller,
   onToggleLog,
   onOpenShareDialog,
+  shareLinksReady,
   onLeaveGame,
   syncStatus,
   peerCounts,
@@ -138,6 +139,7 @@ export const SidenavView: React.FC<SidenavController> = ({
             label="Share room"
             onClick={onOpenShareDialog}
             className="hover:text-indigo-400"
+            disabled={!shareLinksReady}
           />
 
           <div

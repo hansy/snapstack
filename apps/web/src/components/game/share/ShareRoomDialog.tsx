@@ -1,5 +1,5 @@
 import React from "react";
-import { Copy, Lock, Unlock } from "lucide-react";
+import { Copy, Loader2, Lock, Unlock } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ type ShareRoomDialogProps = {
   onClose: () => void;
   playerLink: string;
   spectatorLink: string;
+  linksReady?: boolean;
   players: Record<PlayerId, Player>;
   isHost: boolean;
   roomLockedByHost: boolean;
@@ -79,6 +80,7 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
   onClose,
   playerLink,
   spectatorLink,
+  linksReady = true,
   players,
   isHost,
   roomLockedByHost,
@@ -95,9 +97,10 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
       });
   }, [players]);
 
-  const resolvedPlayerLink =
-    playerLink || (typeof window !== "undefined" ? window.location.href : "");
-  const resolvedSpectatorLink = spectatorLink || resolvedPlayerLink;
+  const resolvedPlayerLink = linksReady
+    ? playerLink || (typeof window !== "undefined" ? window.location.href : "")
+    : "";
+  const resolvedSpectatorLink = linksReady ? spectatorLink || resolvedPlayerLink : "";
 
   const roomIsLocked = roomLockedByHost || roomIsFull;
 
@@ -183,16 +186,25 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
             </div>
 
             <div className="border-t border-zinc-800 pt-4 space-y-4">
-              <ShareLinkField
-                label="Player invite link"
-                value={resolvedPlayerLink}
-                onCopy={handleCopy}
-              />
-              <ShareLinkField
-                label="Spectator invite link"
-                value={resolvedSpectatorLink}
-                onCopy={handleCopy}
-              />
+              {linksReady ? (
+                <>
+                  <ShareLinkField
+                    label="Player invite link"
+                    value={resolvedPlayerLink}
+                    onCopy={handleCopy}
+                  />
+                  <ShareLinkField
+                    label="Spectator invite link"
+                    value={resolvedSpectatorLink}
+                    onCopy={handleCopy}
+                  />
+                </>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-zinc-400">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Generating invite links...</span>
+                </div>
+              )}
             </div>
           </section>
 

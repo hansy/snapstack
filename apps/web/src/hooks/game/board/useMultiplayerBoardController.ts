@@ -53,6 +53,9 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const setRoomLockedByHost = useGameStore((state) => state.setRoomLockedByHost);
   const activeModal = useGameStore((state) => state.activeModal);
   const setActiveModal = useGameStore((state) => state.setActiveModal);
+  const shareLinksReady = Boolean(
+    roomTokens?.playerToken || roomTokens?.spectatorToken
+  );
 
   const overCardScale = useDragStore((state) => state.overCardScale);
   const activeCardId = useDragStore((state) => state.activeCardId);
@@ -166,6 +169,10 @@ export const useMultiplayerBoardController = (sessionId: string) => {
 
   React.useEffect(() => {
     if (!isShareDialogOpen) return;
+    if (!shareLinksReady) {
+      setShareLinks({ players: "", spectators: "" });
+      return;
+    }
     const base = buildShareLink();
     const playerLink = roomTokens?.playerToken
       ? buildShareLink({ name: "gt", value: roomTokens.playerToken })
@@ -177,6 +184,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   }, [
     buildShareLink,
     isShareDialogOpen,
+    shareLinksReady,
     roomTokens?.playerToken,
     roomTokens?.spectatorToken,
   ]);
@@ -413,6 +421,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     handleOpenCoinFlipper,
     handleLeave,
     shareLinks,
+    shareLinksReady,
     isHost,
     roomLockedByHost,
     roomLocked,
