@@ -2,6 +2,7 @@ import type { FC } from "react";
 
 import { useMultiplayerBoardController } from "@/hooks/game/board/useMultiplayerBoardController";
 import { RoomFullScreen } from "@/components/game/room/RoomFullScreen";
+import { clearInviteTokenFromUrl } from "@/lib/partyKitToken";
 import { MultiplayerBoardView } from "./MultiplayerBoardView";
 
 interface MultiplayerBoardProps {
@@ -43,7 +44,14 @@ export const MultiplayerBoard: FC<MultiplayerBoardProps> = ({ sessionId }) => {
     return (
       <RoomFullScreen
         onLeave={viewProps.handleLeave}
-        onSpectate={canSpectate ? () => setViewerRole("spectator") : undefined}
+        onSpectate={
+          canSpectate
+            ? () => {
+                clearInviteTokenFromUrl();
+                setViewerRole("spectator");
+              }
+            : undefined
+        }
       />
     );
   }

@@ -7,6 +7,7 @@ export type IntentSocketOptions = {
   host: string;
   room: string;
   token?: string;
+  tokenRole?: "player" | "spectator";
   playerId?: string;
   viewerRole?: "player" | "spectator";
   onMessage?: (message: PartyMessage) => void;
@@ -32,13 +33,22 @@ export const createIntentSocket = ({
   token,
   playerId,
   viewerRole,
+  tokenRole,
   onMessage,
   onOpen,
   onClose,
   socketOptions,
 }: IntentSocketOptions) => {
   const tokenParam =
-    token && viewerRole === "spectator" ? { st: token } : token ? { gt: token } : {};
+    token && tokenRole === "spectator"
+      ? { st: token }
+      : token && tokenRole === "player"
+        ? { gt: token }
+        : token && viewerRole === "spectator"
+          ? { st: token }
+          : token
+            ? { gt: token }
+            : {};
   const socket = new PartySocket({
     host,
     room,

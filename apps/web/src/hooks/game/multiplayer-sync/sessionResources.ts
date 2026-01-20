@@ -37,6 +37,7 @@ import { createFullSyncToStore } from "./fullSyncToStore";
 import { disposeSessionTransport } from "./disposeSessionTransport";
 import type { SyncStatus } from "./useMultiplayerSync";
 import type { YSyncProvider } from "@/yjs/provider";
+import type { ViewerRole } from "@/types";
 
 export type SessionSetupResult = {
   awareness: Awareness;
@@ -151,13 +152,32 @@ export function setupSessionResources({
     clearInviteTokenFromUrl();
   }
 
-  const intentViewerRole =
-    inviteToken.role ?? useGameStore.getState().viewerRole;
-  const fallbackToken =
-    intentViewerRole === "spectator"
-      ? useGameStore.getState().roomTokens?.spectatorToken
-      : useGameStore.getState().roomTokens?.playerToken;
-  const token = inviteToken.token ?? fallbackToken;
+  const resolveTokenForRole = (
+    role: ViewerRole | undefined,
+    tokens: RoomTokensPayload | null
+  ): { token?: string; tokenRole?: ViewerRole } => {
+    if (!role || !tokens) return {};
+    if (role === "spectator") {
+      if (tokens.spectatorToken) {
+        return { token: tokens.spectatorToken, tokenRole: "spectator" };
+      }
+      if (tokens.playerToken) {
+        return { token: tokens.playerToken, tokenRole: "player" };
+      }
+      return {};
+    }
+    if (tokens.playerToken) {
+      return { token: tokens.playerToken, tokenRole: "player" };
+    }
+    return {};
+  };
+
+  const intentViewerRole = useGameStore.getState().viewerRole;
+  const resolvedIntentToken = inviteToken.token && inviteToken.role
+    ? { token: inviteToken.token, tokenRole: inviteToken.role }
+    : resolveTokenForRole(intentViewerRole, useGameStore.getState().roomTokens);
+  const token = resolvedIntentToken.token;
+  const tokenRole = resolvedIntentToken.tokenRole;
 
   const awareness = new Awareness(doc);
   const provider: YSyncProvider = new YPartyServerProvider(
@@ -171,14 +191,13 @@ export function setupSessionResources({
       params: async () => {
         const state = useGameStore.getState();
         const role = state.viewerRole;
-        const syncToken =
-          role === "spectator"
-            ? state.roomTokens?.spectatorToken
-            : state.roomTokens?.playerToken;
+        const resolvedSyncToken = resolveTokenForRole(role, state.roomTokens);
+        const syncToken = resolvedSyncToken.token;
+        const syncTokenRole = resolvedSyncToken.tokenRole;
         const tokenParam =
-          syncToken && role === "spectator"
+          syncToken && syncTokenRole === "spectator"
             ? { st: syncToken }
-            : syncToken
+            : syncToken && syncTokenRole === "player"
               ? { gt: syncToken }
               : {};
         return {
@@ -226,6 +245,7 @@ export function setupSessionResources({
     host: partyHost,
     room: sessionId,
     token,
+    tokenRole,
     playerId: ensuredPlayerId,
     viewerRole: intentViewerRole,
     socketOptions: {
