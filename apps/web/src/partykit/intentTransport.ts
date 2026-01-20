@@ -11,6 +11,7 @@ type IntentTransportOptions = {
   host: string;
   room: string;
   token?: string;
+  tokenRole?: "player" | "spectator";
   playerId?: string;
   viewerRole?: "player" | "spectator";
   onMessage?: (message: PartyMessage) => void;
@@ -36,6 +37,7 @@ export const createIntentTransport = ({
   host,
   room,
   token,
+  tokenRole,
   playerId,
   viewerRole,
   onMessage,
@@ -47,6 +49,7 @@ export const createIntentTransport = ({
     host,
     room,
     token,
+    tokenRole,
     playerId,
     viewerRole,
     onMessage,

@@ -36,6 +36,9 @@ const mockGameState = vi.hoisted(() => ({
   roomOverCapacity: false,
   roomTokens: null as any,
   setRoomTokens: vi.fn(),
+  setViewerRole: vi.fn((role: "player" | "spectator") => {
+    mockGameState.viewerRole = role;
+  }),
   ensurePlayerIdForSession: vi.fn(() => "player-1"),
   resetSession: vi.fn(),
   ensureSessionVersion: vi.fn(() => 1),
@@ -185,6 +188,7 @@ vi.mock("../fullSyncToStore", () => ({ createFullSyncToStore }));
 
 vi.mock("../disposeSessionTransport", () => ({ disposeSessionTransport }));
 
+import { resolveInviteTokenFromUrl } from "@/lib/partyKitToken";
 import { useMultiplayerSync } from "../useMultiplayerSync";
 
 describe("useMultiplayerSync", () => {
@@ -201,6 +205,7 @@ describe("useMultiplayerSync", () => {
       sessionId: null as string | null,
       myPlayerId: null as string | null,
     });
+    mockGameState.setViewerRole.mockClear();
   });
 
   afterEach(() => {
@@ -277,6 +282,26 @@ describe("useMultiplayerSync", () => {
     expect(docManagerMocks.releaseSession).toHaveBeenCalledWith("session-456");
     expect(docManagerMocks.cleanupStaleSessions).toHaveBeenCalled();
     expect(docManagerMocks.setActiveSession).toHaveBeenCalledWith(null);
+  });
+
+  it("upgrades spectators to players when a player invite is present", async () => {
+    mockGameState.viewerRole = "spectator";
+    vi.mocked(resolveInviteTokenFromUrl)
+      .mockReturnValueOnce({
+        token: "player-token",
+        role: "player",
+      })
+      .mockReturnValueOnce({
+        token: "player-token",
+        role: "player",
+      });
+
+    renderHook(() => useMultiplayerSync("session-upgrade"));
+
+    await waitFor(() => {
+      expect(mockGameState.setViewerRole).toHaveBeenCalledWith("player");
+      expect(mockGameState.viewerRole).toBe("player");
+    });
   });
 
   it("forwards logEvent messages to the log store", async () => {

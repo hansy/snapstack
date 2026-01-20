@@ -785,8 +785,13 @@ export class Room extends YServer<Env> {
       }
     }
 
-    resolvedRole =
+    const requestedRole = state.viewerRole;
+    const tokenRole =
       providedToken && activeTokens?.spectatorToken === providedToken
+        ? "spectator"
+        : "player";
+    resolvedRole =
+      tokenRole === "spectator" || requestedRole === "spectator"
         ? "spectator"
         : "player";
     resolvedPlayerId =
@@ -1216,7 +1221,10 @@ const parseConnectionParams = (url: URL): IntentConnectionState => {
   const token = spectatorToken ?? playerToken ?? undefined;
   const viewerRoleParam = url.searchParams.get("viewerRole");
   let viewerRole = parseViewerRole(viewerRoleParam);
-  if (spectatorToken) viewerRole = "spectator";
-  if (playerToken) viewerRole = "player";
+  if (spectatorToken) {
+    viewerRole = "spectator";
+  } else if (playerToken && viewerRole !== "spectator") {
+    viewerRole = "player";
+  }
   return { playerId, viewerRole, token };
 };
