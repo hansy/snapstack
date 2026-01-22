@@ -11,6 +11,7 @@ import {
 import { getNormalizedGridSteps } from "@/lib/positions";
 import { resetCardToFrontFace } from "@/lib/cardDisplay";
 import { syncCommanderDecklistForPlayer } from "@/store/gameStore/actions/deck/commanderDecklist";
+import { debugLog, type DebugFlagKey } from "@/lib/debug";
 import {
   computeRevealPatchAfterMove,
   normalizeMovePosition,
@@ -21,7 +22,7 @@ import { moveCardIdBetweenZones, removeCardFromZones } from "../movementState";
 import type { Deps, GetState, SetState } from "./types";
 
 export const createMoveCard =
-  (set: SetState, get: GetState, { dispatchIntent }: Deps): GameState["moveCard"] =>
+  (_set: SetState, get: GetState, { dispatchIntent }: Deps): GameState["moveCard"] =>
   (cardId, toZoneId, position, actorId, _isRemote, opts) => {
     const actor = actorId ?? get().myPlayerId;
     const role = actor === get().myPlayerId ? get().viewerRole : "player";
@@ -80,80 +81,106 @@ export const createMoveCard =
       toZoneType: toZone.type,
       effectiveFaceDown: faceDownResolution.effectiveFaceDown,
     });
+    const debugKey: DebugFlagKey = "faceDownDrag";
 
-    dispatchIntent({
-      type: "card.move",
-      payload: {
-        cardId,
-        toZoneId,
-        position,
-        actorId: actor,
-        opts: opts ?? null,
-      },
-      isRemote: _isRemote,
-    });
-
-    const leavingBattlefield =
-      fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
-    const resetToFront = leavingBattlefield ? resetCardToFrontFace(card) : card;
-
-    const tokenLeavingBattlefield =
-      card.isToken && toZone.type !== ZONE.BATTLEFIELD;
-    if (tokenLeavingBattlefield) {
-      set((state) => {
-        const nextCards = { ...state.cards };
-        Reflect.deleteProperty(nextCards, cardId);
-        return {
-          cards: nextCards,
-          zones: removeCardFromZones(state.zones, cardId, [fromZoneId, toZoneId]),
-        };
-      });
-      return;
-    }
-
-    set((state) => {
+    const applyMove = (state: GameState) => {
       const cardsCopy = { ...state.cards };
-      const nextTapped = toZone.type === ZONE.BATTLEFIELD ? card.tapped : false;
-      const nextCounters = enforceZoneCounterRules(card.counters, toZone);
+      const workingCard = cardsCopy[cardId];
+      if (!workingCard) return state;
+      const toZoneState = state.zones[toZoneId] ?? toZone;
+      const currentFromZoneId = workingCard.zoneId;
+      const currentFromZone = state.zones[currentFromZoneId] ?? fromZone;
+      if (!toZoneState || !currentFromZone) return state;
+
+      const tokenLeavingBattlefield =
+        workingCard.isToken && toZoneState.type !== ZONE.BATTLEFIELD;
+      if (tokenLeavingBattlefield) {
+        Reflect.deleteProperty(cardsCopy, cardId);
+        return {
+          cards: cardsCopy,
+          zones: removeCardFromZones(state.zones, cardId, [
+            currentFromZoneId,
+            toZoneId,
+          ]),
+        };
+      }
+
+      const nextTapped =
+        toZoneState.type === ZONE.BATTLEFIELD ? workingCard.tapped : false;
+      const nextCounters = enforceZoneCounterRules(
+        workingCard.counters,
+        toZoneState
+      );
       const fallbackPosition =
-        !position && toZone.type === ZONE.BATTLEFIELD && fromZone.type !== ZONE.BATTLEFIELD
+        !position &&
+        toZoneState.type === ZONE.BATTLEFIELD &&
+        currentFromZone.type !== ZONE.BATTLEFIELD
           ? { x: 0.5, y: 0.5 }
           : position;
-      const newPosition = normalizeMovePosition(fallbackPosition, card.position);
+      const newPosition = normalizeMovePosition(
+        fallbackPosition,
+        workingCard.position
+      );
       let resolvedPosition = newPosition;
 
       if (
-        toZone.type === ZONE.BATTLEFIELD &&
+        toZoneState.type === ZONE.BATTLEFIELD &&
         fallbackPosition &&
         (!opts?.skipCollision || opts?.groupCollision)
       ) {
         if (opts?.groupCollision) {
-          const resolvedPositions = resolveBattlefieldGroupCollisionPositions({
-            movingCardIds: opts.groupCollision.movingCardIds,
-            targetPositions: opts.groupCollision.targetPositions,
-            orderedCardIds: state.zones[toZoneId]?.cardIds ?? toZone.cardIds,
-            getPosition: (id) => cardsCopy[id]?.position,
-            getStepY: (id) => getNormalizedGridSteps({ isTapped: cardsCopy[id]?.tapped }).stepY,
-          });
+          const resolvedPositions =
+            resolveBattlefieldGroupCollisionPositions({
+              movingCardIds: opts.groupCollision.movingCardIds,
+              targetPositions: opts.groupCollision.targetPositions,
+              orderedCardIds:
+                state.zones[toZoneId]?.cardIds ?? toZoneState.cardIds,
+              getPosition: (id) => cardsCopy[id]?.position,
+              getStepY: (id) =>
+                getNormalizedGridSteps({ isTapped: cardsCopy[id]?.tapped })
+                  .stepY,
+            });
           resolvedPosition = resolvedPositions[cardId] ?? newPosition;
         } else {
-          const stepY = getNormalizedGridSteps({ isTapped: card.tapped }).stepY;
+          const stepY = getNormalizedGridSteps({
+            isTapped: workingCard.tapped,
+          }).stepY;
           resolvedPosition = resolveBattlefieldCollisionPosition({
             movingCardId: cardId,
             targetPosition: newPosition,
-            orderedCardIds: state.zones[toZoneId]?.cardIds ?? toZone.cardIds,
+            orderedCardIds:
+              state.zones[toZoneId]?.cardIds ?? toZoneState.cardIds,
             getPosition: (id) => cardsCopy[id]?.position,
             stepY,
           });
         }
       }
+
       const localFaceDown = faceDownResolution.effectiveFaceDown;
       const localFaceDownMode = faceDownResolution.effectiveFaceDownMode;
+      const nextCommanderFlag = shouldMarkCommander
+        ? true
+        : workingCard.isCommander;
 
-      const nextCommanderFlag = shouldMarkCommander ? true : card.isCommander;
+      const leavingBattlefield =
+        currentFromZone.type === ZONE.BATTLEFIELD &&
+        toZoneState.type !== ZONE.BATTLEFIELD;
+      const nextCard = leavingBattlefield
+        ? resetCardToFrontFace(workingCard)
+        : workingCard;
 
-      if (fromZoneId === toZoneId) {
-        const nextCard = leavingBattlefield ? resetToFront : card;
+      if (workingCard.faceDown || localFaceDown) {
+        debugLog(debugKey, "apply-move", {
+          cardId,
+          fromZoneId: currentFromZoneId,
+          toZoneId,
+          position: resolvedPosition,
+          faceDown: localFaceDown,
+          overlayActive: Boolean(state.privateOverlay),
+        });
+      }
+
+      if (currentFromZoneId === toZoneId) {
         cardsCopy[cardId] = {
           ...nextCard,
           ...(revealPatch ?? {}),
@@ -172,14 +199,12 @@ export const createMoveCard =
           zones: moveCardIdBetweenZones({
             zones: state.zones,
             cardId,
-            fromZoneId,
+            fromZoneId: currentFromZoneId,
             toZoneId,
             placement: "top",
           }),
         };
       }
-
-      const nextCard = leavingBattlefield ? resetToFront : card;
 
       cardsCopy[cardId] = {
         ...nextCard,
@@ -190,7 +215,9 @@ export const createMoveCard =
         counters: nextCounters,
         faceDown: localFaceDown,
         faceDownMode: localFaceDownMode,
-        controllerId: controlWillChange ? nextControllerId : nextCard.controllerId,
+        controllerId: controlWillChange
+          ? nextControllerId
+          : nextCard.controllerId,
         isCommander: nextCommanderFlag,
       };
 
@@ -199,11 +226,24 @@ export const createMoveCard =
         zones: moveCardIdBetweenZones({
           zones: state.zones,
           cardId,
-          fromZoneId,
+          fromZoneId: currentFromZoneId,
           toZoneId,
           placement: "top",
         }),
       };
+    };
+
+    dispatchIntent({
+      type: "card.move",
+      payload: {
+        cardId,
+        toZoneId,
+        position,
+        actorId: actor,
+        opts: opts ?? null,
+      },
+      applyLocal: applyMove,
+      isRemote: _isRemote,
     });
 
     if (shouldSyncCommander) {

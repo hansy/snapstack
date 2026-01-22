@@ -6,6 +6,7 @@ import { logPermission } from "@/rules/logger";
 import { enforceZoneCounterRules } from "@/lib/counters";
 import { resetCardToFrontFace } from "@/lib/cardDisplay";
 import { syncCommanderDecklistForPlayer } from "@/store/gameStore/actions/deck/commanderDecklist";
+import { debugLog, type DebugFlagKey } from "@/lib/debug";
 import {
   computeRevealPatchAfterMove,
   resolveControllerAfterMove,
@@ -16,7 +17,7 @@ import type { Deps, GetState, SetState } from "./types";
 
 export const createMoveCardToBottom =
   (
-    set: SetState,
+    _set: SetState,
     get: GetState,
     { dispatchIntent }: Deps
   ): GameState["moveCardToBottom"] =>
@@ -77,39 +78,56 @@ export const createMoveCardToBottom =
       toZoneType: toZone.type,
       effectiveFaceDown: faceDownResolution.effectiveFaceDown,
     });
+    const debugKey: DebugFlagKey = "faceDownDrag";
 
-    dispatchIntent({
-      type: "card.move",
-      payload: { cardId, toZoneId, actorId: actor, placement: "bottom" },
-      isRemote: _isRemote,
-    });
-
-    const leavingBattlefield =
-      fromZone.type === ZONE.BATTLEFIELD && toZone.type !== ZONE.BATTLEFIELD;
-
-    const tokenLeavingBattlefield =
-      card.isToken && toZone.type !== ZONE.BATTLEFIELD;
-    if (tokenLeavingBattlefield) {
-      set((state) => {
-        const nextCards = { ...state.cards };
-        Reflect.deleteProperty(nextCards, cardId);
-        return {
-          cards: nextCards,
-          zones: removeCardFromZones(state.zones, cardId, [fromZoneId, toZoneId]),
-        };
-      });
-      return;
-    }
-
-    set((state) => {
+    const applyMove = (state: GameState) => {
       const cardsCopy = { ...state.cards };
+      const workingCard = cardsCopy[cardId];
+      if (!workingCard) return state;
+      const toZoneState = state.zones[toZoneId] ?? toZone;
+      const currentFromZoneId = workingCard.zoneId;
+      const currentFromZone = state.zones[currentFromZoneId] ?? fromZone;
+      if (!toZoneState || !currentFromZone) return state;
 
-      const nextTapped = toZone.type === ZONE.BATTLEFIELD ? card.tapped : false;
-      const nextCounters = enforceZoneCounterRules(card.counters, toZone);
-      const resetToFront = resetCardToFrontFace(card);
-      const nextCommanderFlag = shouldMarkCommander ? true : card.isCommander;
+      const tokenLeavingBattlefield =
+        workingCard.isToken && toZoneState.type !== ZONE.BATTLEFIELD;
+      if (tokenLeavingBattlefield) {
+        Reflect.deleteProperty(cardsCopy, cardId);
+        return {
+          cards: cardsCopy,
+          zones: removeCardFromZones(state.zones, cardId, [
+            currentFromZoneId,
+            toZoneId,
+          ]),
+        };
+      }
 
-      const nextCard = leavingBattlefield ? resetToFront : card;
+      const nextTapped =
+        toZoneState.type === ZONE.BATTLEFIELD ? workingCard.tapped : false;
+      const nextCounters = enforceZoneCounterRules(
+        workingCard.counters,
+        toZoneState
+      );
+      const nextCommanderFlag = shouldMarkCommander
+        ? true
+        : workingCard.isCommander;
+      const leavingBattlefield =
+        currentFromZone.type === ZONE.BATTLEFIELD &&
+        toZoneState.type !== ZONE.BATTLEFIELD;
+      const nextCard = leavingBattlefield
+        ? resetCardToFrontFace(workingCard)
+        : workingCard;
+
+      if (workingCard.faceDown || faceDownResolution.effectiveFaceDown) {
+        debugLog(debugKey, "apply-move-bottom", {
+          cardId,
+          fromZoneId: currentFromZoneId,
+          toZoneId,
+          faceDown: faceDownResolution.effectiveFaceDown,
+          overlayActive: Boolean(state.privateOverlay),
+        });
+      }
+
       cardsCopy[cardId] = {
         ...nextCard,
         zoneId: toZoneId,
@@ -127,11 +145,18 @@ export const createMoveCardToBottom =
         zones: moveCardIdBetweenZones({
           zones: state.zones,
           cardId,
-          fromZoneId,
+          fromZoneId: currentFromZoneId,
           toZoneId,
           placement: "bottom",
         }),
       };
+    };
+
+    dispatchIntent({
+      type: "card.move",
+      payload: { cardId, toZoneId, actorId: actor, placement: "bottom" },
+      applyLocal: applyMove,
+      isRemote: _isRemote,
     });
 
     if (shouldSyncCommander) {

@@ -2,6 +2,29 @@ import { ZONE } from "@/constants/zones";
 import type { Card, GameState, Zone } from "@/types";
 import type { PrivateOverlayPayload } from "@/partykit/messages";
 
+const isHiddenZoneType = (zoneType: string | undefined) =>
+  zoneType === ZONE.HAND || zoneType === ZONE.LIBRARY || zoneType === ZONE.SIDEBOARD;
+
+const preservePublicZoneState = (existing: Card, merged: Card): Card => {
+  return {
+    ...merged,
+    zoneId: existing.zoneId,
+    position: existing.position,
+    tapped: existing.tapped,
+    counters: existing.counters,
+    faceDown: existing.faceDown,
+    faceDownMode: existing.faceDownMode,
+    controllerId: existing.controllerId,
+    rotation: existing.rotation,
+    currentFaceIndex: existing.currentFaceIndex,
+    isCommander: existing.isCommander,
+    commanderTax: existing.commanderTax,
+    knownToAll: existing.knownToAll,
+    revealedToAll: existing.revealedToAll,
+    revealedTo: existing.revealedTo,
+  };
+};
+
 const createPlaceholderCard = (params: {
   id: string;
   ownerId: string;
@@ -100,7 +123,17 @@ export const mergePrivateOverlay = (
   if (overlay) {
     overlay.cards.forEach((card) => {
       const existing = nextCards[card.id];
-      nextCards[card.id] = existing ? { ...existing, ...card } : card;
+      if (!existing) {
+        nextCards[card.id] = card;
+        return;
+      }
+      const merged = { ...existing, ...card };
+      const zone = nextZones[existing.zoneId];
+      if (zone && !isHiddenZoneType(zone.type)) {
+        nextCards[card.id] = preservePublicZoneState(existing, merged);
+        return;
+      }
+      nextCards[card.id] = merged;
     });
 
     if (overlay.zoneCardOrders) {

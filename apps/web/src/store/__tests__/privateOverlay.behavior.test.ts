@@ -149,6 +149,68 @@ describe("mergePrivateOverlay", () => {
     expect(merged.cards.c1?.name).toBe("Actual");
     expect(merged.zones.lib?.cardIds).toEqual(["c3", "c4"]);
   });
+
+  it("preserves public-zone state when overlay includes battlefield cards", () => {
+    const base = buildBaseState();
+    base.zones.bf = {
+      id: "bf",
+      type: ZONE.BATTLEFIELD,
+      ownerId: "p1",
+      cardIds: ["c1"],
+    } as any;
+    base.cards = {
+      c1: {
+        id: "c1",
+        name: "Base",
+        ownerId: "p1",
+        controllerId: "p1",
+        zoneId: "bf",
+        tapped: true,
+        faceDown: true,
+        faceDownMode: "manifest",
+        position: { x: 0.42, y: 0.61 },
+        rotation: 90,
+        counters: [],
+        knownToAll: false,
+        revealedToAll: false,
+        revealedTo: [],
+        currentFaceIndex: 0,
+      },
+    } as any;
+
+    const merged = mergePrivateOverlay(base, {
+      cards: [
+        {
+          id: "c1",
+          name: "Overlay",
+          ownerId: "p1",
+          controllerId: "p1",
+          zoneId: "bf",
+          tapped: false,
+          faceDown: false,
+          faceDownMode: "morph",
+          position: { x: 0.1, y: 0.2 },
+          rotation: 0,
+          counters: [],
+          knownToAll: true,
+          revealedToAll: true,
+          revealedTo: ["p1"],
+          currentFaceIndex: 1,
+        },
+      ],
+    });
+
+    expect(merged.cards.c1?.name).toBe("Overlay");
+    expect(merged.cards.c1?.position).toEqual({ x: 0.42, y: 0.61 });
+    expect(merged.cards.c1?.tapped).toBe(true);
+    expect(merged.cards.c1?.faceDown).toBe(true);
+    expect(merged.cards.c1?.faceDownMode).toBe("manifest");
+    expect(merged.cards.c1?.rotation).toBe(90);
+    expect(merged.cards.c1?.currentFaceIndex).toBe(0);
+    expect(merged.cards.c1?.knownToAll).toBe(false);
+    expect(merged.cards.c1?.revealedToAll).toBe(false);
+    expect(merged.cards.c1?.revealedTo).toEqual([]);
+  });
 });
 
 describe("applyPrivateOverlay", () => {

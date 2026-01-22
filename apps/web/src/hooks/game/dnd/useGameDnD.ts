@@ -23,9 +23,11 @@ import {
 } from "@/lib/positions";
 import { ZONE } from "@/constants/zones";
 import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
+import { debugLog, isDebugEnabled, type DebugFlagKey } from "@/lib/debug";
 
 // Throttle helper for drag move events
 const DRAG_MOVE_THROTTLE_MS = 16; // ~60fps
+const FACE_DOWN_DEBUG_KEY: DebugFlagKey = "faceDownDrag";
 
 export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
   const moveCard = useGameStore((state) => state.moveCard);
@@ -48,6 +50,7 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
 
   const dragSeq = React.useRef(0);
   const currentDragSeq = React.useRef<number | null>(null);
+  const loggedMissingGhostRef = React.useRef(false);
   const dragSelectionRef = React.useRef<{
     activeCardId: CardId;
     groupCardIds: CardId[];
@@ -59,6 +62,7 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
     if (isSpectator) return;
     currentDragSeq.current = ++dragSeq.current;
     dragSelectionRef.current = null;
+    loggedMissingGhostRef.current = false;
 
     setGhostCards(null);
     setIsGroupDragging(false);
@@ -69,6 +73,14 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
       const state = useGameStore.getState();
       const activeCard = state.cards[cardId];
       if (!activeCard) return;
+      if (activeCard.faceDown) {
+        debugLog(FACE_DOWN_DEBUG_KEY, "drag-start", {
+          cardId,
+          zoneId: activeCard.zoneId,
+          position: activeCard.position,
+          tapped: activeCard.tapped,
+        });
+      }
 
       const selectionState = useSelectionStore.getState();
       const groupIds = resolveSelectedCardIds({
@@ -142,6 +154,7 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
     const { active, over } = event;
 
     const activeCardId = active.data.current?.cardId as CardId | undefined;
+    const activeCard = activeCardId ? state.cards[activeCardId] : undefined;
 
     const result = computeDragMoveUiState({
       myPlayerId,
@@ -162,6 +175,21 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
           }
         : null,
     });
+
+    if (
+      activeCard?.faceDown &&
+      !result.ghostCard &&
+      !loggedMissingGhostRef.current
+    ) {
+      loggedMissingGhostRef.current = true;
+      debugLog(FACE_DOWN_DEBUG_KEY, "missing-ghost", {
+        cardId: activeCardId,
+        overZoneId: over?.id,
+        overType: over?.data.current?.type,
+        hasActiveRect: Boolean(active.rect.current?.translated),
+        isDebugEnabled: isDebugEnabled(FACE_DOWN_DEBUG_KEY),
+      });
+    }
 
     const group = dragSelectionRef.current;
     const isGroupDragging = Boolean(group && group.groupCardIds.length > 1);
@@ -306,6 +334,15 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
         mirrorY: Boolean(over.data.current?.mirrorY),
         activeTapped: Boolean(active.data.current?.tapped),
       });
+      const activeCard = state.cards[cardId];
+      if (activeCard?.faceDown) {
+        debugLog(FACE_DOWN_DEBUG_KEY, "drag-end-plan", {
+          cardId,
+          plan,
+          fromZoneId: activeCard.zoneId,
+          faceDown: activeCard.faceDown,
+        });
+      }
 
       const group = dragSelectionRef.current;
       dragSelectionRef.current = null;

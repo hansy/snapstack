@@ -101,53 +101,9 @@ const CardFaceInner: React.FC<CardFaceProps> = ({
     ]
   );
 
-  const handlePTDelta = React.useCallback(
-    (type: "power" | "toughness", delta: number) => {
-      const update = getNextCardStatUpdate(card, type, delta);
-      if (!update) return;
-      updateCard(card.id, update);
-    },
-    [card, updateCard]
-  );
-
-  const handleIncrementCounter = React.useCallback(
-    (counter: { type: string; color?: string }) => {
-      addCounterToCard(card.id, { ...counter, count: 1 });
-    },
-    [addCounterToCard, card.id]
-  );
-
-  const handleDecrementCounter = React.useCallback(
-    (counterType: string) => {
-      removeCounterFromCard(card.id, counterType);
-    },
-    [removeCounterFromCard, card.id]
-  );
-
-  if (!useTransformFlip) {
-    return (
-      <CardFaceView
-        faceDown={frontFaceDown}
-        model={frontModel}
-        imageClassName={imageClassName}
-        imageTransform={imageTransform}
-        countersClassName={countersClassName}
-        interactive={interactive}
-        showCounterLabels={showCounterLabels}
-        rotateLabel={rotateLabel}
-        customTextNode={customTextNode}
-        customTextPosition={customTextPosition}
-        onPTDelta={handlePTDelta}
-        onIncrementCounter={handleIncrementCounter}
-        onDecrementCounter={handleDecrementCounter}
-      />
-    );
-  }
-
-  const isFlipped = (card.currentFaceIndex ?? 0) === 1;
   const backCard = React.useMemo(
-    () => ({ ...card, currentFaceIndex: 1 }),
-    [card]
+    () => (useTransformFlip ? { ...card, currentFaceIndex: 1 } : card),
+    [card, useTransformFlip]
   );
   const backFaceDown = false;
   const backModel = React.useMemo(
@@ -177,6 +133,50 @@ const CardFaceInner: React.FC<CardFaceProps> = ({
       zoneType,
     ]
   );
+
+  const handlePTDelta = React.useCallback(
+    (type: "power" | "toughness", delta: number) => {
+      const update = getNextCardStatUpdate(card, type, delta);
+      if (!update) return;
+      updateCard(card.id, update);
+    },
+    [card, updateCard]
+  );
+
+  const handleIncrementCounter = React.useCallback(
+    (counter: { type: string; color?: string }) => {
+      addCounterToCard(card.id, { ...counter, count: 1 });
+    },
+    [addCounterToCard, card.id]
+  );
+
+  const handleDecrementCounter = React.useCallback(
+    (counterType: string) => {
+      removeCounterFromCard(card.id, counterType);
+    },
+    [removeCounterFromCard, card.id]
+  );
+
+  const isFlipped = (card.currentFaceIndex ?? 0) === 1;
+  if (!useTransformFlip) {
+    return (
+      <CardFaceView
+        faceDown={frontFaceDown}
+        model={frontModel}
+        imageClassName={imageClassName}
+        imageTransform={imageTransform}
+        countersClassName={countersClassName}
+        interactive={interactive}
+        showCounterLabels={showCounterLabels}
+        rotateLabel={rotateLabel}
+        customTextNode={customTextNode}
+        customTextPosition={customTextPosition}
+        onPTDelta={handlePTDelta}
+        onIncrementCounter={handleIncrementCounter}
+        onDecrementCounter={handleDecrementCounter}
+      />
+    );
+  }
 
   return (
     <div className="relative h-full w-full [perspective:1200px]">
