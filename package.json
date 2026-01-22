@@ -11,7 +11,11 @@
     "deploy:web": "bun run --cwd apps/web deploy",
     "cf-typegen": "bun run --cwd apps/web cf-typegen",
     "dev:server": "bun run --cwd apps/server dev",
+    "dev:all": "concurrently -k \"bun run dev\" \"bun run dev:server\"",
     "deploy:server": "bun run --cwd apps/server deploy"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   },
   "workspaces": [
     "apps/*"
