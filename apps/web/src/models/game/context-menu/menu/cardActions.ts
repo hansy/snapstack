@@ -119,7 +119,6 @@ export const buildCardActions = ({
     card.controllerId !== myPlayerId;
   const addInspectAction = () => {
     if (
-      currentZone?.type === ZONE.BATTLEFIELD &&
       lockPreview &&
       previewAnchorEl &&
       canToggleCardPreviewLock({

@@ -342,6 +342,81 @@ describe("buildCardActions", () => {
     expect(labels).toEqual(["Inspect", "Move to..."]);
   });
 
+  it("adds Inspect for commander zone cards", () => {
+    const commander = makeZone("cmd", ZONE.COMMANDER, "p1");
+    const zones = { [commander.id]: commander };
+    const actions = buildCardActions({
+      card: { ...baseCard, zoneId: commander.id, ownerId: "p1", controllerId: "p1" },
+      zones,
+      myPlayerId: "p1",
+      viewerRole: "player",
+      moveCard: vi.fn(),
+      tapCard: vi.fn(),
+      transformCard: vi.fn(),
+      duplicateCard: vi.fn(),
+      createRelatedCard: vi.fn(),
+      addCounter: vi.fn(),
+      removeCounter: vi.fn(),
+      openAddCounterModal: vi.fn(),
+      globalCounters: {},
+      lockPreview: vi.fn(),
+      previewAnchorEl: document.createElement("div"),
+    });
+
+    const labels = actions.map((a) => (a.type === "action" ? a.label : ""));
+    expect(labels).toContain("Inspect");
+  });
+
+  it("adds Inspect for hand cards when identity is visible", () => {
+    const hand = makeZone("hand", ZONE.HAND, "p1");
+    const zones = { [hand.id]: hand };
+    const actions = buildCardActions({
+      card: { ...baseCard, zoneId: hand.id, ownerId: "p1", controllerId: "p1" },
+      zones,
+      myPlayerId: "p1",
+      viewerRole: "player",
+      moveCard: vi.fn(),
+      tapCard: vi.fn(),
+      transformCard: vi.fn(),
+      duplicateCard: vi.fn(),
+      createRelatedCard: vi.fn(),
+      addCounter: vi.fn(),
+      removeCounter: vi.fn(),
+      openAddCounterModal: vi.fn(),
+      globalCounters: {},
+      lockPreview: vi.fn(),
+      previewAnchorEl: document.createElement("div"),
+    });
+
+    const labels = actions.map((a) => (a.type === "action" ? a.label : ""));
+    expect(labels).toContain("Inspect");
+  });
+
+  it("does not add Inspect for hand cards when identity is hidden", () => {
+    const hand = makeZone("hand", ZONE.HAND, "p1");
+    const zones = { [hand.id]: hand };
+    const actions = buildCardActions({
+      card: { ...baseCard, zoneId: hand.id, ownerId: "p1", controllerId: "p1" },
+      zones,
+      myPlayerId: "p2",
+      viewerRole: "player",
+      moveCard: vi.fn(),
+      tapCard: vi.fn(),
+      transformCard: vi.fn(),
+      duplicateCard: vi.fn(),
+      createRelatedCard: vi.fn(),
+      addCounter: vi.fn(),
+      removeCounter: vi.fn(),
+      openAddCounterModal: vi.fn(),
+      globalCounters: {},
+      lockPreview: vi.fn(),
+      previewAnchorEl: document.createElement("div"),
+    });
+
+    const labels = actions.map((a) => (a.type === "action" ? a.label : ""));
+    expect(labels).not.toContain("Inspect");
+  });
+
   it("allows controller actions on another player's battlefield", () => {
     const otherBattlefield = makeZone("bf-other", ZONE.BATTLEFIELD, "p2");
     const zones = { [otherBattlefield.id]: otherBattlefield };

@@ -78,7 +78,14 @@ export const canToggleCardPreviewLock = (params: {
   if (!params.zoneType) return false;
 
   const allowedInHand = params.zoneType === ZONE.HAND && params.canPeek;
-  if (params.zoneType !== ZONE.BATTLEFIELD && !allowedInHand) return false;
+  const allowedInCommander = params.zoneType === ZONE.COMMANDER;
+  if (
+    params.zoneType !== ZONE.BATTLEFIELD &&
+    !allowedInHand &&
+    !allowedInCommander
+  ) {
+    return false;
+  }
   if (params.faceDown && !params.canPeek) return false;
   return true;
 };
