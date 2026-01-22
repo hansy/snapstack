@@ -132,7 +132,8 @@ export const extractReveal = (card: Card): HiddenReveal => {
 
 export const buildRevealPatch = (
   card: Card,
-  reveal: { toAll?: boolean; to?: string[] } | null
+  reveal: { toAll?: boolean; to?: string[] } | null,
+  opts?: { excludeId?: string }
 ): Pick<Card, "revealedToAll" | "revealedTo"> => {
   if (!reveal) {
     return { revealedToAll: false, revealedTo: [] };
@@ -142,8 +143,9 @@ export const buildRevealPatch = (
     return { revealedToAll: true, revealedTo: [] };
   }
 
+  const excludeId = opts?.excludeId ?? card.ownerId;
   const to = Array.isArray(reveal.to)
-    ? reveal.to.filter((id) => typeof id === "string" && id !== card.ownerId)
+    ? reveal.to.filter((id) => typeof id === "string" && id !== excludeId)
     : [];
   const unique = Array.from(new Set(to));
 

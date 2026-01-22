@@ -194,6 +194,56 @@ describe("buildZoneMoveActions", () => {
     hide?.onSelect();
     expect(setCardReveal).toHaveBeenCalledWith("c1", null);
   });
+
+  it("includes reveal submenu for controller on face-down battlefield cards", () => {
+    const battlefield = makeZone("bf", ZONE.BATTLEFIELD, "p1");
+    const zones = { bf: battlefield };
+    const players = {
+      p1: makePlayer("p1", "Controller"),
+      p2: makePlayer("p2", "Alice"),
+    };
+    const setCardReveal = vi.fn();
+
+    const actions = buildCardActions({
+      card: {
+        ...baseCard,
+        zoneId: battlefield.id,
+        ownerId: "p1",
+        controllerId: "p1",
+        faceDown: true,
+        revealedToAll: false,
+        revealedTo: [],
+      },
+      zones,
+      players,
+      myPlayerId: "p1",
+      viewerRole: "player",
+      moveCard: vi.fn(),
+      moveCardToBottom: vi.fn(),
+      tapCard: vi.fn(),
+      transformCard: vi.fn(),
+      duplicateCard: vi.fn(),
+      createRelatedCard: vi.fn(),
+      addCounter: vi.fn(),
+      removeCounter: vi.fn(),
+      openAddCounterModal: vi.fn(),
+      globalCounters: {},
+      setCardReveal,
+    });
+
+    const reveal = actions.find(
+      (a): a is Extract<typeof a, { type: "action" }> =>
+        a.type === "action" && a.label === "Reveal to ..."
+    );
+    expect(reveal?.submenu?.length).toBeGreaterThan(0);
+
+    const revealToAll = reveal?.submenu?.find(
+      (a): a is Extract<typeof a, { type: "action" }> =>
+        a.type === "action" && a.label === "Reveal to all"
+    );
+    revealToAll?.onSelect();
+    expect(setCardReveal).toHaveBeenCalledWith("c1", { toAll: true });
+  });
 });
 
 describe("buildZoneViewActions", () => {

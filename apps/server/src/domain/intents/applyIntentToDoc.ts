@@ -777,8 +777,48 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
       case "card.reveal.set": {
         const cardId = typeof payload.cardId === "string" ? payload.cardId : null;
         if (!cardId) return { ok: false, error: "invalid card" };
+        const reveal =
+          isRecord(payload.reveal) || payload.reveal === null
+            ? (payload.reveal as { toAll?: boolean; to?: string[] } | null)
+            : null;
         const hiddenCard = hidden.cards[cardId];
-        if (!hiddenCard) return { ok: false, error: "card not found" };
+        if (!hiddenCard) {
+          const publicCard = readCard(maps, cardId);
+          if (!publicCard) return { ok: false, error: "card not found" };
+          const zone = readZone(maps, publicCard.zoneId);
+          if (!zone) return { ok: false, error: "zone not found" };
+          if (zone.type !== ZONE.BATTLEFIELD || !publicCard.faceDown) {
+            return { ok: true };
+          }
+          if (publicCard.controllerId !== actorId) {
+            return { ok: false, error: "Only controller may reveal this card" };
+          }
+          const patch = buildRevealPatch(publicCard, reveal, { excludeId: actorId });
+          if (!reveal) {
+            Reflect.deleteProperty(hidden.faceDownReveals, cardId);
+            maps.faceDownRevealsToAll.delete(cardId);
+            markHiddenChanged();
+            return { ok: true };
+          }
+          const toPlayers = patch.revealedTo ?? [];
+          const revealState = {
+            ...(patch.revealedToAll ? { toAll: true } : null),
+            ...(toPlayers.length ? { toPlayers } : null),
+          };
+          hidden.faceDownReveals[cardId] = revealState;
+          if (patch.revealedToAll) {
+            const identity = hidden.faceDownBattlefield[cardId];
+            if (identity) {
+              maps.faceDownRevealsToAll.set(cardId, identity);
+            } else {
+              maps.faceDownRevealsToAll.delete(cardId);
+            }
+          } else {
+            maps.faceDownRevealsToAll.delete(cardId);
+          }
+          markHiddenChanged();
+          return { ok: true };
+        }
         if (hiddenCard.ownerId !== actorId) {
           return { ok: false, error: "Only owner may reveal this card" };
         }
@@ -787,10 +827,6 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
         if (zone.type !== ZONE.HAND && zone.type !== ZONE.LIBRARY) {
           return { ok: true };
         }
-        const reveal =
-          isRecord(payload.reveal) || payload.reveal === null
-            ? (payload.reveal as { toAll?: boolean; to?: string[] } | null)
-            : null;
         const patch = buildRevealPatch(hiddenCard, reveal);
         if (!reveal) {
           if (zone.type === ZONE.HAND) {

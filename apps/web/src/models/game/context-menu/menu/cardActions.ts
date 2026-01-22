@@ -156,12 +156,18 @@ export const buildCardActions = ({
     return items;
   }
 
-  if (
-    setCardReveal &&
+  const canRevealFaceDown =
+    Boolean(setCardReveal) &&
+    currentZone?.type === ZONE.BATTLEFIELD &&
+    card.faceDown &&
+    myPlayerId === card.controllerId;
+  const canRevealHiddenZone =
+    Boolean(setCardReveal) &&
     currentZone &&
     (currentZone.type === ZONE.HAND || currentZone.type === ZONE.LIBRARY) &&
-    myPlayerId === card.ownerId
-  ) {
+    myPlayerId === card.ownerId;
+
+  if ((canRevealHiddenZone || canRevealFaceDown) && setCardReveal) {
     items.push(
       buildRevealMenu({
         card,

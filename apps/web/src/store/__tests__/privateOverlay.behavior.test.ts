@@ -208,8 +208,60 @@ describe("mergePrivateOverlay", () => {
     expect(merged.cards.c1?.rotation).toBe(90);
     expect(merged.cards.c1?.currentFaceIndex).toBe(0);
     expect(merged.cards.c1?.knownToAll).toBe(false);
-    expect(merged.cards.c1?.revealedToAll).toBe(false);
-    expect(merged.cards.c1?.revealedTo).toEqual([]);
+    expect(merged.cards.c1?.revealedToAll).toBe(true);
+    expect(merged.cards.c1?.revealedTo).toEqual(["p1"]);
+  });
+
+  it("preserves overlay reveal metadata for face-down battlefield cards", () => {
+    const base = buildBaseState();
+    base.zones.bf = {
+      id: "bf",
+      type: ZONE.BATTLEFIELD,
+      ownerId: "p1",
+      cardIds: ["c1"],
+    } as any;
+    base.cards = {
+      c1: {
+        id: "c1",
+        name: "Card",
+        ownerId: "p1",
+        controllerId: "p1",
+        zoneId: "bf",
+        tapped: false,
+        faceDown: true,
+        position: { x: 0.4, y: 0.6 },
+        rotation: 0,
+        counters: [],
+        knownToAll: false,
+        revealedToAll: false,
+        revealedTo: [],
+        currentFaceIndex: 0,
+      },
+    } as any;
+
+    const merged = mergePrivateOverlay(base, {
+      cards: [
+        {
+          id: "c1",
+          name: "Secret",
+          ownerId: "p1",
+          controllerId: "p1",
+          zoneId: "bf",
+          tapped: false,
+          faceDown: true,
+          position: { x: 0.1, y: 0.2 },
+          rotation: 0,
+          counters: [],
+          knownToAll: false,
+          revealedToAll: false,
+          revealedTo: ["p2"],
+          currentFaceIndex: 0,
+        },
+      ],
+    });
+
+    expect(merged.cards.c1?.name).toBe("Secret");
+    expect(merged.cards.c1?.revealedTo).toEqual(["p2"]);
   });
 });
 

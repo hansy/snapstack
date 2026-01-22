@@ -16,12 +16,17 @@ export const createSetCardReveal =
     if (snapshot.viewerRole === "spectator") return;
     const card = snapshot.cards[cardId];
     if (!card) return;
-    if (actor !== card.ownerId) return;
-
     const zoneType = snapshot.zones[card.zoneId]?.type;
-    if (zoneType !== ZONE.HAND && zoneType !== ZONE.LIBRARY) return;
+    const isBattlefieldFaceDown = zoneType === ZONE.BATTLEFIELD && card.faceDown;
+    const canRevealHidden = actor === card.ownerId;
+    const canRevealFaceDown = isBattlefieldFaceDown && actor === card.controllerId;
+    if (!canRevealHidden && !canRevealFaceDown) return;
 
-    const updates = buildRevealPatch(card, reveal);
+    if (!isBattlefieldFaceDown && zoneType !== ZONE.HAND && zoneType !== ZONE.LIBRARY) {
+      return;
+    }
+
+    const updates = buildRevealPatch(card, reveal, { excludeId: actor });
 
     dispatchIntent({
       type: "card.reveal.set",

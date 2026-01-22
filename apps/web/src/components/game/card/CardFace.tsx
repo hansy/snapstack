@@ -3,7 +3,7 @@ import { Card as CardType } from "@/types";
 import { useGameStore } from "@/store/gameStore";
 
 import { getNextCardStatUpdate } from "@/lib/cardPT";
-import { isTransformableCard } from "@/lib/cardDisplay";
+import { isTransformableCard, syncCardStatsToFace } from "@/lib/cardDisplay";
 import { cn } from "@/lib/utils";
 
 import { CardFaceView } from "./CardFaceView";
@@ -60,11 +60,10 @@ const CardFaceInner: React.FC<CardFaceProps> = ({
     isTransformableCard(card) &&
     !isFlipLayout;
 
-  const frontCard = React.useMemo(
-    () =>
-      useTransformFlip ? { ...card, currentFaceIndex: 0 } : card,
-    [card, useTransformFlip]
-  );
+  const frontCard = React.useMemo(() => {
+    if (!useTransformFlip) return card;
+    return syncCardStatsToFace({ ...card, currentFaceIndex: 0 }, 0);
+  }, [card, useTransformFlip]);
   const frontFaceDown = useTransformFlip ? false : Boolean(faceDown);
 
   const revealToNames = React.useMemo(() => {
@@ -101,10 +100,10 @@ const CardFaceInner: React.FC<CardFaceProps> = ({
     ]
   );
 
-  const backCard = React.useMemo(
-    () => (useTransformFlip ? { ...card, currentFaceIndex: 1 } : card),
-    [card, useTransformFlip]
-  );
+  const backCard = React.useMemo(() => {
+    if (!useTransformFlip) return card;
+    return syncCardStatsToFace({ ...card, currentFaceIndex: 1 }, 1);
+  }, [card, useTransformFlip]);
   const backFaceDown = false;
   const backModel = React.useMemo(
     () =>

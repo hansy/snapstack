@@ -20,8 +20,6 @@ const preservePublicZoneState = (existing: Card, merged: Card): Card => {
     isCommander: existing.isCommander,
     commanderTax: existing.commanderTax,
     knownToAll: existing.knownToAll,
-    revealedToAll: existing.revealedToAll,
-    revealedTo: existing.revealedTo,
   };
 };
 

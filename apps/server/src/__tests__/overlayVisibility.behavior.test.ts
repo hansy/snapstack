@@ -467,6 +467,59 @@ describe("server migration behavior", () => {
     expect(revealEntry?.card?.name).toBe("Card c1");
   });
 
+  it("allows controller to reveal face-down battlefield cards to specific players", () => {
+    const doc = createDoc();
+    seedPlayers(doc, [
+      createPlayer("p1"),
+      createPlayer("p2"),
+      createPlayer("p3"),
+    ]);
+    const battlefield = createZone("bf-p1", "battlefield", "p1", ["c1"]);
+    seedZones(doc, [battlefield]);
+
+    seedCards(doc, [
+      createCard("c1", "p1", battlefield.id, {
+        faceDown: true,
+        controllerId: "p1",
+      }),
+    ]);
+
+    const hidden = createEmptyHiddenState();
+    hidden.faceDownBattlefield = { c1: { name: "Secret Card" } };
+
+    const result = applyIntentToDoc(
+      doc,
+      {
+        id: "intent-fd-reveal",
+        type: "card.reveal.set",
+        payload: {
+          actorId: "p1",
+          cardId: "c1",
+          reveal: { to: ["p2"] },
+        },
+      },
+      hidden
+    );
+    expect(result.ok).toBe(true);
+
+    const p2Overlay = buildOverlayForViewer({
+      maps: getMaps(doc),
+      hidden,
+      viewerId: "p2",
+      viewerRole: "player",
+    });
+    expect(p2Overlay.cards.map((card) => card.id)).toEqual(["c1"]);
+    expect(p2Overlay.cards[0]?.name).toBe("Secret Card");
+
+    const p3Overlay = buildOverlayForViewer({
+      maps: getMaps(doc),
+      hidden,
+      viewerId: "p3",
+      viewerRole: "player",
+    });
+    expect(p3Overlay.cards).toHaveLength(0);
+  });
+
   it("logs library view intents without mutating order", () => {
     const doc = createDoc();
     seedPlayers(doc, [createPlayer("p1")]);
