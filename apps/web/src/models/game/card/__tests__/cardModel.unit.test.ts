@@ -185,6 +185,17 @@ describe("cardModel", () => {
       ).toBe(true);
     });
 
+    it("allows lock in commander zone", () => {
+      expect(
+        canToggleCardPreviewLock({
+          zoneType: ZONE.COMMANDER,
+          canPeek: true,
+          faceDown: false,
+          isDragging: false,
+        })
+      ).toBe(true);
+    });
+
     it("allows lock in hand only when identity is visible", () => {
       expect(
         canToggleCardPreviewLock({
