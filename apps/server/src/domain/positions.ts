@@ -1,4 +1,11 @@
-import { GRID_STEP_X, GRID_STEP_Y, LEGACY_BATTLEFIELD_HEIGHT, LEGACY_BATTLEFIELD_WIDTH } from "./constants";
+import {
+  CARD_ASPECT_RATIO,
+  BASE_CARD_HEIGHT,
+  GRID_STEP_X,
+  GRID_STEP_Y,
+  LEGACY_BATTLEFIELD_HEIGHT,
+  LEGACY_BATTLEFIELD_WIDTH,
+} from "./constants";
 
 export const clampNumber = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
@@ -27,6 +34,23 @@ export const normalizeMovePosition = (
   return clampNormalizedPosition(normalizedInput ?? fallback);
 };
 
+export const getNormalizedGridSteps = (params?: {
+  isTapped?: boolean;
+  zoneWidth?: number;
+  zoneHeight?: number;
+}) => {
+  const isTapped = params?.isTapped ?? false;
+  const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
+  const cardWidth = isTapped ? BASE_CARD_HEIGHT : baseWidth;
+  const cardHeight = isTapped ? baseWidth : BASE_CARD_HEIGHT;
+  const zoneWidth = params?.zoneWidth ?? LEGACY_BATTLEFIELD_WIDTH;
+  const zoneHeight = params?.zoneHeight ?? LEGACY_BATTLEFIELD_HEIGHT;
+  return {
+    stepX: zoneWidth ? (cardWidth / 2) / zoneWidth : 0,
+    stepY: zoneHeight ? (cardHeight / 4) / zoneHeight : 0,
+  };
+};
+
 const positionKey = (position: { x: number; y: number }) =>
   `${position.x.toFixed(4)}:${position.y.toFixed(4)}`;
 
@@ -34,17 +58,19 @@ export const resolvePositionAgainstOccupied = ({
   targetPosition,
   occupied,
   maxAttempts,
+  stepY = GRID_STEP_Y,
 }: {
   targetPosition: { x: number; y: number };
   occupied: Set<string>;
   maxAttempts: number;
+  stepY?: number;
 }) => {
   const clampedTarget = clampNormalizedPosition(targetPosition);
   let candidate = clampedTarget;
   let attempts = 0;
 
   while (occupied.has(positionKey(candidate)) && attempts < maxAttempts) {
-    candidate = clampNormalizedPosition({ x: candidate.x, y: candidate.y + GRID_STEP_Y });
+    candidate = clampNormalizedPosition({ x: candidate.x, y: candidate.y + stepY });
     attempts += 1;
   }
 
@@ -57,12 +83,14 @@ export const resolveBattlefieldCollisionPosition = ({
   targetPosition,
   orderedCardIds,
   getPosition,
+  stepY = GRID_STEP_Y,
   maxAttempts = 200,
 }: {
   movingCardId: string;
   targetPosition: { x: number; y: number };
   orderedCardIds: string[];
   getPosition: (cardId: string) => { x: number; y: number } | null | undefined;
+  stepY?: number;
   maxAttempts?: number;
 }) => {
   const occupied = new Set<string>();
@@ -78,6 +106,7 @@ export const resolveBattlefieldCollisionPosition = ({
     targetPosition,
     occupied,
     maxAttempts,
+    stepY,
   });
 };
 
@@ -86,12 +115,16 @@ export const resolveBattlefieldGroupCollisionPositions = ({
   targetPositions,
   orderedCardIds,
   getPosition,
+  getStepY,
+  stepY = GRID_STEP_Y,
   maxAttempts = 200,
 }: {
   movingCardIds: string[];
   targetPositions: Record<string, { x: number; y: number } | undefined>;
   orderedCardIds: string[];
   getPosition: (cardId: string) => { x: number; y: number } | null | undefined;
+  getStepY?: (cardId: string) => number | undefined;
+  stepY?: number;
   maxAttempts?: number;
 }) => {
   if (movingCardIds.length === 0) return {} as Record<string, { x: number; y: number }>;
@@ -117,6 +150,7 @@ export const resolveBattlefieldGroupCollisionPositions = ({
       targetPosition: target,
       occupied,
       maxAttempts,
+      stepY: getStepY?.(id) ?? stepY,
     });
     resolved[id] = next;
     occupied.add(positionKey(next));

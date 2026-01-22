@@ -7,6 +7,7 @@ import { useDragStore } from '@/store/dragStore';
 import { useGameStore } from '@/store/gameStore';
 import { useSelectionStore } from '@/store/selectionStore';
 import { computeBattlefieldCardLayout } from '@/models/game/seat/battlefieldModel';
+import { getCardPixelSize } from '@/lib/positions';
 import { useElementSize } from "@/hooks/shared/useElementSize";
 import { useBattlefieldZoomControls } from "@/hooks/game/board/useBattlefieldZoomControls";
 import { useBattlefieldSelection } from "@/hooks/game/board/useBattlefieldSelection";
@@ -126,6 +127,13 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
     const isGroupDragging = useDragStore((state) => state.isGroupDragging);
     const showGrid = Boolean(activeCardId);
     const cardsById = useGameStore((state) => state.cards);
+    const activeCard = activeCardId ? cardsById[activeCardId] : undefined;
+    const { cardWidth, cardHeight } = getCardPixelSize({
+        viewScale,
+        isTapped: Boolean(activeCard?.tapped),
+    });
+    const gridStepX = cardWidth / 2;
+    const gridStepY = cardHeight / 4;
     const { ref: zoneSizeRef, size: zoneSize } = useElementSize<HTMLDivElement>();
     const zoneNodeRef = React.useRef<HTMLDivElement | null>(null);
     const [zoneNode, setZoneNode] = React.useState<HTMLDivElement | null>(null);
@@ -204,7 +212,7 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
                 onPointerUp={handlePointerUp}
                 onPointerCancel={handlePointerCancel}
             >
-                <BattlefieldGridOverlay visible={showGrid} viewScale={viewScale} />
+                <BattlefieldGridOverlay visible={showGrid} gridStepX={gridStepX} gridStepY={gridStepY} />
                 {selectionRect && (
                     <div
                         className="pointer-events-none absolute z-10 border border-indigo-400/70 bg-indigo-400/10"

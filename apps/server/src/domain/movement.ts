@@ -13,6 +13,7 @@ import {
 } from "./cards";
 import {
   normalizeMovePosition,
+  getNormalizedGridSteps,
   resolveBattlefieldCollisionPosition,
   resolveBattlefieldGroupCollisionPositions,
 } from "./positions";
@@ -266,14 +267,17 @@ export const applyCardMove = (
           targetPositions,
           orderedCardIds: ordered,
           getPosition: (id) => cardsById[id]?.position,
+          getStepY: (id) => getNormalizedGridSteps({ isTapped: cardsById[id]?.tapped }).stepY,
         });
         resolvedPosition = resolved[cardId] ?? resolvedPosition;
       } else {
+        const stepY = getNormalizedGridSteps({ isTapped: card.tapped }).stepY;
         resolvedPosition = resolveBattlefieldCollisionPosition({
           movingCardId: cardId,
           targetPosition: resolvedPosition,
           orderedCardIds: ordered,
           getPosition: (id) => cardsById[id]?.position,
+          stepY,
         });
       }
     }
@@ -578,14 +582,17 @@ export const applyCardMove = (
           targetPositions,
           orderedCardIds: ordered,
           getPosition: (id) => cardsById[id]?.position,
+          getStepY: (id) => getNormalizedGridSteps({ isTapped: cardsById[id]?.tapped }).stepY,
         });
         resolvedPosition = resolved[cardId] ?? resolvedPosition;
       } else {
+        const stepY = getNormalizedGridSteps({ isTapped: card.tapped }).stepY;
         resolvedPosition = resolveBattlefieldCollisionPosition({
           movingCardId: cardId,
           targetPosition: resolvedPosition,
           orderedCardIds: ordered,
           getPosition: (id) => cardsById[id]?.position,
+          stepY,
         });
       }
     }

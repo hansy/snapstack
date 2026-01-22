@@ -4,8 +4,7 @@ import type { ScryfallCard } from "@/types/scryfall";
 import {
   clampNormalizedPosition,
   findAvailablePositionNormalized,
-  GRID_STEP_X,
-  GRID_STEP_Y,
+  getNormalizedGridSteps,
 } from "@/lib/positions";
 import { toScryfallCardLite } from "@/types/scryfallLite";
 
@@ -30,6 +29,7 @@ export const planTokenCards = (params: {
 }): Card[] => {
   const { name, power, toughness, typeLine } = getTokenDerivedFields(params.token);
   const scryfallLite = toScryfallCardLite(params.token);
+  const { stepX, stepY } = getNormalizedGridSteps();
 
   const occupiedCardIds = [...params.existingBattlefieldCardIds];
   const combinedCardsById: Record<CardId, Pick<Card, "position">> = {
@@ -41,14 +41,16 @@ export const planTokenCards = (params: {
   for (let index = 0; index < params.quantity; index += 1) {
     const id = params.createId();
     const base = clampNormalizedPosition({
-      x: DEFAULT_START.x + index * GRID_STEP_X,
-      y: DEFAULT_START.y + index * GRID_STEP_Y,
+      x: DEFAULT_START.x + index * stepX,
+      y: DEFAULT_START.y + index * stepY,
     });
 
     const position = findAvailablePositionNormalized(
       base,
       occupiedCardIds,
-      combinedCardsById
+      combinedCardsById,
+      stepX,
+      stepY
     );
 
     const card: Card = {

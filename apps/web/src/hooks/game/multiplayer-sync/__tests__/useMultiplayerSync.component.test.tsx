@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ViewerRole } from "@/types/ids";
 import type { LocalPlayerInitResult } from "../ensureLocalPlayerInitialized";
 
 // Stub doc with only the APIs used inside the hook
@@ -25,7 +26,7 @@ class MockDoc {
 const providerInstances: any[] = vi.hoisted(() => []);
 const mockGameState = vi.hoisted(() => ({
   hasHydrated: true,
-  viewerRole: "player" as const,
+  viewerRole: "player" as ViewerRole,
   sessionId: null as string | null,
   myPlayerId: null as string | null,
   players: {},
@@ -201,7 +202,7 @@ describe("useMultiplayerSync", () => {
     logStoreMocks.emitLog.mockClear();
     Object.assign(mockGameState, {
       hasHydrated: true,
-      viewerRole: "player" as const,
+      viewerRole: "player" as ViewerRole,
       sessionId: null as string | null,
       myPlayerId: null as string | null,
     });

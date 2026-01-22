@@ -1,13 +1,38 @@
 import { clampToZoneBounds } from './dndMath';
-import { snapToGrid, SNAP_GRID_SIZE } from './snapping';
+import { snapToGrid } from './snapping';
 import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from './constants';
 
 export const LEGACY_BATTLEFIELD_WIDTH = 1000;
 export const LEGACY_BATTLEFIELD_HEIGHT = 600;
 
 // Grid steps expressed as normalized units (relative to a legacy 1000x600 battlefield).
-export const GRID_STEP_X = SNAP_GRID_SIZE / LEGACY_BATTLEFIELD_WIDTH;
-export const GRID_STEP_Y = SNAP_GRID_SIZE / LEGACY_BATTLEFIELD_HEIGHT;
+const BASE_CARD_WIDTH = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
+export const GRID_STEP_X = (BASE_CARD_WIDTH / 2) / LEGACY_BATTLEFIELD_WIDTH;
+export const GRID_STEP_Y = (BASE_CARD_HEIGHT / 4) / LEGACY_BATTLEFIELD_HEIGHT;
+
+export const getCardPixelSize = (params?: { viewScale?: number; isTapped?: boolean }) => {
+    const viewScale = params?.viewScale ?? 1;
+    const isTapped = params?.isTapped ?? false;
+    const cardWidth = (isTapped ? BASE_CARD_HEIGHT : BASE_CARD_WIDTH) * viewScale;
+    const cardHeight = (isTapped ? BASE_CARD_WIDTH : BASE_CARD_HEIGHT) * viewScale;
+    return { cardWidth, cardHeight };
+};
+
+export const getNormalizedGridSteps = (params?: {
+    isTapped?: boolean;
+    zoneWidth?: number;
+    zoneHeight?: number;
+}) => {
+    const { cardWidth, cardHeight } = getCardPixelSize({
+        isTapped: params?.isTapped,
+    });
+    const zoneWidth = params?.zoneWidth ?? LEGACY_BATTLEFIELD_WIDTH;
+    const zoneHeight = params?.zoneHeight ?? LEGACY_BATTLEFIELD_HEIGHT;
+    return {
+        stepX: zoneWidth ? (cardWidth / 2) / zoneWidth : 0,
+        stepY: zoneHeight ? (cardHeight / 4) / zoneHeight : 0,
+    };
+};
 
 const clamp01 = (value: number) => Math.min(Math.max(value, 0), 1);
 
@@ -71,12 +96,8 @@ export const snapNormalizedWithZone = (
 
     const asPixels = fromNormalizedPosition(position, zoneWidth, zoneHeight);
 
-    // Scale grid based on card size relative to base
-    const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
-    const gridScaleX = cardWidth / baseWidth;
-    const gridScaleY = cardHeight / BASE_CARD_HEIGHT;
-    const gridX = SNAP_GRID_SIZE * (gridScaleX || 1);
-    const gridY = SNAP_GRID_SIZE * (gridScaleY || 1);
+    const gridX = cardWidth / 2;
+    const gridY = cardHeight / 4;
 
     // Snap using scaled grid steps, matching visual card size.
     const left = asPixels.x - cardWidth / 2;

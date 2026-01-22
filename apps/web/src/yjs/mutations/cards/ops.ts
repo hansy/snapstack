@@ -4,6 +4,7 @@ import {
   bumpPosition,
   clampNormalizedPosition,
   findAvailablePositionNormalized,
+  getNormalizedGridSteps,
   migratePositionToNormalized,
 } from "@/lib/positions";
 import {
@@ -103,8 +104,9 @@ export function duplicateCard(maps: SharedMaps, cardId: string, newId: string) {
   const normalizedPosition = needsMigration ? migratePositionToNormalized(existing.position) : existing.position;
   if (needsMigration) writeCard(maps, { ...existing, position: normalizedPosition });
 
-  const basePosition = bumpPosition(clampNormalizedPosition(normalizedPosition));
-  const position = findAvailablePositionNormalized(basePosition, zone.cardIds, getCardsSnapshot(maps));
+  const { stepX, stepY } = getNormalizedGridSteps({ isTapped: existing.tapped });
+  const basePosition = bumpPosition(clampNormalizedPosition(normalizedPosition), stepX, stepY);
+  const position = findAvailablePositionNormalized(basePosition, zone.cardIds, getCardsSnapshot(maps), stepX, stepY);
   const cloned: Card = {
     ...existing,
     id: newId,

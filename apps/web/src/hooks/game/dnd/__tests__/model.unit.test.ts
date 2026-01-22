@@ -79,7 +79,7 @@ describe("gameDnD model", () => {
       expect(state.overCardScale).toBe(1);
       expect(state.ghostCard).toEqual({
         zoneId: "p1-battlefield",
-        position: { x: 340, y: 360 },
+        position: { x: 360, y: 360 },
         tapped: false,
       });
     });
@@ -184,7 +184,7 @@ describe("gameDnD model", () => {
 
       expect(plan.kind).toBe("moveCard");
       if (plan.kind !== "moveCard") return;
-      expect(plan.position?.x).toBeCloseTo(0.34, 6);
+      expect(plan.position?.x).toBeCloseTo(0.36, 6);
       expect(plan.position?.y).toBeCloseTo(0.6, 6);
     });
 
@@ -221,9 +221,8 @@ describe("gameDnD model", () => {
 
       expect(plan.kind).toBe("moveCard");
       if (plan.kind !== "moveCard") return;
-      expect(plan.position?.x).toBeCloseTo(0.34, 6);
+      expect(plan.position?.x).toBeCloseTo(0.36, 6);
       expect(plan.position?.y).toBeCloseTo(0.4, 6);
     });
   });
 });
-

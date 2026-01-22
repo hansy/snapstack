@@ -8,6 +8,7 @@ import {
   resolveBattlefieldCollisionPosition,
   resolveBattlefieldGroupCollisionPositions,
 } from "@/lib/battlefieldCollision";
+import { getNormalizedGridSteps } from "@/lib/positions";
 import { resetCardToFrontFace } from "@/lib/cardDisplay";
 import { syncCommanderDecklistForPlayer } from "@/store/gameStore/actions/deck/commanderDecklist";
 import {
@@ -132,14 +133,17 @@ export const createMoveCard =
             targetPositions: opts.groupCollision.targetPositions,
             orderedCardIds: state.zones[toZoneId]?.cardIds ?? toZone.cardIds,
             getPosition: (id) => cardsCopy[id]?.position,
+            getStepY: (id) => getNormalizedGridSteps({ isTapped: cardsCopy[id]?.tapped }).stepY,
           });
           resolvedPosition = resolvedPositions[cardId] ?? newPosition;
         } else {
+          const stepY = getNormalizedGridSteps({ isTapped: card.tapped }).stepY;
           resolvedPosition = resolveBattlefieldCollisionPosition({
             movingCardId: cardId,
             targetPosition: newPosition,
             orderedCardIds: state.zones[toZoneId]?.cardIds ?? toZone.cardIds,
             getPosition: (id) => cardsCopy[id]?.position,
+            stepY,
           });
         }
       }

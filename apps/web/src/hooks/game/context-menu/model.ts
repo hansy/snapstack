@@ -5,8 +5,7 @@ import { ZONE } from "@/constants/zones";
 import {
   clampNormalizedPosition,
   findAvailablePositionNormalized,
-  GRID_STEP_X,
-  GRID_STEP_Y,
+  getNormalizedGridSteps,
   migratePositionToNormalized,
 } from "@/lib/positions";
 import { toScryfallCardLite } from "@/types/scryfallLite";
@@ -42,15 +41,18 @@ export const buildRelatedBattlefieldCard = (params: {
   const toughness = params.scryfallCard.toughness ?? frontFace?.toughness;
 
   const sourcePosition = normalizeMaybeLegacyPosition(params.sourceCard.position);
+  const { stepX, stepY } = getNormalizedGridSteps({ isTapped: false });
   const basePosition = clampNormalizedPosition({
-    x: sourcePosition.x + GRID_STEP_X,
-    y: sourcePosition.y + GRID_STEP_Y,
+    x: sourcePosition.x + stepX,
+    y: sourcePosition.y + stepY,
   });
 
   const position = findAvailablePositionNormalized(
     basePosition,
     params.battlefield.cardIds,
-    params.cardsById
+    params.cardsById,
+    stepX,
+    stepY
   );
 
   const isToken = isScryfallTokenCard({
@@ -80,4 +82,3 @@ export const buildRelatedBattlefieldCard = (params: {
     baseToughness: toughness,
   };
 };
-

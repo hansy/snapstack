@@ -40,6 +40,11 @@ export const computeBattlefieldPlacement = (params: {
     isTapped: params.isTapped,
     viewScale: params.viewScale || 1,
   });
+  const { cardWidth: baseCardWidth, cardHeight: baseCardHeight } =
+    getEffectiveCardSize({
+      isTapped: params.isTapped,
+      viewScale: 1,
+    });
 
   const clampedPos = clampToZoneBounds(
     unsnappedPos,
@@ -48,22 +53,48 @@ export const computeBattlefieldPlacement = (params: {
     cardWidth,
     cardHeight
   );
+  const clampedCanonicalPos = clampToZoneBounds(
+    unsnappedPos,
+    zoneWidth,
+    zoneHeight,
+    baseCardWidth,
+    baseCardHeight
+  );
 
-  const unsnappedNormalized = toNormalizedPosition(clampedPos, zoneWidth, zoneHeight);
-  const unsnappedCanonical = params.mirrorY
+  const unsnappedNormalized = toNormalizedPosition(
+    clampedPos,
+    zoneWidth,
+    zoneHeight
+  );
+  const unsnappedCanonicalNormalized = toNormalizedPosition(
+    clampedCanonicalPos,
+    zoneWidth,
+    zoneHeight
+  );
+  const ghostCanonical = params.mirrorY
     ? mirrorNormalizedY(unsnappedNormalized)
     : unsnappedNormalized;
-  const snappedCanonical = snapNormalizedWithZone(
-    unsnappedCanonical,
+  const baseCanonical = params.mirrorY
+    ? mirrorNormalizedY(unsnappedCanonicalNormalized)
+    : unsnappedCanonicalNormalized;
+  const snappedGhostCanonical = snapNormalizedWithZone(
+    ghostCanonical,
     zoneWidth,
     zoneHeight,
     cardWidth,
     cardHeight
   );
+  const snappedCanonical = snapNormalizedWithZone(
+    baseCanonical,
+    zoneWidth,
+    zoneHeight,
+    baseCardWidth,
+    baseCardHeight
+  );
 
   const ghostNormalized = params.mirrorY
-    ? mirrorNormalizedY(snappedCanonical)
-    : snappedCanonical;
+    ? mirrorNormalizedY(snappedGhostCanonical)
+    : snappedGhostCanonical;
   const ghostPosition = fromNormalizedPosition(ghostNormalized, zoneWidth, zoneHeight);
 
   return {
@@ -75,4 +106,3 @@ export const computeBattlefieldPlacement = (params: {
     ghostPosition,
   };
 };
-

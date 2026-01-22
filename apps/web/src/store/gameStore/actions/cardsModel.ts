@@ -6,6 +6,7 @@ import {
   bumpPosition,
   clampNormalizedPosition,
   findAvailablePositionNormalized,
+  getNormalizedGridSteps,
   migratePositionToNormalized,
 } from "@/lib/positions";
 import { MAX_REVEALED_TO } from "@/lib/limits";
@@ -96,8 +97,11 @@ export const computeDuplicateTokenPosition = (params: {
   orderedCardIds: string[];
   cardsById: Record<string, Card>;
 }): Card["position"] => {
-  const basePosition = bumpPosition(clampNormalizedPosition(params.sourceCard.position));
-  return findAvailablePositionNormalized(basePosition, params.orderedCardIds, params.cardsById);
+  const { stepX, stepY } = getNormalizedGridSteps({
+    isTapped: params.sourceCard.tapped,
+  });
+  const basePosition = bumpPosition(clampNormalizedPosition(params.sourceCard.position), stepX, stepY);
+  return findAvailablePositionNormalized(basePosition, params.orderedCardIds, params.cardsById, stepX, stepY);
 };
 
 export const buildDuplicateTokenCard = (params: {

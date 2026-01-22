@@ -6,17 +6,19 @@ const resolvePositionAgainstOccupied = ({
   targetPosition,
   occupied,
   maxAttempts,
+  stepY = GRID_STEP_Y,
 }: {
   targetPosition: NormalizedPosition;
   occupied: Set<string>;
   maxAttempts: number;
+  stepY?: number;
 }): NormalizedPosition => {
   const clampedTarget = clampNormalizedPosition(targetPosition);
   let candidate = clampedTarget;
   let attempts = 0;
 
   while (occupied.has(normalizedPositionKey(candidate)) && attempts < maxAttempts) {
-    candidate = clampNormalizedPosition({ x: candidate.x, y: candidate.y + GRID_STEP_Y });
+    candidate = clampNormalizedPosition({ x: candidate.x, y: candidate.y + stepY });
     attempts += 1;
   }
 
@@ -29,12 +31,14 @@ export const resolveBattlefieldCollisionPosition = ({
   targetPosition,
   orderedCardIds,
   getPosition,
+  stepY = GRID_STEP_Y,
   maxAttempts = 200,
 }: {
   movingCardId: string;
   targetPosition: NormalizedPosition;
   orderedCardIds: string[];
   getPosition: (cardId: string) => NormalizedPosition | null | undefined;
+  stepY?: number;
   maxAttempts?: number;
 }): NormalizedPosition => {
   const occupied = new Set<string>();
@@ -50,6 +54,7 @@ export const resolveBattlefieldCollisionPosition = ({
     targetPosition,
     occupied,
     maxAttempts,
+    stepY,
   });
 };
 
@@ -58,12 +63,16 @@ export const resolveBattlefieldGroupCollisionPositions = ({
   targetPositions,
   orderedCardIds,
   getPosition,
+  getStepY,
+  stepY = GRID_STEP_Y,
   maxAttempts = 200,
 }: {
   movingCardIds: string[];
   targetPositions: Record<string, NormalizedPosition | undefined>;
   orderedCardIds: string[];
   getPosition: (cardId: string) => NormalizedPosition | null | undefined;
+  getStepY?: (cardId: string) => number | undefined;
+  stepY?: number;
   maxAttempts?: number;
 }): Record<string, NormalizedPosition> => {
   if (movingCardIds.length === 0) return {};
@@ -89,6 +98,7 @@ export const resolveBattlefieldGroupCollisionPositions = ({
       targetPosition: target,
       occupied,
       maxAttempts,
+      stepY: getStepY?.(id) ?? stepY,
     });
     resolved[id] = next;
     occupied.add(normalizedPositionKey(next));

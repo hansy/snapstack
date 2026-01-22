@@ -25,7 +25,6 @@ export const createRelatedCardHandler = (params: {
 
   return async (card: Card, related: ScryfallRelatedCard) => {
     const state = params.getState();
-
     const planned = await planRelatedBattlefieldCardCreation({
       sourceCard: card,
       related,

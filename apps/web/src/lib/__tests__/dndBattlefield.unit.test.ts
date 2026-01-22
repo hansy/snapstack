@@ -21,10 +21,10 @@ describe('dndBattlefield', () => {
         isTapped: false,
       });
 
-      // x should remain 100 (already aligned), y snaps from 100 -> 90 with the default grid.
-      expect(result.ghostPosition.x).toBeCloseTo(100);
+      // x snaps from 100 -> 120, y snaps from 100 -> 90 with the card-sized grid.
+      expect(result.ghostPosition.x).toBeCloseTo(120);
       expect(result.ghostPosition.y).toBeCloseTo(90);
-      expect(result.snappedCanonical.x).toBeCloseTo(100 / 600);
+      expect(result.snappedCanonical.x).toBeCloseTo(120 / 600);
       expect(result.snappedCanonical.y).toBeCloseTo(90 / 400);
     });
 
@@ -47,6 +47,29 @@ describe('dndBattlefield', () => {
 
       expect(result.ghostPosition.x).toBeGreaterThanOrEqual(result.cardWidth / 2);
       expect(result.ghostPosition.y).toBeGreaterThanOrEqual(result.cardHeight / 2);
+    });
+
+    it('keeps canonical snapping independent of view scale', () => {
+      const result = computeBattlefieldPlacement({
+        centerScreen: { x: 100, y: 100 },
+        overRect: {
+          left: 0,
+          top: 0,
+          right: 600,
+          bottom: 400,
+          width: 600,
+          height: 400,
+        },
+        zoneScale: 1,
+        viewScale: 0.5,
+        mirrorY: false,
+        isTapped: false,
+      });
+
+      expect(result.snappedCanonical.x).toBeCloseTo(120 / 600);
+      expect(result.snappedCanonical.y).toBeCloseTo(90 / 400);
+      expect(result.ghostPosition.x).toBeCloseTo(100);
+      expect(result.ghostPosition.y).toBeCloseTo(105);
     });
 
     it('returns a canonical snapped position while mirroring ghost rendering for the viewer', () => {
