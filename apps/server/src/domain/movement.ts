@@ -1,6 +1,6 @@
-import type { Card } from "../../../web/src/types/cards";
+import type { Card } from "@mtg/shared/types/cards";
 
-import { isHiddenZoneType, isPublicZoneType, ZONE } from "./constants";
+import { isCommanderZoneType, isHiddenZoneType, isPublicZoneType, ZONE } from "./constants";
 import type {
   FaceDownMoveResolution,
   HiddenReveal,
@@ -12,7 +12,6 @@ import type {
 import {
   buildCardIdentity,
   enforceZoneCounterRules,
-  isCommanderZoneType,
   mergeCardIdentity,
   resetCardToFrontFace,
   resolveControllerAfterMove,

@@ -1,10 +1,10 @@
 import type * as Y from "yjs";
 
-import type { Card } from "../../../../web/src/types/cards";
-import type { Counter } from "../../../../web/src/types/counters";
-import type { Player } from "../../../../web/src/types/players";
-import type { Zone } from "../../../../web/src/types/zones";
-import { MAX_PLAYERS } from "../../../../web/src/lib/room";
+import type { Card } from "@mtg/shared/types/cards";
+import type { Counter } from "@mtg/shared/types/counters";
+import type { Player } from "@mtg/shared/types/players";
+import type { Zone } from "@mtg/shared/types/zones";
+import { MAX_PLAYERS } from "@mtg/shared/constants/room";
 
 import { ZONE, isHiddenZoneType } from "../constants";
 import {

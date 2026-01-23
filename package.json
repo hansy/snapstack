@@ -18,6 +18,7 @@
     "concurrently": "^9.1.2"
   },
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ]
 }

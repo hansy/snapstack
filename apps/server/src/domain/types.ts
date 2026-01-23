@@ -5,9 +5,9 @@ import type {
   CardIdentity,
   CardLite,
   FaceDownMode,
-} from "../../../web/src/types/cards";
-import type { Player } from "../../../web/src/types/players";
-import type { Zone, ZoneType } from "../../../web/src/types/zones";
+} from "@mtg/shared/types/cards";
+import type { Player } from "@mtg/shared/types/players";
+import type { Zone, ZoneType } from "@mtg/shared/types/zones";
 
 export type Maps = {
   players: Y.Map<unknown>;
@@ -137,7 +137,7 @@ export type FaceDownMoveResolution = {
   patchFaceDownMode?: FaceDownMode | null;
 };
 
-export type PermissionResult = { allowed: boolean; reason?: string };
+export type { PermissionResult } from "@mtg/shared/rules/types";
 
 export type RevealPatch = Pick<Card, "knownToAll" | "revealedToAll" | "revealedTo"> | null;
 

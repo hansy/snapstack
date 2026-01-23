@@ -1,9 +1,7 @@
 import { ZONE } from "@/constants/zones";
 import type { Card, GameState, Zone } from "@/types";
 import type { PrivateOverlayPayload } from "@/partykit/messages";
-
-const isHiddenZoneType = (zoneType: string | undefined) =>
-  zoneType === ZONE.HAND || zoneType === ZONE.LIBRARY || zoneType === ZONE.SIDEBOARD;
+import { isHiddenZoneType } from "@mtg/shared/constants/zones";
 
 const preservePublicZoneState = (existing: Card, merged: Card): Card => {
   return {

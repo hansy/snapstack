@@ -7,7 +7,7 @@ import {
 import { YServer } from "y-partyserver";
 import * as Y from "yjs";
 
-import type { Card, CardLite } from "../../web/src/types/cards";
+import type { Card, CardLite } from "@mtg/shared/types/cards";
 
 import {
   HIDDEN_STATE_CARDS_PREFIX,

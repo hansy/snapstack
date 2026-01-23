@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_HIDDEN_STATE_CHUNK_SIZE } from "../domain/constants";
 import { chunkHiddenCards } from "../domain/hiddenState";
-import type { Card } from "../../../web/src/types/cards";
+import type { Card } from "@mtg/shared/types/cards";
 
 const repeatChar = (char: string, count: number) => Array(count + 1).join(char);
 

@@ -1,14 +1,7 @@
 import { ZoneType } from '@/types';
+import { ZONE, isCommanderZoneType } from '@mtg/shared/constants/zones';
 
-export const ZONE = {
-  LIBRARY: 'library',
-  HAND: 'hand',
-  BATTLEFIELD: 'battlefield',
-  GRAVEYARD: 'graveyard',
-  EXILE: 'exile',
-  COMMANDER: 'commander',
-  SIDEBOARD: 'sideboard',
-} as const satisfies Record<string, ZoneType>;
+export { ZONE, isCommanderZoneType };
 
 export const ZONE_LABEL: Record<ZoneType, string> = {
   library: 'Library',
@@ -19,8 +12,3 @@ export const ZONE_LABEL: Record<ZoneType, string> = {
   commander: 'Commander',
   sideboard: 'Sideboard',
 };
-
-const LEGACY_COMMAND_ZONE = "command" as const;
-
-export const isCommanderZoneType = (zoneType: ZoneType | typeof LEGACY_COMMAND_ZONE) =>
-  zoneType === ZONE.COMMANDER || zoneType === LEGACY_COMMAND_ZONE;

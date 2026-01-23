@@ -1,0 +1,17 @@
+{
+  "name": "@mtg/shared",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types/index.ts",
+    "./types/*": "./src/types/*.ts",
+    "./constants/geometry": "./src/constants/geometry.ts",
+    "./constants/room": "./src/constants/room.ts",
+    "./constants/zones": "./src/constants/zones.ts",
+    "./positions": "./src/positions.ts",
+    "./rules/types": "./src/rules/types.ts",
+    "./rules/permissions": "./src/rules/permissions.ts"
+  }
+}

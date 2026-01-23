@@ -1,8 +1,8 @@
 import * as Y from "yjs";
 
-import type { Card } from "../../../web/src/types/cards";
-import type { Player } from "../../../web/src/types/players";
-import type { Zone } from "../../../web/src/types/zones";
+import type { Card } from "@mtg/shared/types/cards";
+import type { Player } from "@mtg/shared/types/players";
+import type { Zone } from "@mtg/shared/types/zones";
 
 import type { Maps, Snapshot } from "./types";
 
