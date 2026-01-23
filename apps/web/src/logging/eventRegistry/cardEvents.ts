@@ -30,8 +30,10 @@ export type TransformPayload = {
   cardId: string;
   zoneId: string;
   actorId?: string;
+  fromFaceName?: string;
   toFaceName?: string;
   cardName?: string;
+  verb?: "flipped" | "transformed";
 };
 
 export type DuplicatePayload = {
@@ -60,6 +62,13 @@ export type TokenCreatePayload = {
   actorId?: string;
   tokenName: string;
   count?: number;
+};
+
+export type FaceUpPayload = {
+  cardId: string;
+  zoneId: string;
+  actorId?: string;
+  cardName?: string;
 };
 
 const formatMove: LogEventDefinition<MovePayload>["format"] = (payload, ctx) => {
@@ -157,9 +166,12 @@ const formatTransform: LogEventDefinition<TransformPayload>["format"] = (payload
   const zone = ctx.zones[payload.zoneId];
   const cardPart = buildCardPart(ctx, payload.cardId, zone, zone, payload.cardName);
   const includeFace = cardPart.text !== "a card" && payload.toFaceName;
+  const verb =
+    payload.verb ??
+    (ctx.cards[payload.cardId]?.scryfall?.layout === "flip" ? "flipped" : "transformed");
   return [
     actor,
-    { kind: "text" as const, text: " transformed " },
+    { kind: "text" as const, text: ` ${verb} ` },
     cardPart,
     ...(includeFace ? [{ kind: "text" as const, text: ` to ${payload.toFaceName}` }] : []),
   ];
@@ -196,6 +208,18 @@ const formatTokenCreate: LogEventDefinition<TokenCreatePayload>["format"] = (pay
   return [player, { kind: "text", text: ` created ${count} ${tokenName} token${suffix}` }];
 };
 
+const formatFaceUp: LogEventDefinition<FaceUpPayload>["format"] = (payload, ctx) => {
+  const actor = buildPlayerPart(ctx, payload.actorId);
+  const zone = ctx.zones[payload.zoneId];
+  const cardPart = buildCardPart(ctx, payload.cardId, zone, zone, payload.cardName);
+  return [
+    actor,
+    { kind: "text", text: " revealed " },
+    cardPart,
+    { kind: "text", text: " from facedown" },
+  ];
+};
+
 export const cardEvents = {
   "card.move": {
     format: formatMove,
@@ -205,6 +229,9 @@ export const cardEvents = {
   },
   "card.untapAll": {
     format: formatUntapAll,
+  },
+  "card.faceUp": {
+    format: formatFaceUp,
   },
   "card.transform": {
     format: formatTransform,

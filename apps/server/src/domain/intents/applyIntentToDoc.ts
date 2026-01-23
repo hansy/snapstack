@@ -15,6 +15,8 @@ import {
   computeTransformTargetIndex,
   decrementCounter,
   enforceZoneCounterRules,
+  getCardFaces,
+  getCurrentFaceIndex,
   isTransformableCard,
   mergeCardIdentity,
   mergeCounters,
@@ -680,6 +682,9 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
           }
         }
         const nextCard = applyCardUpdates(card, updates, zone?.type);
+        const flippedFaceUp =
+          zone?.type === ZONE.BATTLEFIELD && card.faceDown && !nextCard.faceDown;
+        const faceDownIdentity = flippedFaceUp ? hidden.faceDownBattlefield[card.id] : undefined;
         let publicCard = nextCard;
         if (zone?.type === ZONE.BATTLEFIELD) {
           if (!card.faceDown && nextCard.faceDown) {
@@ -694,7 +699,7 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
               revealedTo: [],
             });
           } else if (card.faceDown && !nextCard.faceDown) {
-            const identity = hidden.faceDownBattlefield[card.id];
+            const identity = faceDownIdentity;
             Reflect.deleteProperty(hidden.faceDownBattlefield, card.id);
             Reflect.deleteProperty(hidden.faceDownReveals, card.id);
             maps.faceDownRevealsToAll.delete(card.id);
@@ -703,6 +708,14 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
           } else if (nextCard.faceDown) {
             publicCard = stripCardIdentity(nextCard);
           }
+        }
+        if (flippedFaceUp) {
+          pushLogEvent("card.faceUp", {
+            actorId,
+            cardId,
+            zoneId: card.zoneId,
+            ...(faceDownIdentity?.name ? { cardName: faceDownIdentity.name } : {}),
+          });
         }
         const newPower = (updates as Record<string, unknown>).power ?? card.power;
         const newToughness = (updates as Record<string, unknown>).toughness ?? card.toughness;
@@ -754,12 +767,17 @@ export const applyIntentToDoc = (doc: Y.Doc, intent: Intent, hidden: HiddenState
         }
         if (!isTransformableCard(card)) return { ok: true };
         const { targetIndex, toFaceName } = computeTransformTargetIndex(card, faceIndex);
+        const faces = getCardFaces(card);
+        const fromFaceName = faces[getCurrentFaceIndex(card)]?.name;
+        const verb = card.scryfall?.layout === "flip" ? "flipped" : "transformed";
         pushLogEvent("card.transform", {
           actorId,
           cardId,
           zoneId: card.zoneId,
+          fromFaceName,
           toFaceName,
-          cardName: card.name,
+          cardName: fromFaceName ?? card.name,
+          verb,
         });
         const cardForTransform = card.faceDown
           ? mergeCardIdentity(card, hidden.faceDownBattlefield[card.id])

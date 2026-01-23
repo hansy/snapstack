@@ -20,6 +20,7 @@ const EVENT_IDS = [
   "card.move",
   "card.tap",
   "card.untapAll",
+  "card.faceUp",
   "card.transform",
   "card.duplicate",
   "card.remove",
@@ -208,6 +209,51 @@ describe("logEventRegistry", () => {
     );
 
     expect(parts.map((p) => p.text).join("")).toBe("Bob gains control of Lightning Bolt");
+  });
+
+  it("formats face-up reveals", () => {
+    const battlefield = makeZone("bf", "battlefield", "p1", ["c1"]);
+    const card = makeCard("c1", "Mystic Snake", "bf", "p1");
+    const ctx: LogContext = {
+      players: { p1: makePlayer("p1", "Alice") },
+      cards: { c1: card },
+      zones: { bf: battlefield },
+    };
+
+    const parts = logEventRegistry["card.faceUp"].format(
+      { actorId: "p1", cardId: "c1", zoneId: "bf", cardName: "Mystic Snake" },
+      ctx
+    );
+
+    expect(parts.map((p) => p.text).join("")).toBe(
+      "Alice revealed Mystic Snake from facedown"
+    );
+  });
+
+  it("formats transform entries with the provided verb", () => {
+    const battlefield = makeZone("bf", "battlefield", "p1", ["c1"]);
+    const card = makeCard("c1", "Delver of Secrets", "bf", "p1");
+    const ctx: LogContext = {
+      players: { p1: makePlayer("p1", "Alice") },
+      cards: { c1: card },
+      zones: { bf: battlefield },
+    };
+
+    const parts = logEventRegistry["card.transform"].format(
+      {
+        actorId: "p1",
+        cardId: "c1",
+        zoneId: "bf",
+        cardName: "Delver of Secrets",
+        toFaceName: "Insectile Aberration",
+        verb: "flipped",
+      },
+      ctx
+    );
+
+    expect(parts.map((p) => p.text).join("")).toBe(
+      "Alice flipped Delver of Secrets to Insectile Aberration"
+    );
   });
 
   it("formats library view entries", () => {

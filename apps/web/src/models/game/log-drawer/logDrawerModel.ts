@@ -11,6 +11,7 @@ export type LogCardContext = {
   toZoneType?: string;
   cardName?: string;
   forceHidden?: boolean;
+  nameOverride?: string;
 };
 
 const isLogEvent = <K extends LogEventId>(
@@ -33,9 +34,19 @@ export const resolveLogCardContext = (
     };
   }
 
+  if (isLogEvent(entry, "card.transform") && entry.payload) {
+    const zone = entry.payload.zoneId ? ctx.zones[entry.payload.zoneId] : undefined;
+    return {
+      fromZone: zone,
+      toZone: zone,
+      cardName: entry.payload.cardName,
+      nameOverride: entry.payload.fromFaceName,
+    };
+  }
+
   if (
     (isLogEvent(entry, "card.tap") ||
-      isLogEvent(entry, "card.transform") ||
+      isLogEvent(entry, "card.faceUp") ||
       isLogEvent(entry, "card.duplicate") ||
       isLogEvent(entry, "card.remove") ||
       isLogEvent(entry, "card.pt") ||
@@ -61,6 +72,10 @@ export const resolveLogCardDisplayName = (params: {
   cardContext: LogCardContext;
 }): string => {
   if (params.part.kind !== "card") return params.part.text;
+
+  if (params.cardContext.nameOverride) {
+    return params.cardContext.nameOverride;
+  }
 
   if (params.cardContext.forceHidden) {
     return params.cardContext.cardName ?? "a card";

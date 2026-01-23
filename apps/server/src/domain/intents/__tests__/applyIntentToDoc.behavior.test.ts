@@ -225,6 +225,47 @@ describe("applyIntentToDoc", () => {
     expect(readZone(maps, battlefield.id)?.cardIds).toEqual([]);
   });
 
+  it("should log face-up reveals when turning a facedown battlefield card face up", () => {
+    const doc = createDoc();
+    const maps = getMaps(doc);
+    const hidden = createEmptyHiddenState();
+
+    writePlayer(maps, makePlayer("p1"));
+    const battlefield = makeZone("bf-p1", ZONE.BATTLEFIELD, "p1", ["c1"]);
+    writeZone(maps, battlefield);
+    writeCard(
+      maps,
+      makeCard("c1", "p1", battlefield.id, { faceDown: true, name: "Card" })
+    );
+
+    hidden.faceDownBattlefield.c1 = { name: "Mystery Card" };
+
+    const result = applyIntentToDoc(
+      doc,
+      {
+        id: "intent-faceup",
+        type: "card.update",
+        payload: { actorId: "p1", cardId: "c1", updates: { faceDown: false } },
+      },
+      hidden
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.logEvents).toEqual([
+        {
+          eventId: "card.faceUp",
+          payload: {
+            actorId: "p1",
+            cardId: "c1",
+            zoneId: battlefield.id,
+            cardName: "Mystery Card",
+          },
+        },
+      ]);
+    }
+  });
+
   it("should reject deck resets when the actor cannot view the library", () => {
     const doc = createDoc();
     const maps = getMaps(doc);

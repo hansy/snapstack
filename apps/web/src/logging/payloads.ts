@@ -1,5 +1,6 @@
 import type {
   DuplicatePayload,
+  FaceUpPayload,
   MovePayload,
   PTPayload,
   RemoveCardPayload,
@@ -42,6 +43,7 @@ export type LogEventPayloadMap = {
   "card.move": MovePayload;
   "card.tap": TapPayload;
   "card.untapAll": UntapAllPayload;
+  "card.faceUp": FaceUpPayload;
   "card.transform": TransformPayload;
   "card.duplicate": DuplicatePayload;
   "card.remove": RemoveCardPayload;
