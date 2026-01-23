@@ -34,6 +34,11 @@ const cache = createScryfallCache({
   rateLimitMs: SCRYFALL_RATE_LIMIT_MS,
 });
 
+export const peekCachedCard = (scryfallId: string) => {
+  if (!scryfallId) return null;
+  return memory.get(scryfallId) ?? null;
+};
+
 export const getCard = cache.getCard;
 export const getCards = cache.getCards;
 export const cacheCards = cache.cacheCards;

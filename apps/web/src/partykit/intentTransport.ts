@@ -3,6 +3,7 @@ import { createIntentSocket } from "./intentSocket";
 
 export type IntentTransport = {
   sendIntent: (intent: Intent) => boolean;
+  sendMessage: (message: unknown) => boolean;
   close: () => void;
   isOpen?: () => boolean;
 };
@@ -66,6 +67,11 @@ export const createIntentTransport = ({
       socket.send(payload);
       return true;
     },
+    sendMessage: (message) => {
+      if (!isOpen()) return false;
+      socket.send(JSON.stringify(message));
+      return true;
+    },
     close: () => {
       try {
         socket.close();
@@ -94,6 +100,16 @@ export const sendIntent = (intent: Intent): boolean => {
   try {
     if (activeTransport.isOpen && !activeTransport.isOpen()) return false;
     return activeTransport.sendIntent(intent);
+  } catch (_err) {
+    return false;
+  }
+};
+
+export const sendPartyMessage = (message: unknown): boolean => {
+  if (!activeTransport) return false;
+  try {
+    if (activeTransport.isOpen && !activeTransport.isOpen()) return false;
+    return activeTransport.sendMessage(message);
   } catch (_err) {
     return false;
   }

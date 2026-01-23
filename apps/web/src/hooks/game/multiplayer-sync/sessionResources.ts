@@ -15,11 +15,16 @@ import {
 import {
   clearIntentTransport,
   createIntentTransport,
+  sendPartyMessage,
   setIntentTransport,
   type IntentTransport,
 } from "@/partykit/intentTransport";
 import { PARTY_NAME } from "@/partykit/config";
-import type { PrivateOverlayPayload, RoomTokensPayload } from "@/partykit/messages";
+import type {
+  PrivateOverlayDiffPayload,
+  PrivateOverlayPayload,
+  RoomTokensPayload,
+} from "@/partykit/messages";
 import { useGameStore } from "@/store/gameStore";
 import { handleIntentAck } from "@/store/gameStore/dispatchIntent";
 import {
@@ -173,6 +178,7 @@ export function setupSessionResources({
   };
 
   const intentViewerRole = useGameStore.getState().viewerRole;
+  const intentCapabilities = ["overlay-diff-v1"];
   const resolvedIntentToken = inviteToken.token && inviteToken.role
     ? { token: inviteToken.token, tokenRole: inviteToken.role }
     : resolveTokenForRole(intentViewerRole, useGameStore.getState().roomTokens);
@@ -226,18 +232,26 @@ export function setupSessionResources({
   let pendingOverlay: PrivateOverlayPayload | null = null;
   let overlayFlushTimer: number | null = null;
 
+  const flushPendingOverlay = () => {
+    if (!pendingOverlay) return;
+    if (overlayFlushTimer !== null) {
+      window.clearTimeout(overlayFlushTimer);
+      overlayFlushTimer = null;
+    }
+    if (useGameStore.getState().sessionId !== sessionId) {
+      pendingOverlay = null;
+      return;
+    }
+    const nextOverlay = pendingOverlay;
+    pendingOverlay = null;
+    useGameStore.getState().applyPrivateOverlay(nextOverlay);
+  };
+
   const scheduleOverlayFlush = () => {
     if (overlayFlushTimer !== null) return;
     overlayFlushTimer = window.setTimeout(() => {
       overlayFlushTimer = null;
-      if (!pendingOverlay) return;
-      if (useGameStore.getState().sessionId !== sessionId) {
-        pendingOverlay = null;
-        return;
-      }
-      const nextOverlay = pendingOverlay;
-      pendingOverlay = null;
-      useGameStore.getState().applyPrivateOverlay(nextOverlay);
+      flushPendingOverlay();
     }, 0);
   };
 
@@ -254,6 +268,10 @@ export function setupSessionResources({
     },
     onOpen: () => {
       onIntentOpen?.();
+      sendPartyMessage({
+        type: "hello",
+        payload: { capabilities: intentCapabilities },
+      });
     },
     onMessage: (message) => {
       if (message.type === "ack") {
@@ -273,9 +291,34 @@ export function setupSessionResources({
         clearRoomHostPending(sessionId);
         return;
       }
+      if (message.type === "helloAck") {
+        const payload = message.payload as { acceptedCapabilities?: string[] };
+        if (Array.isArray(payload?.acceptedCapabilities)) {
+          useGameStore.getState().setOverlayCapabilities(payload.acceptedCapabilities);
+        }
+        return;
+      }
       if (message.type === "privateOverlay") {
         pendingOverlay = message.payload as PrivateOverlayPayload;
         scheduleOverlayFlush();
+        return;
+      }
+      if (message.type === "privateOverlayDiff") {
+        if (pendingOverlay) {
+          flushPendingOverlay();
+        }
+        const diff = message.payload as PrivateOverlayDiffPayload;
+        const applied = useGameStore.getState().applyPrivateOverlayDiff(diff);
+        if (!applied) {
+          const lastVersion = useGameStore.getState().privateOverlay?.overlayVersion;
+          sendPartyMessage({
+            type: "overlayResync",
+            payload: {
+              reason: "version-mismatch",
+              lastOverlayVersion: typeof lastVersion === "number" ? lastVersion : undefined,
+            },
+          });
+        }
         return;
       }
       if (message.type === "logEvent") {

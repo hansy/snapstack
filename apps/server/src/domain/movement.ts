@@ -1,7 +1,14 @@
 import type { Card } from "../../../web/src/types/cards";
 
 import { isHiddenZoneType, isPublicZoneType, ZONE } from "./constants";
-import type { FaceDownMoveResolution, HiddenState, Maps, MoveOpts, RevealPatch } from "./types";
+import type {
+  FaceDownMoveResolution,
+  HiddenReveal,
+  HiddenState,
+  Maps,
+  MoveOpts,
+  RevealPatch,
+} from "./types";
 import {
   buildCardIdentity,
   enforceZoneCounterRules,
@@ -107,7 +114,12 @@ export const applyCardMove = (
   payload: Record<string, unknown>,
   placement: "top" | "bottom",
   pushLogEvent: (eventId: string, payload: Record<string, unknown>) => void,
-  markHiddenChanged: () => void
+  markHiddenChanged: (impact?: {
+    ownerId?: string;
+    zoneId?: string;
+    reveal?: HiddenReveal;
+    prevReveal?: HiddenReveal;
+  }) => void
 ): { ok: true } | { ok: false; error: string } => {
   const cardId = typeof payload.cardId === "string" ? payload.cardId : null;
   const toZoneId = typeof payload.toZoneId === "string" ? payload.toZoneId : null;
@@ -123,6 +135,15 @@ export const applyCardMove = (
 
   const fromZone = readZone(maps, card.zoneId);
   if (!fromZone) return { ok: false, error: "zone not found" };
+
+  const priorReveal =
+    fromZone.type === ZONE.HAND
+      ? hidden.handReveals[cardId]
+      : fromZone.type === ZONE.LIBRARY
+        ? hidden.libraryReveals[cardId]
+        : fromZone.type === ZONE.BATTLEFIELD && card.faceDown
+          ? hidden.faceDownReveals[cardId]
+          : undefined;
 
   const position =
     payload.position && typeof payload.position === "object"
@@ -327,13 +348,21 @@ export const applyCardMove = (
         hidden.faceDownReveals[cardId] = {};
       }
       maps.faceDownRevealsToAll.delete(cardId);
-      markHiddenChanged();
+      markHiddenChanged({
+        ownerId: nextCard.controllerId,
+        zoneId: toZone.id,
+        reveal: hidden.faceDownReveals[cardId],
+      });
     }
     if (wasFaceDownBattlefield && !willBeFaceDownBattlefield) {
       Reflect.deleteProperty(hidden.faceDownBattlefield, cardId);
       Reflect.deleteProperty(hidden.faceDownReveals, cardId);
       maps.faceDownRevealsToAll.delete(cardId);
-      markHiddenChanged();
+      markHiddenChanged({
+        ownerId: card.controllerId,
+        zoneId: fromZone.id,
+        reveal: priorReveal,
+      });
     }
     return { ok: true };
   }
@@ -437,7 +466,24 @@ export const applyCardMove = (
     if (toZone.type === ZONE.LIBRARY && toZone.ownerId !== fromZone.ownerId) {
       syncLibraryRevealsToAllForPlayer(maps, hidden, toZone.ownerId, toZone.id);
     }
-    markHiddenChanged();
+    const nextReveal =
+      toZone.type === ZONE.HAND
+        ? hidden.handReveals[cardId]
+        : toZone.type === ZONE.LIBRARY
+          ? hidden.libraryReveals[cardId]
+          : undefined;
+    markHiddenChanged({
+      ownerId: fromZone.ownerId,
+      zoneId: fromZone.id,
+      reveal: priorReveal,
+    });
+    if (toZone.ownerId !== fromZone.ownerId) {
+      markHiddenChanged({
+        ownerId: toZone.ownerId,
+        zoneId: toZone.id,
+        reveal: nextReveal,
+      });
+    }
     return { ok: true };
   }
 
@@ -524,7 +570,17 @@ export const applyCardMove = (
     if (toZone.type === ZONE.LIBRARY) {
       syncLibraryRevealsToAllForPlayer(maps, hidden, toZone.ownerId, toZone.id);
     }
-    markHiddenChanged();
+    const nextReveal =
+      toZone.type === ZONE.HAND
+        ? hidden.handReveals[cardId]
+        : toZone.type === ZONE.LIBRARY
+          ? hidden.libraryReveals[cardId]
+          : undefined;
+    markHiddenChanged({
+      ownerId: toZone.ownerId,
+      zoneId: toZone.id,
+      reveal: nextReveal,
+    });
     return { ok: true };
   }
 
@@ -638,7 +694,11 @@ export const applyCardMove = (
     if (fromZone.type === ZONE.LIBRARY) {
       syncLibraryRevealsToAllForPlayer(maps, hidden, fromZone.ownerId, fromZone.id);
     }
-    markHiddenChanged();
+    markHiddenChanged({
+      ownerId: fromZone.ownerId,
+      zoneId: fromZone.id,
+      reveal: priorReveal,
+    });
     return { ok: true };
   }
 

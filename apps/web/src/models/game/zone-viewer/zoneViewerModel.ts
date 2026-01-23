@@ -1,4 +1,6 @@
 import type { Card, Zone } from "@/types";
+import { peekCachedCard } from "@/services/scryfall/scryfallCache";
+import { toScryfallCardLite } from "@/types/scryfallLite";
 
 import { ZONE } from "@/constants/zones";
 
@@ -33,12 +35,18 @@ export const computeZoneViewerCards = (params: {
   if (params.filterText.trim()) {
     const lowerFilter = params.filterText.toLowerCase();
     currentCards = currentCards.filter((card) => {
+      const cached = card.scryfallId ? peekCachedCard(card.scryfallId) : null;
+      const scryfallLite = card.scryfall ?? (cached ? toScryfallCardLite(cached) : undefined);
+      const oracleText =
+        card.oracleText ??
+        cached?.oracle_text ??
+        cached?.card_faces?.map((face) => face.oracle_text).filter(Boolean).join(" ");
       const nameMatch = card.name.toLowerCase().includes(lowerFilter);
-      const faceNameMatch = card.scryfall?.card_faces?.some((face) =>
+      const faceNameMatch = scryfallLite?.card_faces?.some((face) =>
         face.name?.toLowerCase().includes(lowerFilter)
       );
       const typeMatch = card.typeLine?.toLowerCase().includes(lowerFilter);
-      const oracleMatch = card.oracleText?.toLowerCase().includes(lowerFilter);
+      const oracleMatch = oracleText?.toLowerCase().includes(lowerFilter);
       return nameMatch || faceNameMatch || typeMatch || oracleMatch;
     });
   }
@@ -56,7 +64,9 @@ export const groupZoneViewerCards = (cards: Card[]): Record<string, Card[]> => {
       return;
     }
 
-    const cmc = card.scryfall?.cmc ?? 0;
+    const cached = card.scryfallId ? peekCachedCard(card.scryfallId) : null;
+    const scryfallLite = card.scryfall ?? (cached ? toScryfallCardLite(cached) : undefined);
+    const cmc = scryfallLite?.cmc ?? 0;
     const key = `Cost ${cmc}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push(card);

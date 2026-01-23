@@ -45,12 +45,17 @@ vi.mock("../domain/intents/applyIntentToDoc", () => ({
   })),
 }));
 
-import { HIDDEN_STATE_META_KEY } from "../domain/constants";
 import { Room, createEmptyHiddenState } from "../server";
 
 beforeEach(() => {
   superOnConnect.mockClear();
 });
+
+const OVERLAY_DIFF_CAPABILITY = "overlay-diff-v1";
+const LIBRARY_VIEW_PING_TIMEOUT_MS = 45_000;
+const HIDDEN_STATE_PERSIST_IDLE_MS = 5_000;
+const INTENT_LOG_META_KEY = "intent-log:meta";
+const INTENT_LOG_PREFIX = "intent-log:";
 
 const createDeferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -114,9 +119,9 @@ describe("server lifecycle guards", () => {
       (server as any).hiddenState = createEmptyHiddenState();
 
       const broadcastGate = createDeferred<void>();
-      const broadcastSpy = vi
-        .spyOn(server as any, "broadcastOverlays")
-        .mockReturnValue(broadcastGate.promise);
+      vi.spyOn(server as any, "broadcastOverlays").mockReturnValue(
+        broadcastGate.promise
+      );
 
       const conn = new TestConnection();
       conn.state = { playerId: "p1", viewerRole: "player" };
@@ -128,34 +133,39 @@ describe("server lifecycle guards", () => {
       };
       const intentPromise = (server as any).handleIntent(conn, intent);
 
-      for (let i = 0; i < 3 && broadcastSpy.mock.calls.length === 0; i += 1) {
-        await Promise.resolve();
-      }
-
-      expect(broadcastSpy).toHaveBeenCalledTimes(1);
+      await Promise.resolve();
       (server as any).resetGeneration += 1;
       broadcastGate.resolve();
 
       await intentPromise;
       await vi.runAllTimersAsync();
 
-      expect(state.storage.put).not.toHaveBeenCalled();
+      const putKeys = state.storage.put.mock.calls.map(
+        (call: [string, unknown]) => call[0]
+      );
+      const snapshotWrites = putKeys.filter(
+        (key: string) =>
+          key === "snapshot:meta" ||
+          key === "yjs:doc" ||
+          (typeof key === "string" && key.startsWith("snapshot:hidden:"))
+      );
+      expect(snapshotWrites).toEqual([]);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("skips hidden-state meta write if reset happens after meta fetch", async () => {
+  it("skips snapshot meta write if reset happens mid-persist", async () => {
     const store = new Map<string, unknown>();
-    const prevMetaGate = createDeferred<unknown>();
+    const snapshotGate = createDeferred<void>();
     const storage = {
       get: vi.fn(async (key: string) => {
-        if (key === HIDDEN_STATE_META_KEY) {
-          return prevMetaGate.promise;
-        }
         return store.get(key);
       }),
       put: vi.fn(async (key: string, value: unknown) => {
+        if (key === "snapshot:meta") {
+          await snapshotGate.promise;
+        }
         store.set(key, value);
       }),
       delete: vi.fn(async (key: string) => {
@@ -171,19 +181,21 @@ describe("server lifecycle guards", () => {
     (server as any).hiddenState = createEmptyHiddenState();
 
     const expectedResetGeneration = (server as any).resetGeneration;
-    const persistPromise = (server as any).persistHiddenState(expectedResetGeneration);
+    const persistPromise = (server as any).persistHiddenState(
+      expectedResetGeneration
+    );
 
-    for (let i = 0; i < 3 && storage.get.mock.calls.length === 0; i += 1) {
+    for (let i = 0; i < 3 && storage.put.mock.calls.length === 0; i += 1) {
       await Promise.resolve();
     }
-    expect(storage.get).toHaveBeenCalledWith(HIDDEN_STATE_META_KEY);
+    expect(storage.put).toHaveBeenCalled();
 
     (server as any).resetGeneration += 1;
-    prevMetaGate.resolve(null);
+    snapshotGate.resolve();
 
     await persistPromise;
 
-    expect(storage.put).not.toHaveBeenCalled();
+    expect(store.has("snapshot:meta")).toBe(false);
   });
 
   it("debounces hidden-state persistence across rapid intents", async () => {
@@ -226,6 +238,194 @@ describe("server lifecycle guards", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("flushes hidden-state persistence after idle timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const state = createState();
+      const server = new Room(state, { rooms: {} as any });
+      (server as any).hiddenState = createEmptyHiddenState();
+      vi
+        .spyOn(server as any, "broadcastOverlays")
+        .mockResolvedValue(undefined);
+      const persistSpy = vi
+        .spyOn(server as any, "persistHiddenState")
+        .mockResolvedValue(undefined);
+
+      const conn = new TestConnection();
+      conn.state = { playerId: "p1", viewerRole: "player" };
+
+      const intent = {
+        id: "intent-1",
+        type: "card.add",
+        payload: { actorId: "p1" },
+      };
+
+      await (server as any).handleIntent(conn, intent);
+
+      const debounceTimer = (server as any).hiddenStatePersistTimer;
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        (server as any).hiddenStatePersistTimer = null;
+      }
+
+      await vi.advanceTimersByTimeAsync(HIDDEN_STATE_PERSIST_IDLE_MS + 50);
+
+      expect(persistSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("falls back to snapshot when diff payload is too large", () => {
+    const state = createState();
+    const server = new Room(state, { rooms: {} as any });
+
+    const conn = new TestConnection();
+    conn.state = { playerId: "p1", viewerRole: "player" };
+    const sent: string[] = [];
+    conn.send = (payload: string) => {
+      sent.push(payload);
+    };
+
+    (server as any).connectionCapabilities.set(
+      conn.id,
+      new Set([OVERLAY_DIFF_CAPABILITY])
+    );
+    (server as any).overlayStates.set(conn.id, {
+      overlayVersion: 1,
+      cardHashes: new Map([["c1", "old"]]),
+      zoneOrderHashes: new Map(),
+      meta: { cardCount: 1, cardsWithArt: 0, viewerHandCount: 0 },
+    });
+
+    const bigName = "x".repeat(70_000);
+    const card = {
+      id: "c1",
+      name: bigName,
+      ownerId: "p1",
+      controllerId: "p1",
+      zoneId: "hand",
+      tapped: false,
+      faceDown: false,
+      position: { x: 0.5, y: 0.5 },
+      rotation: 0,
+      counters: [],
+    };
+
+    const buildResult = {
+      overlay: { cards: [card] },
+      cardHashes: new Map([["c1", "new"]]),
+      zoneOrderHashes: new Map(),
+      meta: { cardCount: 1, cardsWithArt: 0, viewerHandCount: 0 },
+    };
+
+    (server as any).sendOverlayForConnectionWithBuildResult(
+      conn,
+      buildResult,
+      "p1"
+    );
+
+    expect(sent).toHaveLength(1);
+    const message = JSON.parse(sent[0]);
+    expect(message.type).toBe("privateOverlay");
+    expect((server as any).overlayResyncCount).toBe(1);
+  });
+
+  it("expires library views after missed pings", async () => {
+    vi.useFakeTimers();
+    try {
+      const state = createState();
+      const server = new Room(state, { rooms: {} as any });
+      const conn = new TestConnection();
+      conn.state = { playerId: "p1", viewerRole: "player" };
+      (server as any).intentConnections.add(conn);
+
+      const overlaySpy = vi
+        .spyOn(server as any, "sendOverlayForConnection")
+        .mockResolvedValue(undefined);
+
+      vi.setSystemTime(0);
+      await (server as any).handleLibraryViewIntent(conn, {
+        type: "library.view",
+        payload: { playerId: "p1", count: 3 },
+      });
+
+      expect((server as any).libraryViews.size).toBe(1);
+
+      vi.advanceTimersByTime(30_000);
+      (server as any).handleLibraryViewPingIntent(conn, {
+        type: "library.view.ping",
+        payload: { playerId: "p1" },
+      });
+
+      vi.advanceTimersByTime(LIBRARY_VIEW_PING_TIMEOUT_MS - 1_000);
+      (server as any).cleanupExpiredLibraryViews();
+      expect((server as any).libraryViews.size).toBe(1);
+
+      vi.advanceTimersByTime(2_000);
+      (server as any).cleanupExpiredLibraryViews();
+      expect((server as any).libraryViews.size).toBe(0);
+      expect(overlaySpy).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("replays intent log entries on load", async () => {
+    const store = new Map<string, unknown>();
+    const storage = {
+      get: vi.fn(async (key: string) => store.get(key)),
+      put: vi.fn(async (key: string, value: unknown) => {
+        store.set(key, value);
+      }),
+      delete: vi.fn(async (key: string) => {
+        store.delete(key);
+      }),
+      list: vi.fn(async () => store.entries()),
+    };
+    const { applyIntentToDoc } = await import("../domain/intents/applyIntentToDoc");
+    const applyMock = vi.mocked(applyIntentToDoc);
+    applyMock.mockClear();
+    const state = {
+      id: { name: "room-test" },
+      storage,
+    } as any;
+
+    store.set(INTENT_LOG_META_KEY, {
+      nextIndex: 1,
+      logStartIndex: 0,
+      snapshotIndex: -1,
+      lastSnapshotAt: 0,
+    });
+    store.set(`${INTENT_LOG_PREFIX}0`, {
+      index: 0,
+      ts: 0,
+      intent: {
+        id: "intent-1",
+        type: "player.join",
+        payload: {
+          actorId: "p1",
+          player: {
+            id: "p1",
+            name: "P1",
+            life: 20,
+            counters: [],
+            commanderDamage: {},
+            commanderTax: 0,
+          },
+        },
+      },
+    });
+
+    const server = new Room(state, { rooms: {} as any });
+    await (server as any).onLoad();
+
+    expect(applyMock).toHaveBeenCalledTimes(1);
+    expect(applyMock.mock.calls[0]?.[1]?.type).toBe("player.join");
+    const hidden = (server as any).hiddenState;
+    expect(hidden).toBeTruthy();
   });
 
   it("does not register sync connections that close before auth resolves", async () => {

@@ -33,6 +33,8 @@ export const createSessionActions = (
   | "setHasHydrated"
   | "viewerRole"
   | "setViewerRole"
+  | "overlayCapabilities"
+  | "setOverlayCapabilities"
   | "roomTokens"
   | "setRoomTokens"
 > => ({
@@ -42,6 +44,7 @@ export const createSessionActions = (
   myPlayerId: uuidv4(),
   hasHydrated: false,
   viewerRole: "player",
+  overlayCapabilities: [],
   roomTokens: null,
 
   resetSession: (newSessionId, playerId) => {
@@ -65,6 +68,7 @@ export const createSessionActions = (
       roomLockedByHost: false,
       roomOverCapacity: false,
       privateOverlay: null,
+      overlayCapabilities: [],
       roomTokens: null,
       viewerRole: "player",
       sessionId: freshSessionId,
@@ -147,6 +151,10 @@ export const createSessionActions = (
 
   setViewerRole: (role) => {
     set({ viewerRole: role });
+  },
+
+  setOverlayCapabilities: (capabilities) => {
+    set({ overlayCapabilities: [...capabilities] });
   },
 
   setRoomTokens: (tokens) => {

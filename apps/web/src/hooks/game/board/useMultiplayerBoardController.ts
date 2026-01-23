@@ -7,6 +7,7 @@ import { useGameStore } from "@/store/gameStore";
 import { useSelectionStore } from "@/store/selectionStore";
 import { resolvePlayerColors } from "@/lib/playerColors";
 import { ZONE } from "@/constants/zones";
+import { useScryfallCards } from "@/hooks/scryfall/useScryfallCard";
 import { v4 as uuidv4 } from "uuid";
 import { sendIntent } from "@/partykit/intentTransport";
 import { useBoardScale } from "./useBoardScale";
@@ -38,6 +39,14 @@ export const useMultiplayerBoardController = (sessionId: string) => {
 
   const zones = useGameStore((state) => state.zones);
   const cards = useGameStore((state) => state.cards);
+  const scryfallIds = React.useMemo(
+    () =>
+      Object.values(cards)
+        .map((card) => card.scryfallId)
+        .filter((id): id is string => Boolean(id)),
+    [cards]
+  );
+  useScryfallCards(scryfallIds);
   const players = useGameStore((state) => state.players);
   const libraryRevealsToAll = useGameStore((state) => state.libraryRevealsToAll);
   const playerOrder = useGameStore((state) => state.playerOrder);
@@ -78,7 +87,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     count?: number;
   }>({ isOpen: false, zoneId: null });
 
-  const sendLogIntent = React.useCallback(
+const sendLogIntent = React.useCallback(
     (type: string, payload: Record<string, unknown>) => {
       sendIntent({ id: uuidv4(), type, payload });
     },
@@ -105,6 +114,39 @@ export const useMultiplayerBoardController = (sessionId: string) => {
       count: safeCount,
     });
   }, [sendLogIntent]);
+
+  const libraryViewPlayerIdRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!zoneViewerState.isOpen || !zoneViewerState.zoneId) return;
+    const state = useGameStore.getState();
+    const zone = state.zones[zoneViewerState.zoneId];
+    if (!zone || zone.type !== ZONE.LIBRARY) return;
+    if (state.viewerRole === "spectator") return;
+    if (!state.myPlayerId || zone.ownerId !== state.myPlayerId) return;
+
+    const playerId = zone.ownerId;
+    libraryViewPlayerIdRef.current = playerId;
+
+    const ping = () => {
+      sendLogIntent("library.view.ping", {
+        actorId: state.myPlayerId,
+        playerId,
+      });
+    };
+    ping();
+    const interval = window.setInterval(ping, 12_000);
+
+    return () => {
+      window.clearInterval(interval);
+      if (libraryViewPlayerIdRef.current === playerId) {
+        sendLogIntent("library.view.close", {
+          actorId: state.myPlayerId,
+          playerId,
+        });
+        libraryViewPlayerIdRef.current = null;
+      }
+    };
+  }, [sendLogIntent, zoneViewerState.isOpen, zoneViewerState.zoneId]);
 
   const handleLeave = React.useCallback(() => {
     useGameStore.getState().leaveGame();

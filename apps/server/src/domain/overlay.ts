@@ -1,7 +1,8 @@
 import type { Card } from "../../../web/src/types/cards";
 
 import { ZONE } from "./constants";
-import type { HiddenState, Maps, PrivateOverlayPayload, Snapshot } from "./types";
+import { toCardLite } from "./cards";
+import type { HiddenState, Maps, OverlaySnapshotData, Snapshot } from "./types";
 import { buildSnapshot, uniqueStrings } from "./yjsStore";
 import { applyRevealToCard } from "./hiddenState";
 
@@ -28,13 +29,13 @@ type OverlayParams = {
   zoneLookup?: OverlayZoneLookup;
 } & ({ maps: Maps } | { snapshot: Snapshot; maps?: Maps });
 
-export const buildOverlayForViewer = (params: OverlayParams): PrivateOverlayPayload => {
+export const buildOverlayForViewer = (params: OverlayParams): OverlaySnapshotData => {
   const snapshot = "snapshot" in params ? params.snapshot : buildSnapshot(params.maps);
   const zoneLookup = params.zoneLookup ?? buildOverlayZoneLookup(snapshot);
-  const overlayCardsById = new Map<string, Card>();
+  const overlayCardsById = new Map<string, ReturnType<typeof toCardLite>>();
   const addOverlayCard = (card: Card) => {
     if (!overlayCardsById.has(card.id)) {
-      overlayCardsById.set(card.id, card);
+      overlayCardsById.set(card.id, toCardLite(card));
     }
   };
   const zoneCardOrders: Record<string, string[]> = {};

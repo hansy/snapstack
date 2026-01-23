@@ -84,6 +84,9 @@ describe("createFullSyncToStore", () => {
     upsertZone(maps, { id: "hand", ownerId: "p1", type: "hand", cardIds: ["c1"] });
 
     const overlay = {
+      schemaVersion: 1,
+      overlayVersion: 1,
+      roomId: "room",
       cards: [
         {
           id: "c1",

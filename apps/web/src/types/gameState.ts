@@ -8,7 +8,11 @@ import type {
   HandRevealsToAll,
   LibraryRevealsToAll,
 } from "./reveals";
-import type { PrivateOverlayPayload, RoomTokensPayload } from "@/partykit/messages";
+import type {
+  PrivateOverlayDiffPayload,
+  PrivateOverlayPayload,
+  RoomTokensPayload,
+} from "@/partykit/messages";
 
 export interface GameState {
   viewerRole: ViewerRole;
@@ -24,6 +28,7 @@ export interface GameState {
   roomLockedByHost: boolean;
   roomOverCapacity: boolean;
   privateOverlay: PrivateOverlayPayload | null;
+  overlayCapabilities: string[];
   roomTokens: RoomTokensPayload | null;
 
   // Session
@@ -169,6 +174,8 @@ export interface GameState {
   setBattlefieldViewScale: (playerId: PlayerId, scale: number) => void;
   setViewerRole: (role: ViewerRole) => void;
   applyPrivateOverlay: (overlay: PrivateOverlayPayload) => void;
+  applyPrivateOverlayDiff: (diff: PrivateOverlayDiffPayload) => boolean;
+  setOverlayCapabilities: (capabilities: string[]) => void;
   setRoomTokens: (tokens: RoomTokensPayload | null) => void;
 
   // Hydration

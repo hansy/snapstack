@@ -1,6 +1,11 @@
 import type * as Y from "yjs";
 
-import type { Card, CardIdentity, FaceDownMode } from "../../../web/src/types/cards";
+import type {
+  Card,
+  CardIdentity,
+  CardLite,
+  FaceDownMode,
+} from "../../../web/src/types/cards";
 import type { Player } from "../../../web/src/types/players";
 import type { Zone, ZoneType } from "../../../web/src/types/zones";
 
@@ -63,15 +68,53 @@ export type IntentConnectionState = {
   token?: string;
 };
 
-export type PrivateOverlayPayload = {
-  cards: Card[];
+export type OverlayMeta = {
+  cardCount: number;
+  cardsWithArt: number;
+  viewerHandCount: number;
+};
+
+export type OverlaySnapshotData = {
+  cards: CardLite[];
   zoneCardOrders?: Record<string, string[]>;
+};
+
+export type PrivateOverlayPayload = {
+  schemaVersion: number;
+  overlayVersion: number;
+  roomId: string;
+  viewerId?: string;
+  cards: CardLite[];
+  zoneCardOrders?: Record<string, string[]>;
+  zoneCardOrderVersions?: Record<string, number>;
+  meta?: OverlayMeta;
+};
+
+export type PrivateOverlayDiffPayload = {
+  schemaVersion: number;
+  overlayVersion: number;
+  baseOverlayVersion: number;
+  roomId: string;
+  viewerId?: string;
+  upserts: CardLite[];
+  removes: string[];
+  zoneCardOrders?: Record<string, string[]>;
+  zoneOrderRemovals?: string[];
+  zoneCardOrderVersions?: Record<string, number>;
+  meta?: OverlayMeta;
 };
 
 export type LogEvent = { eventId: string; payload: Record<string, unknown> };
 
+export type IntentImpact = {
+  changedOwners: string[];
+  changedZones: string[];
+  changedRevealScopes: { toAll: boolean; toPlayers: string[] };
+  changedPublicDoc: boolean;
+};
+
 export type ApplyResult =
-  | { ok: true; logEvents: LogEvent[]; hiddenChanged?: boolean }
+  | { ok: true; logEvents: LogEvent[]; hiddenChanged?: boolean; impact?: IntentImpact }
   | { ok: false; error: string };
 
 export type InnerApplyResult = { ok: true } | { ok: false; error: string };

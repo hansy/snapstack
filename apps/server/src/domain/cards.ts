@@ -1,4 +1,4 @@
-import type { Card, CardIdentity } from "../../../web/src/types/cards";
+import type { Card, CardIdentity, CardLite } from "../../../web/src/types/cards";
 import type { Counter } from "../../../web/src/types/counters";
 import type { Zone } from "../../../web/src/types/zones";
 
@@ -143,6 +143,11 @@ export const stripCardIdentity = (card: Card): Card => ({
   scryfallId: undefined,
   scryfall: undefined,
 });
+
+export const toCardLite = (card: Card): CardLite => {
+  const { oracleText, imageUrl, scryfall, ...rest } = card;
+  return rest;
+};
 
 export const computeTransformTargetIndex = (
   card: Card,

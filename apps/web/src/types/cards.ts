@@ -61,4 +61,7 @@ export interface Card extends CardIdentity {
 
 export type TokenCard = Card & { isToken: true };
 
+// Lightweight card payload for private overlays (no oracle text or images).
+export type CardLite = Omit<Card, "oracleText" | "imageUrl" | "scryfall">;
+
 export const isTokenCard = (card: Card): card is TokenCard => card.isToken === true;

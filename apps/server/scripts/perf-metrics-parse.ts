@@ -12,6 +12,15 @@ type Metrics = {
   intentConnections?: number;
   overlays?: number;
   libraryViews?: number;
+  roomHotness?: { intentsPerSec?: number; intentCount?: number };
+  intentApplyMs?: { avg?: number; p95?: number; count?: number };
+  overlayBuildMs?: {
+    player?: { avg?: number; p95?: number; count?: number };
+    spectator?: { avg?: number; p95?: number; count?: number };
+  };
+  overlayBytesSent?: { snapshot?: number; diff?: number; total?: number };
+  overlayMessagesSent?: { snapshot?: number; diff?: number; total?: number };
+  overlayResyncCount?: number;
   yjs?: Record<string, number>;
   hidden?: Record<string, number> | null;
 };
@@ -128,6 +137,12 @@ if (records.length === 0) {
 const flatten = (metrics: Metrics) => {
   const yjs = metrics.yjs ?? {};
   const hidden = metrics.hidden ?? {};
+  const intentApply = metrics.intentApplyMs ?? {};
+  const overlayBuildPlayer = metrics.overlayBuildMs?.player ?? {};
+  const overlayBuildSpectator = metrics.overlayBuildMs?.spectator ?? {};
+  const overlayBytes = metrics.overlayBytesSent ?? {};
+  const overlayMessages = metrics.overlayMessagesSent ?? {};
+  const roomHotness = metrics.roomHotness ?? {};
   return {
     ts_epoch: typeof metrics.ts === "number" ? metrics.ts : 0,
     ts_iso: metrics.timestamp ?? "",
@@ -138,6 +153,24 @@ const flatten = (metrics: Metrics) => {
     intentConnections: metrics.intentConnections ?? 0,
     overlays: metrics.overlays ?? 0,
     libraryViews: metrics.libraryViews ?? 0,
+    room_hotness_intents_per_sec: roomHotness.intentsPerSec ?? 0,
+    room_hotness_intent_count: roomHotness.intentCount ?? 0,
+    intent_apply_avg_ms: intentApply.avg ?? 0,
+    intent_apply_p95_ms: intentApply.p95 ?? 0,
+    intent_apply_count: intentApply.count ?? 0,
+    overlay_build_player_avg_ms: overlayBuildPlayer.avg ?? 0,
+    overlay_build_player_p95_ms: overlayBuildPlayer.p95 ?? 0,
+    overlay_build_player_count: overlayBuildPlayer.count ?? 0,
+    overlay_build_spectator_avg_ms: overlayBuildSpectator.avg ?? 0,
+    overlay_build_spectator_p95_ms: overlayBuildSpectator.p95 ?? 0,
+    overlay_build_spectator_count: overlayBuildSpectator.count ?? 0,
+    overlay_bytes_snapshot: overlayBytes.snapshot ?? 0,
+    overlay_bytes_diff: overlayBytes.diff ?? 0,
+    overlay_bytes_total: overlayBytes.total ?? 0,
+    overlay_messages_snapshot: overlayMessages.snapshot ?? 0,
+    overlay_messages_diff: overlayMessages.diff ?? 0,
+    overlay_messages_total: overlayMessages.total ?? 0,
+    overlay_resync_count: metrics.overlayResyncCount ?? 0,
     yjs_players: yjs.players ?? 0,
     yjs_zones: yjs.zones ?? 0,
     yjs_cards: yjs.cards ?? 0,
@@ -146,6 +179,9 @@ const flatten = (metrics: Metrics) => {
     yjs_libraryRevealsToAll: yjs.libraryRevealsToAll ?? 0,
     yjs_faceDownRevealsToAll: yjs.faceDownRevealsToAll ?? 0,
     yjs_playerOrder: yjs.playerOrder ?? 0,
+    yjs_bytes_sent: (yjs as any).bytesSent ?? 0,
+    yjs_update_count: (yjs as any).updateCount ?? 0,
+    yjs_updates_per_sec: (yjs as any).updatesPerSec ?? 0,
     hidden_cards: hidden.cards ?? 0,
     hidden_handPlayers: hidden.handPlayers ?? 0,
     hidden_handCards: hidden.handCards ?? 0,
@@ -172,6 +208,24 @@ const headers = [
   "intentConnections",
   "overlays",
   "libraryViews",
+  "room_hotness_intents_per_sec",
+  "room_hotness_intent_count",
+  "intent_apply_avg_ms",
+  "intent_apply_p95_ms",
+  "intent_apply_count",
+  "overlay_build_player_avg_ms",
+  "overlay_build_player_p95_ms",
+  "overlay_build_player_count",
+  "overlay_build_spectator_avg_ms",
+  "overlay_build_spectator_p95_ms",
+  "overlay_build_spectator_count",
+  "overlay_bytes_snapshot",
+  "overlay_bytes_diff",
+  "overlay_bytes_total",
+  "overlay_messages_snapshot",
+  "overlay_messages_diff",
+  "overlay_messages_total",
+  "overlay_resync_count",
   "yjs_players",
   "yjs_zones",
   "yjs_cards",
@@ -180,6 +234,9 @@ const headers = [
   "yjs_libraryRevealsToAll",
   "yjs_faceDownRevealsToAll",
   "yjs_playerOrder",
+  "yjs_bytes_sent",
+  "yjs_update_count",
+  "yjs_updates_per_sec",
   "hidden_cards",
   "hidden_handPlayers",
   "hidden_handCards",
@@ -208,6 +265,24 @@ for (const record of records) {
     flat.intentConnections,
     flat.overlays,
     flat.libraryViews,
+    flat.room_hotness_intents_per_sec,
+    flat.room_hotness_intent_count,
+    flat.intent_apply_avg_ms,
+    flat.intent_apply_p95_ms,
+    flat.intent_apply_count,
+    flat.overlay_build_player_avg_ms,
+    flat.overlay_build_player_p95_ms,
+    flat.overlay_build_player_count,
+    flat.overlay_build_spectator_avg_ms,
+    flat.overlay_build_spectator_p95_ms,
+    flat.overlay_build_spectator_count,
+    flat.overlay_bytes_snapshot,
+    flat.overlay_bytes_diff,
+    flat.overlay_bytes_total,
+    flat.overlay_messages_snapshot,
+    flat.overlay_messages_diff,
+    flat.overlay_messages_total,
+    flat.overlay_resync_count,
     flat.yjs_players,
     flat.yjs_zones,
     flat.yjs_cards,
@@ -216,6 +291,9 @@ for (const record of records) {
     flat.yjs_libraryRevealsToAll,
     flat.yjs_faceDownRevealsToAll,
     flat.yjs_playerOrder,
+    flat.yjs_bytes_sent,
+    flat.yjs_update_count,
+    flat.yjs_updates_per_sec,
     flat.hidden_cards,
     flat.hidden_handPlayers,
     flat.hidden_handCards,

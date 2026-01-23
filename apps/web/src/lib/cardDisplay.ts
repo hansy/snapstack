@@ -1,5 +1,10 @@
 import { Card } from "@/types";
-import { ScryfallCardFaceLite } from "@/types/scryfallLite";
+import {
+  ScryfallCardFaceLite,
+  ScryfallCardLite,
+  toScryfallCardLite,
+} from "@/types/scryfallLite";
+import { peekCachedCard } from "@/services/scryfall/scryfallCache";
 
 const TRANSFORM_LAYOUTS = new Set([
   "transform",
@@ -41,7 +46,15 @@ export const getMorphDisplayStat = (
   return (2 + delta).toString();
 };
 
-export const getCardFaces = (card: Card): ScryfallCardFaceLite[] => card.scryfall?.card_faces ?? [];
+const resolveScryfallLite = (card: Card): ScryfallCardLite | undefined => {
+  if (card.scryfall) return card.scryfall;
+  if (!card.scryfallId) return undefined;
+  const cached = peekCachedCard(card.scryfallId);
+  return cached ? toScryfallCardLite(cached) : undefined;
+};
+
+export const getCardFaces = (card: Card): ScryfallCardFaceLite[] =>
+  resolveScryfallLite(card)?.card_faces ?? [];
 
 export const getCurrentFaceIndex = (card: Card): number => {
   const faces = getCardFaces(card);
@@ -72,7 +85,8 @@ export const getDisplayImageUrl = (
   card: Card,
   opts?: { preferArtCrop?: boolean }
 ): string | undefined => {
-  const faceUris = getCurrentFace(card)?.image_uris || card.scryfall?.image_uris;
+  const scryfall = resolveScryfallLite(card);
+  const faceUris = getCurrentFace(card)?.image_uris || scryfall?.image_uris;
   const preferArt = opts?.preferArtCrop ?? false;
   const faceImage = preferArt ? faceUris?.art_crop ?? faceUris?.normal : faceUris?.normal ?? faceUris?.art_crop;
   return faceImage || card.imageUrl;
@@ -81,7 +95,7 @@ export const getDisplayImageUrl = (
 export const isTransformableCard = (card: Card): boolean => {
   const faces = getCardFaces(card);
   if (faces.length < 2) return false;
-  const layout = card.scryfall?.layout;
+  const layout = resolveScryfallLite(card)?.layout;
   return layout ? TRANSFORM_LAYOUTS.has(layout) : true;
 };
 
@@ -114,13 +128,13 @@ export const getDisplayToughness = (card: Card): string | undefined => {
 };
 
 export const getFlipRotation = (card: Card): number => {
-  const isFlipLayout = card.scryfall?.layout === "flip";
+  const isFlipLayout = resolveScryfallLite(card)?.layout === "flip";
   const isBack = isFlipLayout && getCurrentFaceIndex(card) === 1;
   return isBack ? 180 : 0;
 };
 
 export const getTransformVerb = (card: Card): string => {
-  const layout = card.scryfall?.layout;
+  const layout = resolveScryfallLite(card)?.layout;
   return layout === "flip" ? "Flip" : "Transform";
 };
 
