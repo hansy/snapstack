@@ -1,8 +1,8 @@
-# Snapstack (mtg) monorepo
+# Drawspell monorepo
 
 ## What this repo is
 
-Snapstack is a multiplayer tabletop for Magic: The Gathering cards, with realtime shared state and deck import powered by Scryfall card data. The web client renders the board and handles client-side state, while the backend runs a PartyServer/Cloudflare Durable Object that hosts the Yjs document and per-room tokens. Both apps live under `apps/` and communicate over PartyKit/PartyServer WebSockets.
+Drawspell (drawspell.space) is a multiplayer tabletop for Magic: The Gathering cards, with realtime shared state and deck import powered by Scryfall card data. The web client renders the board and handles client-side state, while the backend runs a PartyServer/Cloudflare Durable Object that hosts the Yjs document and per-room tokens. Both apps live under `apps/` and communicate over PartyKit/PartyServer WebSockets.
 
 ## Architecture at a glance
 

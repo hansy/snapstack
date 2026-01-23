@@ -1,7 +1,7 @@
 # Web App
 
 ## What is this?
-Snapstack's web client, built with TanStack React Start and Vite. It renders the multiplayer board UI, manages client-side state, and connects to the realtime PartyServer. Path: `apps/web`.
+Drawspell's web client, built with TanStack React Start and Vite. It renders the multiplayer board UI, manages client-side state, and connects to the realtime PartyServer. Path: `apps/web`.
 
 ## Responsibilities and boundaries
 - Owns the UI, routing, and client-side stores (`src/store`, `src/components`, `src/routes`).

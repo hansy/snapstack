@@ -7,8 +7,8 @@ export type ResolvedInviteToken = {
   role?: ViewerRole;
 };
 
-const TOKEN_STORAGE_PREFIX = "snapstack:roomTokens:";
-const PENDING_HOST_PREFIX = "snapstack:pendingHost:";
+const TOKEN_STORAGE_PREFIX = "drawspell:roomTokens:";
+const PENDING_HOST_PREFIX = "drawspell:pendingHost:";
 const storage = createSafeStorage();
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

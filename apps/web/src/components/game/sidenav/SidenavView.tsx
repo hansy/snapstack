@@ -12,6 +12,7 @@ import {
   Wifi,
 } from "lucide-react";
 
+import drawspellLogo from "@/assets/drawspell-logo.png";
 import { cn } from "@/lib/utils";
 
 import type { SidenavController } from "@/hooks/game/sidenav/useSidenavController";
@@ -112,16 +113,21 @@ export const SidenavView: React.FC<SidenavController> = ({
         <button
           type="button"
           aria-label="Open menu"
-          className="w-8 h-8 flex items-center justify-center font-bold text-xl text-indigo-500 hover:text-indigo-400 transition-colors font-serif"
+          className="w-8 h-8 flex items-center justify-center transition-transform duration-200 hover:scale-105"
         >
-          S
+          <img
+            src={drawspellLogo}
+            alt=""
+            aria-hidden="true"
+            className="w-5 h-5"
+          />
         </button>
 
         {isMenuOpen && (
           <div className="absolute left-full bottom-0 w-64 pl-2 z-50">
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-2 flex flex-col gap-1 animate-in fade-in slide-in-from-left-2">
               <div className="px-2 py-1 text-xs font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 mb-1">
-                Snapstack Menu
+                Drawspell Menu
               </div>
 
               {!isSpectator && (

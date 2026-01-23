@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "snapstack",
+  "name": "drawspell",
   "compatibility_date": "2025-12-02",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
@@ -15,7 +15,7 @@
     },
     "production": {
       "vars": {
-        "VITE_WEBSOCKET_SERVER": "mtg-server.service-fff.workers.dev",
+        "VITE_WEBSOCKET_SERVER": "drawspell-server.service-fff.workers.dev",
       },
     },
   },

@@ -12,7 +12,7 @@ import { createScryfallCache } from "./cache/createScryfallCache";
 import { createIndexedDbStore } from "./cache/indexedDbStore";
 import { createLruCache } from "./cache/memoryLru";
 
-const DB_NAME = "mtg-scryfall-cache";
+const DB_NAME = "drawspell-scryfall-cache";
 const DB_VERSION = 1;
 const STORE_NAME = "cards";
 

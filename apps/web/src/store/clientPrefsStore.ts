@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { createSafeStorage } from "@/lib/safeStorage";
 
-const STORAGE_KEY = "mtg:client-prefs";
+const STORAGE_KEY = "drawspell:client-prefs";
 export const USERNAME_MAX_LENGTH = 12;
 
 const ADJECTIVES = [

@@ -1,7 +1,7 @@
 # Server
 
 ## What is this?
-Snapstack's realtime backend, built on PartyServer and Cloudflare Durable Objects. It hosts the authoritative Yjs document for each room, applies intents, and manages hidden state. Path: `apps/server`.
+Drawspell's realtime backend, built on PartyServer and Cloudflare Durable Objects. It hosts the authoritative Yjs document for each room, applies intents, and manages hidden state. Path: `apps/server`.
 
 ## Responsibilities and boundaries
 - Owns the authoritative Yjs state for a room and persists it in Durable Object storage.

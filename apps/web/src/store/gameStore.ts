@@ -77,7 +77,7 @@ export const useGameStore = create<GameStore>()(
             });
         },
         {
-            name: 'snapstack-storage',
+            name: 'drawspell-storage',
             version: 2,
             migrate: (persistedState: unknown, _version) => {
                 // v2: only persist identity/session bookkeeping; game state comes from Yjs.

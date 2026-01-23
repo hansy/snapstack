@@ -1,5 +1,5 @@
 {
-  "name": "mtg-server",
+  "name": "drawspell-server",
   "main": "src/server.ts",
   "compatibility_date": "2025-12-17",
   "durable_objects": {

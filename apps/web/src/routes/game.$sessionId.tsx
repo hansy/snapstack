@@ -5,6 +5,12 @@ import { useClientPrefsStore } from '@/store/clientPrefsStore';
 
 export const Route = createFileRoute('/game/$sessionId')({
   component: GameRoute,
+  head: () => ({
+    meta: [
+      { title: "Drawspell Game" },
+      { name: "description", content: "Live multiplayer tabletop." },
+    ],
+  }),
 });
 
 function GameRoute() {
