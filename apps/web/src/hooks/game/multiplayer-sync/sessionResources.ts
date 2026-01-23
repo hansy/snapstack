@@ -232,18 +232,26 @@ export function setupSessionResources({
   let pendingOverlay: PrivateOverlayPayload | null = null;
   let overlayFlushTimer: number | null = null;
 
+  const flushPendingOverlay = () => {
+    if (!pendingOverlay) return;
+    if (overlayFlushTimer !== null) {
+      window.clearTimeout(overlayFlushTimer);
+      overlayFlushTimer = null;
+    }
+    if (useGameStore.getState().sessionId !== sessionId) {
+      pendingOverlay = null;
+      return;
+    }
+    const nextOverlay = pendingOverlay;
+    pendingOverlay = null;
+    useGameStore.getState().applyPrivateOverlay(nextOverlay);
+  };
+
   const scheduleOverlayFlush = () => {
     if (overlayFlushTimer !== null) return;
     overlayFlushTimer = window.setTimeout(() => {
       overlayFlushTimer = null;
-      if (!pendingOverlay) return;
-      if (useGameStore.getState().sessionId !== sessionId) {
-        pendingOverlay = null;
-        return;
-      }
-      const nextOverlay = pendingOverlay;
-      pendingOverlay = null;
-      useGameStore.getState().applyPrivateOverlay(nextOverlay);
+      flushPendingOverlay();
     }, 0);
   };
 
@@ -296,6 +304,9 @@ export function setupSessionResources({
         return;
       }
       if (message.type === "privateOverlayDiff") {
+        if (pendingOverlay) {
+          flushPendingOverlay();
+        }
         const diff = message.payload as PrivateOverlayDiffPayload;
         const applied = useGameStore.getState().applyPrivateOverlayDiff(diff);
         if (!applied) {
