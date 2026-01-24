@@ -68,6 +68,7 @@ export function setupSessionResources({
   onIntentOpen,
   onIntentClose,
 }: SessionSetupDeps): SessionSetupResult | null {
+  console.log("VITE_WEBSOCKET_SERVER", import.meta.env.VITE_WEBSOCKET_SERVER);
   const partyHost = "drawspell-server.service-fff.workers.dev";
 
   console.log("partyHost", partyHost);
