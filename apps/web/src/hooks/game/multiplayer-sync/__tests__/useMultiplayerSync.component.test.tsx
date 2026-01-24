@@ -336,7 +336,7 @@ describe("useMultiplayerSync", () => {
     );
   });
 
-  it("reconnects when the intent socket closes", async () => {
+  it("does not tear down immediately when the intent socket closes", async () => {
     renderHook(() => useMultiplayerSync("session-909"));
 
     await waitFor(() => {
@@ -349,8 +349,36 @@ describe("useMultiplayerSync", () => {
       onClose({ code: 1006, reason: "abnormal" });
     });
 
+    expect(intentTransportMocks.createIntentTransport).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconnects if intent stays closed while provider is disconnected", async () => {
+    renderHook(() => useMultiplayerSync("session-910"));
+
     await waitFor(() => {
-      expect(intentTransportMocks.createIntentTransport).toHaveBeenCalledTimes(2);
+      expect(intentTransportMocks.createIntentTransport).toHaveBeenCalledTimes(1);
     });
+
+    const [{ onClose }] = intentTransportMocks.createIntentTransport.mock.calls[0] as any;
+
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2024-01-01T00:00:00.000Z"));
+
+      act(() => {
+        onClose({ code: 1006, reason: "abnormal" });
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(15_000);
+      });
+      await act(async () => {
+        vi.runOnlyPendingTimers();
+      });
+
+      expect(intentTransportMocks.createIntentTransport).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

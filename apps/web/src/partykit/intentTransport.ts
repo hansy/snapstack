@@ -48,6 +48,19 @@ const initialIntentMeta = (): IntentConnectionMeta => ({
   lastCloseAt: null,
 });
 let activeIntentMeta: IntentConnectionMeta = initialIntentMeta();
+const syncIntentMeta = () => {
+  if (!activeTransport?.isOpen) return;
+  const isOpen = activeTransport.isOpen();
+  if (isOpen === activeIntentMeta.isOpen) return;
+  if (isOpen) {
+    activeIntentMeta.isOpen = true;
+    activeIntentMeta.everConnected = true;
+    activeIntentMeta.lastOpenAt = Date.now();
+  } else {
+    activeIntentMeta.isOpen = false;
+    activeIntentMeta.lastCloseAt = Date.now();
+  }
+};
 
 export const createIntentTransport = ({
   host,
@@ -144,9 +157,10 @@ export const clearIntentTransport = () => {
   activeIntentMeta = initialIntentMeta();
 };
 
-export const getIntentConnectionMeta = (): IntentConnectionMeta => ({
-  ...activeIntentMeta,
-});
+export const getIntentConnectionMeta = (): IntentConnectionMeta => {
+  syncIntentMeta();
+  return { ...activeIntentMeta };
+};
 
 export const sendIntent = (intent: Intent): boolean => {
   if (!activeTransport) return false;
