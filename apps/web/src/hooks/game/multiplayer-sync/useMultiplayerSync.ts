@@ -394,6 +394,9 @@ export function useMultiplayerSync(sessionId: string) {
       scheduleDebouncedTimeout(postSyncInitTimer, 60, attemptJoin);
     });
 
+    provider.connect?.();
+    intentTransport.connect?.();
+
     return () => {
       disposeAwareness();
       awarenessRef.current = null;

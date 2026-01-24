@@ -163,7 +163,7 @@ export class Room extends YServer<Env> {
   >();
   private libraryViewCleanupTimer: number | null = null;
   private overlayService = new OverlayService({
-    roomId: this.name,
+    roomId: "pending",
     sampleLimit: PERF_METRICS_SAMPLE_LIMIT,
   });
   private snapshotStore = new SnapshotStore({
@@ -208,6 +208,14 @@ export class Room extends YServer<Env> {
   private lastIntentMetricsAt = 0;
   private yjsUpdateBytes = 0;
   private yjsUpdateCount = 0;
+
+  async onStart() {
+    this.overlayService = new OverlayService({
+      roomId: this.name,
+      sampleLimit: PERF_METRICS_SAMPLE_LIMIT,
+    });
+    await super.onStart();
+  }
 
   async onLoad() {
     this.ensureYjsMetricsListener();

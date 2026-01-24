@@ -6,6 +6,7 @@ export type IntentTransport = {
   sendMessage: (message: unknown) => boolean;
   close: () => void;
   isOpen?: () => boolean;
+  connect?: () => void;
 };
 
 type IntentTransportOptions = {
@@ -59,6 +60,13 @@ export const createIntentTransport = ({
     socketOptions,
   });
   const isOpen = () => socket.readyState === socket.OPEN;
+  const connect = () => {
+    if (typeof (socket as any).reconnect !== "function") return;
+    if (socket.readyState === socket.OPEN || socket.readyState === socket.CONNECTING) {
+      return;
+    }
+    (socket as any).reconnect();
+  };
 
   return {
     sendIntent: (intent) => {
@@ -78,6 +86,7 @@ export const createIntentTransport = ({
       } catch (_err) {}
     },
     isOpen,
+    connect,
   };
 };
 

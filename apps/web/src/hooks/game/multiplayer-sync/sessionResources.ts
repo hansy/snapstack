@@ -193,7 +193,7 @@ export function setupSessionResources({
     {
       party: PARTY_NAME,
       awareness,
-      connect: true,
+      connect: false,
       params: async () => {
         const state = useGameStore.getState();
         const role = state.viewerRole;
@@ -265,6 +265,7 @@ export function setupSessionResources({
     socketOptions: {
       maxEnqueuedMessages: 0,
       maxRetries: 0,
+      startClosed: true,
     },
     onOpen: () => {
       onIntentOpen?.();
