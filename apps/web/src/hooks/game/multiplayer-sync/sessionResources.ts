@@ -68,10 +68,9 @@ export function setupSessionResources({
   onIntentOpen,
   onIntentClose,
 }: SessionSetupDeps): SessionSetupResult | null {
-  console.log("VITE_WEBSOCKET_SERVER", import.meta.env.VITE_WEBSOCKET_SERVER);
-  const partyHost = "drawspell-server.service-fff.workers.dev";
+  const partyHost = import.meta.env.VITE_WEBSOCKET_SERVER;
+  console.log("[party] Connecting to:", partyHost);
 
-  console.log("partyHost", partyHost);
   cleanupStaleSessions();
   const handles = acquireSession(sessionId);
   setActiveSession(sessionId);
