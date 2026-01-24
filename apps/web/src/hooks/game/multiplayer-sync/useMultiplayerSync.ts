@@ -42,6 +42,8 @@ type JoinBlockedReason =
   | "invite"
   | null;
 
+const CONNECTION_LOGS_ENABLED = false;
+
 export function useMultiplayerSync(sessionId: string) {
   const hasHydrated = useGameStore((state) => state.hasHydrated);
   const viewerRole = useGameStore((state) => state.viewerRole);
@@ -77,6 +79,7 @@ export function useMultiplayerSync(sessionId: string) {
   const clearLastSessionId = useClientPrefsStore((state) => state.clearLastSessionId);
 
   const emitConnectionLog = (eventId: "connection.reconnect" | "connection.reconnectAbandoned" | "connection.authFailure", payload: any) => {
+    if (!CONNECTION_LOGS_ENABLED) return;
     const { players, cards, zones } = useGameStore.getState();
     emitLog(eventId, payload, { players, cards, zones });
   };

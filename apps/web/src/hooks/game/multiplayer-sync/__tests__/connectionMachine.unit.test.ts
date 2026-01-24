@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createConnectionMachineState,
   transitionConnectionMachine,
+  type ConnectionMachineState,
 } from "../connectionMachine";
 import { DEFAULT_BACKOFF_CONFIG } from "../connectionBackoff";
 
@@ -117,8 +118,51 @@ describe("connectionMachine", () => {
     );
 
     expect(state.abandoned).toBe(true);
+    expect(state.phase).toBe("abandoned");
     expect(state.pendingReconnect).toBe(false);
     expect(effects).toEqual([{ type: "abandonReconnect", attempt: 2 }]);
+  });
+
+  it("clears pending reconnect when timer fires", () => {
+    const initial = {
+      ...createConnectionMachineState(),
+      pendingReconnect: true,
+      reconnectAttempt: 2,
+    };
+
+    const { state, effects } = transitionConnectionMachine(
+      initial,
+      { type: "reconnect-timer-fired" },
+      deterministicConfig
+    );
+
+    expect(state.pendingReconnect).toBe(false);
+    expect(state.phase).toBe("connecting");
+    expect(effects).toEqual([]);
+  });
+
+  it("resets state and cancels timers", () => {
+    const initial: ConnectionMachineState = {
+      ...createConnectionMachineState(),
+      phase: "connected",
+      pendingReconnect: true,
+      pendingStableReset: true,
+      reconnectAttempt: 5,
+      abandoned: true,
+    };
+
+    const { state, effects } = transitionConnectionMachine(
+      initial,
+      { type: "reset" },
+      deterministicConfig
+    );
+
+    expect(state.phase).toBe("connecting");
+    expect(state.pendingReconnect).toBe(false);
+    expect(state.pendingStableReset).toBe(false);
+    expect(state.reconnectAttempt).toBe(0);
+    expect(state.abandoned).toBe(false);
+    expect(effects).toEqual([{ type: "cancelReconnect" }, { type: "cancelStableReset" }]);
   });
 
   it("cancels timers when paused", () => {

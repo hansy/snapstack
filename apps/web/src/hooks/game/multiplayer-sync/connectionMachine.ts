@@ -76,6 +76,7 @@ export const transitionConnectionMachine = (
     }
     const attempt = next.reconnectAttempt;
     if (shouldAbandonReconnect(attempt, backoff)) {
+      next.phase = "abandoned";
       next.abandoned = true;
       effects.push({ type: "abandonReconnect", attempt });
       return;
