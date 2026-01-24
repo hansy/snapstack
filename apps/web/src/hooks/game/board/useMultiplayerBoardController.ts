@@ -10,6 +10,7 @@ import { ZONE } from "@/constants/zones";
 import { useScryfallCards } from "@/hooks/scryfall/useScryfallCard";
 import { v4 as uuidv4 } from "uuid";
 import { sendIntent } from "@/partykit/intentTransport";
+import { readRoomTokensFromStorage } from "@/lib/partyKitToken";
 import { useBoardScale } from "./useBoardScale";
 import { useGameContextMenu } from "../context-menu/useGameContextMenu";
 import { useGameDnD } from "../dnd/useGameDnD";
@@ -59,11 +60,16 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const roomLockedByHost = useGameStore((state) => state.roomLockedByHost);
   const roomOverCapacity = useGameStore((state) => state.roomOverCapacity);
   const roomTokens = useGameStore((state) => state.roomTokens);
+  const storedTokens = React.useMemo(
+    () => readRoomTokensFromStorage(sessionId),
+    [sessionId, roomTokens?.playerToken, roomTokens?.spectatorToken]
+  );
+  const shareTokenSource = roomTokens ?? storedTokens;
   const setRoomLockedByHost = useGameStore((state) => state.setRoomLockedByHost);
   const activeModal = useGameStore((state) => state.activeModal);
   const setActiveModal = useGameStore((state) => state.setActiveModal);
   const shareLinksReady = Boolean(
-    roomTokens?.playerToken || roomTokens?.spectatorToken
+    shareTokenSource?.playerToken || shareTokenSource?.spectatorToken
   );
 
   const overCardScale = useDragStore((state) => state.overCardScale);
@@ -216,19 +222,19 @@ const sendLogIntent = React.useCallback(
       return;
     }
     const base = buildShareLink();
-    const playerLink = roomTokens?.playerToken
-      ? buildShareLink({ name: "gt", value: roomTokens.playerToken })
+    const playerLink = shareTokenSource?.playerToken
+      ? buildShareLink({ name: "gt", value: shareTokenSource.playerToken })
       : base;
-    const spectatorLink = roomTokens?.spectatorToken
-      ? buildShareLink({ name: "st", value: roomTokens.spectatorToken })
+    const spectatorLink = shareTokenSource?.spectatorToken
+      ? buildShareLink({ name: "st", value: shareTokenSource.spectatorToken })
       : base;
     setShareLinks({ players: playerLink, spectators: spectatorLink });
   }, [
     buildShareLink,
     isShareDialogOpen,
     shareLinksReady,
-    roomTokens?.playerToken,
-    roomTokens?.spectatorToken,
+    shareTokenSource?.playerToken,
+    shareTokenSource?.spectatorToken,
   ]);
 
   const preferredUsername = useClientPrefsStore((state) => state.username);

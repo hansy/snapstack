@@ -88,9 +88,12 @@ export const SidenavView: React.FC<SidenavController> = ({
     }
     return parts.join(", ");
   }, [peerCounts.players, peerCounts.spectators]);
+  const shareDisabled = !shareLinksReady;
   const shareTooltip = shareLinksReady
     ? "Share room"
-    : "Loading auth tokens for sharing";
+    : syncStatus !== "connected"
+      ? "Connecting to room"
+      : "Loading auth tokens for sharing";
 
   const menu = (
     <div className="flex flex-col items-center gap-2">
@@ -101,7 +104,7 @@ export const SidenavView: React.FC<SidenavController> = ({
           tooltip={shareTooltip}
           onClick={onOpenShareDialog}
           className="hover:text-indigo-400"
-          disabled={!shareLinksReady}
+          disabled={shareDisabled}
         />
       )}
 
