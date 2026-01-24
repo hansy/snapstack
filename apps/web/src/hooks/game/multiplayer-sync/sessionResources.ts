@@ -71,16 +71,12 @@ export function setupSessionResources({
 }: SessionSetupDeps): SessionSetupResult | null {
   const envHost = resolvePartyKitHost(import.meta.env.VITE_WEBSOCKET_SERVER);
   const hardcodedProdHost = "drawspell-server.service-fff.workers.dev";
-  console.log("envHost", envHost);
-
-  console.log("import.meta.env.DEV", import.meta.env.DEV);
-  const defaultHost =
-    import.meta.env.DEV && typeof window !== "undefined"
-      ? "localhost:8787"
-      : typeof window !== "undefined"
-        ? hardcodedProdHost
-        : null;
-  const partyHost = envHost ?? defaultHost;
+  const isDev = import.meta.env.DEV;
+  if (isDev) {
+    console.log("envHost", envHost);
+    console.log("import.meta.env.DEV", import.meta.env.DEV);
+  }
+  const partyHost = isDev ? (envHost ?? "localhost:8787") : hardcodedProdHost;
   if (!partyHost) {
     console.error("[party] VITE_WEBSOCKET_SERVER is required");
     return null;
