@@ -70,6 +70,10 @@ export function setupSessionResources({
   onIntentClose,
 }: SessionSetupDeps): SessionSetupResult | null {
   const envHost = resolvePartyKitHost(import.meta.env.VITE_WEBSOCKET_SERVER);
+
+  console.log("envHost", envHost);
+
+  console.log("import.meta.env.DEV", import.meta.env.DEV);
   const defaultHost =
     import.meta.env.DEV && typeof window !== "undefined"
       ? "localhost:8787"
@@ -159,7 +163,7 @@ export function setupSessionResources({
 
   const resolveTokenForRole = (
     role: ViewerRole | undefined,
-    tokens: RoomTokensPayload | null
+    tokens: RoomTokensPayload | null,
   ): { token?: string; tokenRole?: ViewerRole } => {
     if (!role || !tokens) return {};
     if (role === "spectator") {
@@ -179,9 +183,13 @@ export function setupSessionResources({
 
   const intentViewerRole = useGameStore.getState().viewerRole;
   const intentCapabilities = ["overlay-diff-v1"];
-  const resolvedIntentToken = inviteToken.token && inviteToken.role
-    ? { token: inviteToken.token, tokenRole: inviteToken.role }
-    : resolveTokenForRole(intentViewerRole, useGameStore.getState().roomTokens);
+  const resolvedIntentToken =
+    inviteToken.token && inviteToken.role
+      ? { token: inviteToken.token, tokenRole: inviteToken.role }
+      : resolveTokenForRole(
+          intentViewerRole,
+          useGameStore.getState().roomTokens,
+        );
   const token = resolvedIntentToken.token;
   const tokenRole = resolvedIntentToken.tokenRole;
 
@@ -213,7 +221,7 @@ export function setupSessionResources({
           ...(role ? { viewerRole: role } : {}),
         };
       },
-    }
+    },
   );
 
   if ("on" in provider && typeof provider.on === "function") {
@@ -287,7 +295,7 @@ export function setupSessionResources({
         useGameStore.getState().setRoomTokens(payload);
         writeRoomTokensToStorage(
           sessionId,
-          mergeRoomTokens(useGameStore.getState().roomTokens, payload)
+          mergeRoomTokens(useGameStore.getState().roomTokens, payload),
         );
         clearRoomHostPending(sessionId);
         return;
@@ -295,7 +303,9 @@ export function setupSessionResources({
       if (message.type === "helloAck") {
         const payload = message.payload as { acceptedCapabilities?: string[] };
         if (Array.isArray(payload?.acceptedCapabilities)) {
-          useGameStore.getState().setOverlayCapabilities(payload.acceptedCapabilities);
+          useGameStore
+            .getState()
+            .setOverlayCapabilities(payload.acceptedCapabilities);
         }
         return;
       }
@@ -311,12 +321,14 @@ export function setupSessionResources({
         const diff = message.payload as PrivateOverlayDiffPayload;
         const applied = useGameStore.getState().applyPrivateOverlayDiff(diff);
         if (!applied) {
-          const lastVersion = useGameStore.getState().privateOverlay?.overlayVersion;
+          const lastVersion =
+            useGameStore.getState().privateOverlay?.overlayVersion;
           sendPartyMessage({
             type: "overlayResync",
             payload: {
               reason: "version-mismatch",
-              lastOverlayVersion: typeof lastVersion === "number" ? lastVersion : undefined,
+              lastOverlayVersion:
+                typeof lastVersion === "number" ? lastVersion : undefined,
             },
           });
         }
@@ -371,7 +383,10 @@ export function setupSessionResources({
 
 export function teardownSessionResources(
   sessionId: string,
-  resources: Pick<SessionSetupResult, "awareness" | "provider" | "intentTransport">
+  resources: Pick<
+    SessionSetupResult,
+    "awareness" | "provider" | "intentTransport"
+  >,
 ) {
   setActiveSession(null);
   disposeSessionTransport(
@@ -382,7 +397,7 @@ export function teardownSessionResources(
       setSessionProvider,
       getSessionAwareness,
       setSessionAwareness,
-    }
+    },
   );
   releaseSession(sessionId);
   cleanupStaleSessions();

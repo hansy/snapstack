@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "deploy": "bun run build && wrangler deploy",
+    "deploy": "bun run build && wrangler deploy --env production",
     "preview": "bun run build && vite preview",
     "cf-typegen": "wrangler types",
     "build": "vite build",
