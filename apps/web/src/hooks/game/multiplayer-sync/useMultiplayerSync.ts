@@ -74,6 +74,7 @@ export function useMultiplayerSync(sessionId: string) {
   const connectionGeneration = useRef(0);
   const attemptJoinRef = useRef<(() => void) | null>(null);
   const resourcesRef = useRef<SessionSetupResult | null>(null);
+  const pendingIntentJoinRef = useRef(false);
   const authFailureHandled = useRef(false);
   const setLastSessionId = useClientPrefsStore((state) => state.setLastSessionId);
   const clearLastSessionId = useClientPrefsStore((state) => state.clearLastSessionId);
@@ -291,10 +292,19 @@ export function useMultiplayerSync(sessionId: string) {
       connectionGeneration.current += 1;
     };
 
+    const handleIntentOpen = () => {
+      if (attemptJoinRef.current) {
+        attemptJoinRef.current();
+      } else {
+        pendingIntentJoinRef.current = true;
+      }
+    };
+
     const resources = setupSessionResources({
       sessionId,
       statusSetter: setStatus,
       onIntentClose: handleDisconnect,
+      onIntentOpen: handleIntentOpen,
       onAuthFailure: (reason) => {
         if (authFailureHandled.current) return;
         authFailureHandled.current = true;
@@ -349,6 +359,10 @@ export function useMultiplayerSync(sessionId: string) {
       getRole: () => useGameStore.getState().viewerRole,
     });
     attemptJoinRef.current = attemptJoin;
+    if (pendingIntentJoinRef.current) {
+      pendingIntentJoinRef.current = false;
+      attemptJoin();
+    }
 
     const SYNC_DEBOUNCE_MS = 50;
     const scheduleFullSync = () => {
