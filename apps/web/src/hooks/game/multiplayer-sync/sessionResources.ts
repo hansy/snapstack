@@ -257,7 +257,9 @@ export function setupSessionResources({
     viewerRole: intentViewerRole,
     socketOptions: {
       maxEnqueuedMessages: 0,
-      maxRetries: 0,
+      connectionTimeout: 10_000,
+      minReconnectionDelay: 1_000,
+      maxReconnectionDelay: 10_000,
       startClosed: true,
     },
     onOpen: () => {

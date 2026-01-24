@@ -9,6 +9,13 @@ export type IntentTransport = {
   connect?: () => void;
 };
 
+export type IntentConnectionMeta = {
+  isOpen: boolean;
+  everConnected: boolean;
+  lastOpenAt: number | null;
+  lastCloseAt: number | null;
+};
+
 type IntentTransportOptions = {
   host: string;
   room: string;
@@ -34,6 +41,26 @@ type IntentTransportOptions = {
 };
 
 let activeTransport: IntentTransport | null = null;
+const initialIntentMeta = (): IntentConnectionMeta => ({
+  isOpen: false,
+  everConnected: false,
+  lastOpenAt: null,
+  lastCloseAt: null,
+});
+let activeIntentMeta: IntentConnectionMeta = initialIntentMeta();
+const syncIntentMeta = () => {
+  if (!activeTransport?.isOpen) return;
+  const isOpen = activeTransport.isOpen();
+  if (isOpen === activeIntentMeta.isOpen) return;
+  if (isOpen) {
+    activeIntentMeta.isOpen = true;
+    activeIntentMeta.everConnected = true;
+    activeIntentMeta.lastOpenAt = Date.now();
+  } else {
+    activeIntentMeta.isOpen = false;
+    activeIntentMeta.lastCloseAt = Date.now();
+  }
+};
 
 export const createIntentTransport = ({
   host,
@@ -47,6 +74,23 @@ export const createIntentTransport = ({
   onClose,
   socketOptions,
 }: IntentTransportOptions): IntentTransport => {
+  let transport: IntentTransport | null = null;
+  const handleOpen = () => {
+    if (transport && activeTransport === transport) {
+      activeIntentMeta.isOpen = true;
+      activeIntentMeta.everConnected = true;
+      activeIntentMeta.lastOpenAt = Date.now();
+    }
+    onOpen?.();
+  };
+  const handleClose = (event: CloseEvent) => {
+    if (transport && activeTransport === transport) {
+      activeIntentMeta.isOpen = false;
+      activeIntentMeta.lastCloseAt = Date.now();
+    }
+    onClose?.(event);
+  };
+
   const socket = createIntentSocket({
     host,
     room,
@@ -55,8 +99,8 @@ export const createIntentTransport = ({
     playerId,
     viewerRole,
     onMessage,
-    onOpen,
-    onClose,
+    onOpen: handleOpen,
+    onClose: handleClose,
     socketOptions,
   });
   const isOpen = () => socket.readyState === socket.OPEN;
@@ -68,7 +112,7 @@ export const createIntentTransport = ({
     (socket as any).reconnect();
   };
 
-  return {
+  transport = {
     sendIntent: (intent) => {
       if (!isOpen()) return false;
       const payload = JSON.stringify({ type: "intent", intent });
@@ -88,6 +132,8 @@ export const createIntentTransport = ({
     isOpen,
     connect,
   };
+
+  return transport;
 };
 
 export const setIntentTransport = (transport: IntentTransport | null) => {
@@ -95,6 +141,12 @@ export const setIntentTransport = (transport: IntentTransport | null) => {
     activeTransport.close();
   }
   activeTransport = transport;
+  activeIntentMeta = initialIntentMeta();
+  if (activeTransport?.isOpen && activeTransport.isOpen()) {
+    activeIntentMeta.isOpen = true;
+    activeIntentMeta.everConnected = true;
+    activeIntentMeta.lastOpenAt = Date.now();
+  }
 };
 
 export const clearIntentTransport = () => {
@@ -102,6 +154,12 @@ export const clearIntentTransport = () => {
     activeTransport.close();
   }
   activeTransport = null;
+  activeIntentMeta = initialIntentMeta();
+};
+
+export const getIntentConnectionMeta = (): IntentConnectionMeta => {
+  syncIntentMeta();
+  return { ...activeIntentMeta };
 };
 
 export const sendIntent = (intent: Intent): boolean => {

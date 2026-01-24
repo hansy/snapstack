@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import type { GameState } from "@/types";
 import type { Intent, IntentAck } from "@/partykit/messages";
-import { sendIntent } from "@/partykit/intentTransport";
+import { getIntentConnectionMeta, sendIntent } from "@/partykit/intentTransport";
 
 export type DispatchIntentArgs = {
   type: string;
@@ -25,10 +25,35 @@ const pendingIntents: PendingIntent[] = [];
 let lastAuthoritativeState: GameState | null = null;
 let lastPublicState: GameState | null = null;
 let lastDropToastAt = 0;
+let firstDropAt: number | null = null;
 
 const DROP_TOAST_COOLDOWN_MS = 2000;
+const INTENT_DROP_GRACE_MS = 10_000;
+const INTENT_DISCONNECT_GRACE_MS = 4_000;
+
+const shouldWarnIntentDropped = () => {
+  const now = Date.now();
+  const meta = getIntentConnectionMeta();
+  if (meta.isOpen) {
+    firstDropAt = null;
+    return false;
+  }
+  if (meta.everConnected) {
+    firstDropAt = null;
+    if (meta.lastCloseAt && now - meta.lastCloseAt < INTENT_DISCONNECT_GRACE_MS) {
+      return false;
+    }
+    return true;
+  }
+  if (firstDropAt === null) {
+    firstDropAt = now;
+    return false;
+  }
+  return now - firstDropAt >= INTENT_DROP_GRACE_MS;
+};
 
 const warnIntentDropped = () => {
+  if (!shouldWarnIntentDropped()) return;
   const now = Date.now();
   if (now - lastDropToastAt < DROP_TOAST_COOLDOWN_MS) return;
   lastDropToastAt = now;
@@ -67,6 +92,7 @@ export const resetIntentState = () => {
   lastAuthoritativeState = null;
   lastPublicState = null;
   lastDropToastAt = 0;
+  firstDropAt = null;
 };
 
 export const handleIntentAck = (

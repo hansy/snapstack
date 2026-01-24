@@ -12,6 +12,12 @@ import { toast } from "sonner";
 
 vi.mock("@/partykit/intentTransport", () => ({
   sendIntent: vi.fn(),
+  getIntentConnectionMeta: vi.fn(() => ({
+    isOpen: false,
+    everConnected: true,
+    lastOpenAt: null,
+    lastCloseAt: 0,
+  })),
 }));
 vi.mock("sonner", () => ({
   toast: {
