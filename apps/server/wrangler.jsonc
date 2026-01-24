@@ -16,4 +16,10 @@
       "new_sqlite_classes": ["Room"],
     },
   ],
+  "observability": {
+    "logs": {
+      "enabled": false,
+      "invocation_logs": true,
+    },
+  },
 }
