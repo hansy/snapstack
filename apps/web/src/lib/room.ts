@@ -1,2 +1,1 @@
-export const MAX_PLAYERS = 4;
-export const MAX_ROOM_PLAYERS = MAX_PLAYERS;
+export { MAX_PLAYERS, MAX_ROOM_PLAYERS } from "@mtg/shared/constants/room";

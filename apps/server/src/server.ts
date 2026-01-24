@@ -7,7 +7,7 @@ import {
 import { YServer } from "y-partyserver";
 import * as Y from "yjs";
 
-import type { Card, CardLite } from "../../web/src/types/cards";
+import type { Card } from "@mtg/shared/types/cards";
 
 import {
   HIDDEN_STATE_CARDS_PREFIX,
@@ -21,20 +21,12 @@ import type {
   Intent,
   IntentConnectionState,
   IntentImpact,
-  OverlayMeta,
-  OverlaySnapshotData,
-  PrivateOverlayDiffPayload,
-  PrivateOverlayPayload,
   RoomTokens,
   Snapshot,
 } from "./domain/types";
 import { applyIntentToDoc } from "./domain/intents/applyIntentToDoc";
+import { buildOverlayZoneLookup } from "./domain/overlay";
 import {
-  buildOverlayForViewer,
-  buildOverlayZoneLookup,
-} from "./domain/overlay";
-import {
-  chunkHiddenCards,
   createEmptyHiddenState,
   migrateHiddenStateFromSnapshot,
   normalizeHiddenState,
@@ -46,6 +38,9 @@ import {
   isRecord,
   syncPlayerOrder,
 } from "./domain/yjsStore";
+import { parseConnectionParams, resolveConnectionAuth } from "./connection/auth";
+import { OverlayService, type OverlayBuildResult } from "./overlay/service";
+import { SnapshotStore, type SnapshotMeta } from "./storage/snapshotStore";
 
 const INTENT_ROLE = "intent";
 const EMPTY_ROOM_GRACE_MS = 30_000;
@@ -67,10 +62,7 @@ const PERF_METRICS_MAX_INTERVAL_MS = 300_000;
 const PERF_METRICS_SAMPLE_LIMIT = 5000;
 const LIBRARY_VIEW_PING_TIMEOUT_MS = 45_000;
 const LIBRARY_VIEW_CLEANUP_INTERVAL_MS = 15_000;
-const OVERLAY_SCHEMA_VERSION = 1;
 const OVERLAY_DIFF_CAPABILITY = "overlay-diff-v1";
-const OVERLAY_DIFF_MAX_RATIO = 0.7;
-const OVERLAY_DIFF_MAX_BYTES = 64_000;
 
 const nowMs = () =>
   typeof performance !== "undefined" && typeof performance.now === "function"
@@ -103,67 +95,6 @@ const computeMetricStats = (samples: number[]) => {
   return { avg: sum / count, p95, count };
 };
 
-const getByteLength = (value: string) => {
-  if (typeof TextEncoder !== "undefined") {
-    return new TextEncoder().encode(value).length;
-  }
-  return value.length;
-};
-
-const hashZoneOrder = (cardIds: string[]) => cardIds.join("|");
-
-const hashCardLite = (card: CardLite) => {
-  const revealedTo =
-    Array.isArray(card.revealedTo) && card.revealedTo.length
-      ? [...card.revealedTo].sort().join(",")
-      : "";
-  const counters = Array.isArray(card.counters)
-    ? card.counters
-        .map(
-          (counter) =>
-            `${counter.type}:${counter.count}:${counter.color ?? ""}`
-        )
-        .join("|")
-    : "";
-  const position = card.position
-    ? `${card.position.x},${card.position.y}`
-    : "";
-  return [
-    card.id,
-    card.ownerId,
-    card.controllerId,
-    card.zoneId,
-    card.deckSection ?? "",
-    card.tapped ? "1" : "0",
-    card.faceDown ? "1" : "0",
-    card.faceDownMode ?? "",
-    card.knownToAll ? "1" : "0",
-    card.revealedToAll ? "1" : "0",
-    revealedTo,
-    typeof card.currentFaceIndex === "number" ? String(card.currentFaceIndex) : "",
-    card.isCommander ? "1" : "0",
-    typeof card.commanderTax === "number" ? String(card.commanderTax) : "",
-    position,
-    typeof card.rotation === "number" ? String(card.rotation) : "",
-    counters,
-    card.power ?? "",
-    card.toughness ?? "",
-    card.basePower ?? "",
-    card.baseToughness ?? "",
-    card.customText ?? "",
-    card.name ?? "",
-    card.scryfallId ?? "",
-    card.typeLine ?? "",
-    card.isToken ? "1" : "0",
-  ].join("|");
-};
-
-type OverlayCacheState = {
-  overlayVersion: number;
-  cardHashes: Map<string, string>;
-  zoneOrderHashes: Map<string, { hash: string; version: number }>;
-  meta: OverlayMeta;
-};
 
 type IntentLogMeta = {
   nextIndex: number;
@@ -178,19 +109,6 @@ type IntentLogEntry = {
   intent: Intent;
 };
 
-type SnapshotMeta = {
-  id: string;
-  createdAt: number;
-  lastIntentIndex: number;
-  hiddenStateMeta: HiddenStateMeta;
-};
-
-type OverlayBuildResult = {
-  overlay: OverlaySnapshotData;
-  cardHashes: Map<string, string>;
-  zoneOrderHashes: Map<string, string>;
-  meta: OverlayMeta;
-};
 
 export type Env = {
   rooms: DurableObjectNamespace;
@@ -244,7 +162,16 @@ export class Room extends YServer<Env> {
     { playerId: string; count?: number; lastPingAt: number }
   >();
   private libraryViewCleanupTimer: number | null = null;
-  private overlayStates = new Map<string, OverlayCacheState>();
+  private overlayService = new OverlayService({
+    roomId: this.name,
+    sampleLimit: PERF_METRICS_SAMPLE_LIMIT,
+  });
+  private snapshotStore = new SnapshotStore({
+    storage: this.ctx.storage,
+    yDocStorageKey: Y_DOC_STORAGE_KEY,
+    snapshotMetaKey: SNAPSHOT_META_KEY,
+    snapshotHiddenPrefix: SNAPSHOT_HIDDEN_PREFIX,
+  });
   private connectionCapabilities = new Map<string, Set<string>>();
   private connectionRoles = new Map<Connection, "player" | "spectator">();
   private pendingPlayerConnections = 0;
@@ -277,13 +204,6 @@ export class Room extends YServer<Env> {
   private perfMetricsTimer: number | null = null;
   private yjsMetricsListenerAttached = false;
   private intentApplySamples: number[] = [];
-  private overlayBuildSamples: { player: number[]; spectator: number[] } = {
-    player: [],
-    spectator: [],
-  };
-  private overlayBytesSent = { snapshot: 0, diff: 0 };
-  private overlayMessagesSent = { snapshot: 0, diff: 0 };
-  private overlayResyncCount = 0;
   private intentCountSinceMetrics = 0;
   private lastIntentMetricsAt = 0;
   private yjsUpdateBytes = 0;
@@ -347,7 +267,9 @@ export class Room extends YServer<Env> {
   }
 
   private async restoreFromSnapshotAndLog() {
-    const snapshotMeta = await this.ctx.storage.get<SnapshotMeta>(SNAPSHOT_META_KEY);
+    const snapshotMeta = await this.snapshotStore.loadCommittedMeta({
+      room: this.name,
+    });
     this.snapshotMeta = snapshotMeta ?? null;
 
     if (snapshotMeta) {
@@ -550,7 +472,10 @@ export class Room extends YServer<Env> {
     return true;
   }
 
-  private async persistHiddenState(expectedResetGeneration?: number) {
+  private async persistHiddenState(
+    expectedResetGeneration?: number,
+    connId?: string | null
+  ) {
     if (!this.hiddenState) return;
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     if (this.snapshotBarrier) {
@@ -574,53 +499,26 @@ export class Room extends YServer<Env> {
         intentLogMeta.snapshotIndex,
         intentLogMeta.nextIndex - 1
       );
-      const snapshotId = crypto.randomUUID();
       const createdAt = Date.now();
-
-      try {
-        const update = Y.encodeStateAsUpdate(this.document);
-        await this.ctx.storage.put(Y_DOC_STORAGE_KEY, update.buffer);
-      } catch (err: any) {
-        console.error("[party] failed to save yjs snapshot", {
-          room: this.name,
-          error: err?.message ?? String(err),
-        });
-      }
-
-      if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
-      const { cards, ...rest } = this.hiddenState;
-      const chunks = chunkHiddenCards(cards);
-      const chunkKeys = chunks.map(
-        (_chunk, index) => `${SNAPSHOT_HIDDEN_PREFIX}${snapshotId}:${index}`
-      );
-
-      for (let index = 0; index < chunks.length; index += 1) {
-        if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
-        const key = chunkKeys[index];
-        await this.ctx.storage.put(key, chunks[index]);
-      }
-
-      if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
-      const hiddenMeta: HiddenStateMeta = {
-        ...rest,
-        cardChunkKeys: chunkKeys,
-      };
-      const nextSnapshotMeta: SnapshotMeta = {
-        id: snapshotId,
-        createdAt,
+      const snapshotMeta = await this.snapshotStore.writeSnapshot({
+        doc: this.document,
+        hiddenState: this.hiddenState,
         lastIntentIndex,
-        hiddenStateMeta: hiddenMeta,
-      };
-      if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
-      await this.ctx.storage.put(SNAPSHOT_META_KEY, nextSnapshotMeta);
+        createdAt,
+        shouldAbort: () =>
+          !this.shouldPersistHiddenState(expectedResetGeneration),
+        logContext: { room: this.name, connId },
+      });
+      if (!snapshotMeta) return;
+
       if (!this.shouldPersistHiddenState(expectedResetGeneration)) {
-        await this.cleanupSnapshotWrite(nextSnapshotMeta);
+        await this.snapshotStore.cleanupSnapshot(snapshotMeta);
         return;
       }
-      this.snapshotMeta = nextSnapshotMeta;
+      this.snapshotMeta = snapshotMeta;
 
       if (!this.shouldPersistHiddenState(expectedResetGeneration)) {
-        await this.cleanupSnapshotWrite(nextSnapshotMeta);
+        await this.snapshotStore.cleanupSnapshot(snapshotMeta);
         return;
       }
       const previousLogStart = intentLogMeta.logStartIndex;
@@ -734,18 +632,6 @@ export class Room extends YServer<Env> {
     if (!previous?.hiddenStateMeta?.cardChunkKeys?.length) return;
     for (const key of previous.hiddenStateMeta.cardChunkKeys) {
       if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
-      try {
-        await this.ctx.storage.delete(key);
-      } catch (_err) {}
-    }
-  }
-
-  private async cleanupSnapshotWrite(meta: SnapshotMeta) {
-    try {
-      await this.ctx.storage.delete(SNAPSHOT_META_KEY);
-    } catch (_err) {}
-    const chunkKeys = meta?.hiddenStateMeta?.cardChunkKeys ?? [];
-    for (const key of chunkKeys) {
       try {
         await this.ctx.storage.delete(key);
       } catch (_err) {}
@@ -1072,7 +958,7 @@ export class Room extends YServer<Env> {
   ) {
     const persistStartedAt = Date.now();
     try {
-      await this.persistHiddenState(expectedResetGeneration);
+      await this.persistHiddenState(expectedResetGeneration, connId);
       this.lastHiddenStatePersistAt = persistStartedAt;
     } catch (err: any) {
       let hiddenSize: number | null = null;
@@ -1161,12 +1047,13 @@ export class Room extends YServer<Env> {
     };
 
     const intentStats = computeMetricStats(this.intentApplySamples);
-    const overlayPlayerStats = computeMetricStats(this.overlayBuildSamples.player);
-    const overlaySpectatorStats = computeMetricStats(this.overlayBuildSamples.spectator);
+    const overlayMetrics = this.overlayService.getMetrics();
+    const overlayPlayerStats = computeMetricStats(overlayMetrics.buildSamples.player);
+    const overlaySpectatorStats = computeMetricStats(overlayMetrics.buildSamples.spectator);
     const totalOverlayBytes =
-      this.overlayBytesSent.snapshot + this.overlayBytesSent.diff;
+      overlayMetrics.bytesSent.snapshot + overlayMetrics.bytesSent.diff;
     const totalOverlayMessages =
-      this.overlayMessagesSent.snapshot + this.overlayMessagesSent.diff;
+      overlayMetrics.messagesSent.snapshot + overlayMetrics.messagesSent.diff;
     const intentRate =
       this.intentCountSinceMetrics > 0
         ? this.intentCountSinceMetrics / metricsWindowSec
@@ -1182,7 +1069,7 @@ export class Room extends YServer<Env> {
       reason,
       connections: this.connectionRoles.size,
       intentConnections: this.intentConnections.size,
-      overlays: this.overlayStates.size,
+      overlays: this.overlayService.cacheSize,
       libraryViews: this.libraryViews.size,
       roomHotness: {
         intentsPerSec: intentRate,
@@ -1194,16 +1081,16 @@ export class Room extends YServer<Env> {
         spectator: overlaySpectatorStats,
       },
       overlayBytesSent: {
-        snapshot: this.overlayBytesSent.snapshot,
-        diff: this.overlayBytesSent.diff,
+        snapshot: overlayMetrics.bytesSent.snapshot,
+        diff: overlayMetrics.bytesSent.diff,
         total: totalOverlayBytes,
       },
       overlayMessagesSent: {
-        snapshot: this.overlayMessagesSent.snapshot,
-        diff: this.overlayMessagesSent.diff,
+        snapshot: overlayMetrics.messagesSent.snapshot,
+        diff: overlayMetrics.messagesSent.diff,
         total: totalOverlayMessages,
       },
-      overlayResyncCount: this.overlayResyncCount,
+      overlayResyncCount: overlayMetrics.resyncCount,
       yjs: {
         players: maps.players.size,
         zones: maps.zones.size,
@@ -1237,11 +1124,7 @@ export class Room extends YServer<Env> {
     console.log("[perf] room metrics", metrics);
 
     this.intentApplySamples = [];
-    this.overlayBuildSamples.player = [];
-    this.overlayBuildSamples.spectator = [];
-    this.overlayBytesSent = { snapshot: 0, diff: 0 };
-    this.overlayMessagesSent = { snapshot: 0, diff: 0 };
-    this.overlayResyncCount = 0;
+    this.overlayService.resetMetrics();
     this.intentCountSinceMetrics = 0;
     this.lastIntentMetricsAt = now;
     this.yjsUpdateBytes = 0;
@@ -1253,17 +1136,6 @@ export class Room extends YServer<Env> {
     const now = Date.now();
     if (now - this.lastPerfMetricsAt < this.perfMetricsIntervalMs) return;
     this.logPerfMetrics(reason);
-  }
-
-  private recordOverlaySend(type: "snapshot" | "diff", message: string) {
-    const bytes = getByteLength(message);
-    if (type === "snapshot") {
-      this.overlayBytesSent.snapshot += bytes;
-      this.overlayMessagesSent.snapshot += 1;
-    } else {
-      this.overlayBytesSent.diff += bytes;
-      this.overlayMessagesSent.diff += 1;
-    }
   }
 
   private handleHelloMessage(conn: Connection, payload: unknown) {
@@ -1420,7 +1292,7 @@ export class Room extends YServer<Env> {
       this.intentLogWritePromise = Promise.resolve();
       this.libraryViews.clear();
       this.clearLibraryViewCleanupTimer();
-      this.overlayStates.clear();
+      this.overlayService.clearCache();
 
       try {
         this.clearPublicState(this.document);
@@ -1466,7 +1338,7 @@ export class Room extends YServer<Env> {
       if (this.libraryViews.size === 0) {
         this.clearLibraryViewCleanupTimer();
       }
-      this.overlayStates.delete(conn.id);
+      this.overlayService.removeConnection(conn.id);
       if (!connectionRegistered) return;
       this.unregisterConnection(conn);
       console.warn("[party] intent connection closed", {
@@ -1483,63 +1355,33 @@ export class Room extends YServer<Env> {
       if (this.libraryViews.size === 0) {
         this.clearLibraryViewCleanupTimer();
       }
-      this.overlayStates.delete(conn.id);
+      this.overlayService.removeConnection(conn.id);
       try {
         conn.close(1008, reason);
       } catch (_err) {}
     };
 
     const storedTokens = await this.loadRoomTokens();
-    let activeTokens = storedTokens;
-    const providedToken = state.token;
-
-    if (!providedToken) {
-      if (storedTokens) {
-        rejectConnection("missing token");
-        return;
-      }
-      if (state.viewerRole === "spectator") {
-        rejectConnection("missing token");
-        return;
-      }
-      if (!state.playerId) {
-        rejectConnection("missing player");
-        return;
-      }
-      activeTokens = await this.ensureRoomTokens();
-    } else {
-      activeTokens = activeTokens ?? (await this.ensureRoomTokens());
-      if (
-        providedToken !== activeTokens.playerToken &&
-        providedToken !== activeTokens.spectatorToken
-      ) {
-        rejectConnection("invalid token");
-        return;
-      }
-    }
-
-    const requestedRole = state.viewerRole;
-    const tokenRole =
-      providedToken && activeTokens?.spectatorToken === providedToken
-        ? "spectator"
-        : "player";
-    resolvedRole =
-      tokenRole === "spectator" || requestedRole === "spectator"
-        ? "spectator"
-        : "player";
-    resolvedPlayerId =
-      resolvedRole === "spectator" ? undefined : state.playerId;
-    if (resolvedRole === "player" && !resolvedPlayerId) {
-      rejectConnection("missing player");
+    const auth = await resolveConnectionAuth(
+      state,
+      storedTokens,
+      () => this.ensureRoomTokens(),
+      { allowTokenCreation: true }
+    );
+    if (!auth.ok) {
+      rejectConnection(auth.reason);
       return;
     }
+    const activeTokens = auth.tokens;
+    resolvedRole = auth.resolvedRole;
+    resolvedPlayerId = auth.playerId;
 
     if (connectionClosed) return;
     this.capturePerfMetricsFlag(url);
     conn.setState({
       playerId: resolvedPlayerId,
       viewerRole: resolvedRole,
-      token: providedToken ?? activeTokens?.playerToken,
+      token: auth.token,
     });
     this.registerConnection(conn, resolvedRole);
     connectionRegistered = true;
@@ -1548,7 +1390,7 @@ export class Room extends YServer<Env> {
       connId: conn.id,
       playerId: resolvedPlayerId,
       viewerRole: resolvedRole,
-      hasToken: Boolean(providedToken ?? activeTokens?.playerToken),
+      hasToken: Boolean(auth.token),
     });
 
     if (activeTokens) {
@@ -1593,10 +1435,9 @@ export class Room extends YServer<Env> {
     let connectionClosed = false;
     let connectionRegistered = false;
     const state = parseConnectionParams(url);
-    const providedToken = state.token;
-    const resolvedRole = state.viewerRole ?? "player";
+    const initialRole = state.viewerRole ?? "player";
     const pendingRelease =
-      resolvedRole === "player" ? this.beginPendingPlayerConnection() : null;
+      initialRole === "player" ? this.beginPendingPlayerConnection() : null;
     let pendingReleased = false;
     const finalizePending = () => {
       if (pendingReleased) return;
@@ -1633,47 +1474,22 @@ export class Room extends YServer<Env> {
       throw err;
     }
 
-    if (!providedToken) {
-      if (storedTokens) {
-        rejectConnection("missing token");
-        return;
-      }
-      if (state.viewerRole === "spectator") {
-        rejectConnection("missing token");
-        return;
-      }
-      if (!state.playerId) {
-        rejectConnection("missing player");
-        return;
-      }
-      if (connectionClosed) {
-        finalizePending();
-        return;
-      }
-      if (this.teardownInProgress) {
-        rejectForReset();
-        return;
-      }
-      this.capturePerfMetricsFlag(url);
-      this.registerConnection(conn, resolvedRole);
-      connectionRegistered = true;
-      finalizePending();
-      return super.onConnect(conn, ctx);
-    }
-
-    let activeTokens: RoomTokens;
+    let resolvedRole: "player" | "spectator";
     try {
-      activeTokens = storedTokens ?? (await this.ensureRoomTokens());
+      const auth = await resolveConnectionAuth(
+        state,
+        storedTokens,
+        () => this.ensureRoomTokens(),
+        { allowTokenCreation: false }
+      );
+      if (!auth.ok) {
+        rejectConnection(auth.reason);
+        return;
+      }
+      resolvedRole = auth.resolvedRole;
     } catch (err) {
       finalizePending();
       throw err;
-    }
-    if (
-      providedToken !== activeTokens.playerToken &&
-      providedToken !== activeTokens.spectatorToken
-    ) {
-      rejectConnection("invalid token");
-      return;
     }
 
     if (connectionClosed) {
@@ -1844,7 +1660,7 @@ export class Room extends YServer<Env> {
       const viewerRole = state.viewerRole ?? "player";
       const viewerId = state.playerId;
       const libraryView = this.libraryViews.get(conn.id);
-      const buildResult = this.buildOverlaySnapshotData({
+      const buildResult = this.overlayService.buildOverlaySnapshotData({
         snapshot: overlaySnapshot,
         zoneLookup: overlayZoneLookup,
         hidden: activeHidden,
@@ -1852,7 +1668,13 @@ export class Room extends YServer<Env> {
         viewerId,
         libraryView,
       });
-      this.sendOverlayForConnectionWithBuildResult(conn, buildResult, viewerId, {
+      const capabilities = this.connectionCapabilities.get(conn.id);
+      const supportsDiff = capabilities?.has(OVERLAY_DIFF_CAPABILITY) ?? false;
+      this.overlayService.sendOverlayForConnection({
+        conn,
+        buildResult,
+        viewerId,
+        supportsDiff,
         forceSnapshot: options?.forceSnapshot,
       });
     } catch (_err) {}
@@ -1910,7 +1732,7 @@ export class Room extends YServer<Env> {
       }`;
       let buildResult = overlayBuildCache.get(cacheKey);
       if (!buildResult) {
-        buildResult = this.buildOverlaySnapshotData({
+        buildResult = this.overlayService.buildOverlaySnapshotData({
           snapshot,
           zoneLookup,
           hidden,
@@ -1920,326 +1742,16 @@ export class Room extends YServer<Env> {
         });
         overlayBuildCache.set(cacheKey, buildResult);
       }
-      this.sendOverlayForConnectionWithBuildResult(
-        connection,
+      const capabilities = this.connectionCapabilities.get(connection.id);
+      const supportsDiff = capabilities?.has(OVERLAY_DIFF_CAPABILITY) ?? false;
+      this.overlayService.sendOverlayForConnection({
+        conn: connection,
         buildResult,
-        viewerId
-      );
+        viewerId,
+        supportsDiff,
+      });
     }
     this.maybeLogPerfMetrics("overlay-broadcast");
-  }
-
-  private sendOverlayForConnectionWithBuildResult(
-    conn: Connection,
-    buildResult: OverlayBuildResult,
-    viewerId?: string,
-    options?: { forceSnapshot?: boolean }
-  ) {
-    try {
-      const cache = this.overlayStates.get(conn.id);
-      const capabilities = this.connectionCapabilities.get(conn.id);
-      const supportsDiff = capabilities?.has(OVERLAY_DIFF_CAPABILITY) ?? false;
-      const forceSnapshot = options?.forceSnapshot ?? false;
-      const diffResult =
-        cache && !forceSnapshot ? this.computeOverlayDiff(buildResult, cache) : null;
-
-      if (cache && diffResult && !diffResult.hasChanges) return;
-
-      if (!cache || !supportsDiff || forceSnapshot) {
-        const { zoneCardOrderVersions, nextZoneOrderHashes } =
-          this.computeZoneOrderVersions(buildResult, cache);
-        const nextOverlayVersion = (cache?.overlayVersion ?? 0) + 1;
-        const payload = this.buildOverlaySnapshotPayload({
-          overlay: buildResult.overlay,
-          overlayVersion: nextOverlayVersion,
-          zoneCardOrderVersions,
-          viewerId,
-          meta: buildResult.meta,
-        });
-        const message = JSON.stringify({
-          type: "privateOverlay",
-          payload,
-        });
-        conn.send(message);
-        this.recordOverlaySend("snapshot", message);
-        if (forceSnapshot && cache) {
-          this.overlayResyncCount += 1;
-        }
-        this.overlayStates.set(conn.id, {
-          overlayVersion: nextOverlayVersion,
-          cardHashes: buildResult.cardHashes,
-          zoneOrderHashes: nextZoneOrderHashes,
-          meta: buildResult.meta,
-        });
-        return;
-      }
-
-      if (!diffResult) return;
-
-      const baseOverlayVersion = cache.overlayVersion;
-      const nextOverlayVersion = baseOverlayVersion + 1;
-
-      const diffPayload = this.buildOverlayDiffPayload({
-        diff: diffResult.diff,
-        overlayVersion: nextOverlayVersion,
-        baseOverlayVersion,
-        viewerId,
-        meta: buildResult.meta,
-      });
-      const diffMessage = JSON.stringify({
-        type: "privateOverlayDiff",
-        payload: diffPayload,
-      });
-
-      const { zoneCardOrderVersions, nextZoneOrderHashes } =
-        this.computeZoneOrderVersions(buildResult, cache);
-      const snapshotPayload = this.buildOverlaySnapshotPayload({
-        overlay: buildResult.overlay,
-        overlayVersion: nextOverlayVersion,
-        zoneCardOrderVersions,
-        viewerId,
-        meta: buildResult.meta,
-      });
-      const snapshotMessage = JSON.stringify({
-        type: "privateOverlay",
-        payload: snapshotPayload,
-      });
-
-      const diffBytes = getByteLength(diffMessage);
-      const snapshotBytes = getByteLength(snapshotMessage);
-
-      if (this.shouldFallbackToSnapshot(diffBytes, snapshotBytes)) {
-        conn.send(snapshotMessage);
-        this.recordOverlaySend("snapshot", snapshotMessage);
-        this.overlayResyncCount += 1;
-        this.overlayStates.set(conn.id, {
-          overlayVersion: nextOverlayVersion,
-          cardHashes: buildResult.cardHashes,
-          zoneOrderHashes: nextZoneOrderHashes,
-          meta: buildResult.meta,
-        });
-        return;
-      }
-
-      conn.send(diffMessage);
-      this.recordOverlaySend("diff", diffMessage);
-      this.overlayStates.set(conn.id, {
-        overlayVersion: nextOverlayVersion,
-        cardHashes: buildResult.cardHashes,
-        zoneOrderHashes: diffResult.nextZoneOrderHashes,
-        meta: buildResult.meta,
-      });
-    } catch (_err) {}
-  }
-
-  private buildOverlaySnapshotData(params: {
-    snapshot: Snapshot;
-    zoneLookup: ReturnType<typeof buildOverlayZoneLookup>;
-    hidden: HiddenState;
-    viewerRole: "player" | "spectator";
-    viewerId?: string;
-    libraryView?: { playerId: string; count?: number };
-  }): OverlayBuildResult {
-    const buildStart = nowMs();
-    const overlay = buildOverlayForViewer({
-      snapshot: params.snapshot,
-      zoneLookup: params.zoneLookup,
-      hidden: params.hidden,
-      viewerRole: params.viewerRole,
-      viewerId: params.viewerId,
-      libraryView: params.libraryView,
-    });
-    const buildDuration = nowMs() - buildStart;
-    if (params.viewerRole === "spectator") {
-      sampleMetric(this.overlayBuildSamples.spectator, buildDuration);
-    } else {
-      sampleMetric(this.overlayBuildSamples.player, buildDuration);
-    }
-
-    const cardHashes = new Map<string, string>();
-    let cardsWithArt = 0;
-    for (const card of overlay.cards ?? []) {
-      cardHashes.set(card.id, hashCardLite(card));
-      if (typeof card.scryfallId === "string" && card.scryfallId.length > 0) {
-        cardsWithArt += 1;
-      }
-    }
-    const viewerHandCount =
-      params.viewerRole !== "spectator" && params.viewerId
-        ? (params.hidden.handOrder[params.viewerId]?.length ?? 0)
-        : 0;
-    const zoneOrderHashes = new Map<string, string>();
-    if (overlay.zoneCardOrders) {
-      for (const [zoneId, cardIds] of Object.entries(overlay.zoneCardOrders)) {
-        if (!Array.isArray(cardIds)) continue;
-        zoneOrderHashes.set(zoneId, hashZoneOrder(cardIds));
-      }
-    }
-
-    return {
-      overlay,
-      cardHashes,
-      zoneOrderHashes,
-      meta: {
-        cardCount: overlay.cards?.length ?? 0,
-        cardsWithArt,
-        viewerHandCount,
-      },
-    };
-  }
-
-  private buildOverlaySnapshotPayload(params: {
-    overlay: OverlaySnapshotData;
-    overlayVersion: number;
-    zoneCardOrderVersions: Record<string, number>;
-    viewerId?: string;
-    meta: OverlayMeta;
-  }): PrivateOverlayPayload {
-    return {
-      schemaVersion: OVERLAY_SCHEMA_VERSION,
-      overlayVersion: params.overlayVersion,
-      roomId: this.name,
-      ...(params.viewerId ? { viewerId: params.viewerId } : null),
-      cards: params.overlay.cards,
-      ...(params.overlay.zoneCardOrders
-        ? { zoneCardOrders: params.overlay.zoneCardOrders }
-        : null),
-      ...(Object.keys(params.zoneCardOrderVersions).length
-        ? { zoneCardOrderVersions: params.zoneCardOrderVersions }
-        : null),
-      meta: params.meta,
-    };
-  }
-
-  private buildOverlayDiffPayload(params: {
-    diff: {
-      upserts: CardLite[];
-      removes: string[];
-      zoneCardOrders?: Record<string, string[]>;
-      zoneOrderRemovals?: string[];
-      zoneCardOrderVersions?: Record<string, number>;
-    };
-    overlayVersion: number;
-    baseOverlayVersion: number;
-    viewerId?: string;
-    meta: OverlayMeta;
-  }): PrivateOverlayDiffPayload {
-    return {
-      schemaVersion: OVERLAY_SCHEMA_VERSION,
-      overlayVersion: params.overlayVersion,
-      baseOverlayVersion: params.baseOverlayVersion,
-      roomId: this.name,
-      ...(params.viewerId ? { viewerId: params.viewerId } : null),
-      upserts: params.diff.upserts,
-      removes: params.diff.removes,
-      ...(params.diff.zoneCardOrders
-        ? { zoneCardOrders: params.diff.zoneCardOrders }
-        : null),
-      ...(params.diff.zoneOrderRemovals && params.diff.zoneOrderRemovals.length
-        ? { zoneOrderRemovals: params.diff.zoneOrderRemovals }
-        : null),
-      ...(params.diff.zoneCardOrderVersions &&
-      Object.keys(params.diff.zoneCardOrderVersions).length
-        ? { zoneCardOrderVersions: params.diff.zoneCardOrderVersions }
-        : null),
-      meta: params.meta,
-    };
-  }
-
-  private computeZoneOrderVersions(
-    build: OverlayBuildResult,
-    cache?: OverlayCacheState
-  ) {
-    const zoneCardOrderVersions: Record<string, number> = {};
-    const nextZoneOrderHashes = new Map<string, { hash: string; version: number }>();
-
-    for (const [zoneId, hash] of build.zoneOrderHashes.entries()) {
-      const prev = cache?.zoneOrderHashes.get(zoneId);
-      const version = prev
-        ? prev.hash === hash
-          ? prev.version
-          : prev.version + 1
-        : 1;
-      zoneCardOrderVersions[zoneId] = version;
-      nextZoneOrderHashes.set(zoneId, { hash, version });
-    }
-
-    return { zoneCardOrderVersions, nextZoneOrderHashes };
-  }
-
-  private computeOverlayDiff(build: OverlayBuildResult, cache: OverlayCacheState) {
-    const upserts: CardLite[] = [];
-    for (const card of build.overlay.cards ?? []) {
-      const hash = build.cardHashes.get(card.id);
-      const prev = cache.cardHashes.get(card.id);
-      if (!prev || !hash || prev !== hash) {
-        upserts.push(card);
-      }
-    }
-
-    const removes: string[] = [];
-    for (const cardId of cache.cardHashes.keys()) {
-      if (!build.cardHashes.has(cardId)) {
-        removes.push(cardId);
-      }
-    }
-
-    const zoneOrderRemovals: string[] = [];
-    const zoneCardOrders: Record<string, string[]> = {};
-    const zoneCardOrderVersions: Record<string, number> = {};
-    const nextZoneOrderHashes = new Map<string, { hash: string; version: number }>();
-
-    for (const [zoneId, hash] of build.zoneOrderHashes.entries()) {
-      const prev = cache.zoneOrderHashes.get(zoneId);
-      const version = prev
-        ? prev.hash === hash
-          ? prev.version
-          : prev.version + 1
-        : 1;
-      nextZoneOrderHashes.set(zoneId, { hash, version });
-      if (!prev || prev.hash !== hash) {
-        const nextOrder = build.overlay.zoneCardOrders?.[zoneId];
-        if (Array.isArray(nextOrder)) {
-          zoneCardOrders[zoneId] = nextOrder;
-          zoneCardOrderVersions[zoneId] = version;
-        }
-      }
-    }
-
-    for (const zoneId of cache.zoneOrderHashes.keys()) {
-      if (!build.zoneOrderHashes.has(zoneId)) {
-        zoneOrderRemovals.push(zoneId);
-      }
-    }
-
-    const hasChanges =
-      upserts.length > 0 ||
-      removes.length > 0 ||
-      Object.keys(zoneCardOrders).length > 0 ||
-      zoneOrderRemovals.length > 0;
-
-    return {
-      hasChanges,
-      diff: {
-        upserts,
-        removes,
-        ...(Object.keys(zoneCardOrders).length
-          ? { zoneCardOrders }
-          : null),
-        ...(zoneOrderRemovals.length ? { zoneOrderRemovals } : null),
-        ...(Object.keys(zoneCardOrderVersions).length
-          ? { zoneCardOrderVersions }
-          : null),
-      },
-      nextZoneOrderHashes,
-    };
-  }
-
-  private shouldFallbackToSnapshot(diffBytes: number, snapshotBytes: number) {
-    if (!Number.isFinite(diffBytes) || !Number.isFinite(snapshotBytes)) return true;
-    if (diffBytes > OVERLAY_DIFF_MAX_BYTES) return true;
-    if (snapshotBytes <= 0) return true;
-    return diffBytes / snapshotBytes > OVERLAY_DIFF_MAX_RATIO;
   }
 
   private async handleLibraryViewIntent(conn: Connection, intent: Intent) {
@@ -2298,23 +1810,3 @@ export class Room extends YServer<Env> {
     this.ensureLibraryViewCleanupTimer();
   }
 }
-
-const parseViewerRole = (
-  value: string | null | undefined
-): IntentConnectionState["viewerRole"] =>
-  value === "player" || value === "spectator" ? value : undefined;
-
-const parseConnectionParams = (url: URL): IntentConnectionState => {
-  const playerId = url.searchParams.get("playerId") ?? undefined;
-  const spectatorToken = url.searchParams.get("st");
-  const playerToken = url.searchParams.get("gt");
-  const token = spectatorToken ?? playerToken ?? undefined;
-  const viewerRoleParam = url.searchParams.get("viewerRole");
-  let viewerRole = parseViewerRole(viewerRoleParam);
-  if (spectatorToken) {
-    viewerRole = "spectator";
-  } else if (playerToken && viewerRole !== "spectator") {
-    viewerRole = "player";
-  }
-  return { playerId, viewerRole, token };
-};

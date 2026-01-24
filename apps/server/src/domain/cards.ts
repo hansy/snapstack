@@ -1,8 +1,8 @@
-import type { Card, CardIdentity, CardLite } from "../../../web/src/types/cards";
-import type { Counter } from "../../../web/src/types/counters";
-import type { Zone } from "../../../web/src/types/zones";
+import type { Card, CardIdentity, CardLite } from "@mtg/shared/types/cards";
+import type { Counter } from "@mtg/shared/types/counters";
+import type { Zone } from "@mtg/shared/types/zones";
 
-import { LEGACY_COMMAND_ZONE, ZONE } from "./constants";
+import { ZONE } from "./constants";
 import {
   bumpPosition,
   clampNormalizedPosition,
@@ -107,9 +107,6 @@ export const decrementCounter = (existing: Counter[], type: string, delta: numbe
   next.splice(idx, 1);
   return next;
 };
-
-export const isCommanderZoneType = (zoneType: Zone["type"] | typeof LEGACY_COMMAND_ZONE) =>
-  zoneType === ZONE.COMMANDER || zoneType === LEGACY_COMMAND_ZONE;
 
 export const resolveControllerAfterMove = (card: Card, fromZone: Zone, toZone: Zone): string => {
   if (toZone.type === ZONE.BATTLEFIELD) {

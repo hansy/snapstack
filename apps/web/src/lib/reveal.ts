@@ -1,13 +1,6 @@
 import type { Card, LibraryTopRevealMode, PlayerId, ViewerRole, ZoneType } from "@/types";
 import { ZONE } from "@/constants/zones";
-
-export const isHiddenZoneType = (zoneType: ZoneType | undefined) => {
-  return zoneType === ZONE.HAND || zoneType === ZONE.LIBRARY || zoneType === ZONE.SIDEBOARD;
-};
-
-export const isPublicZoneType = (zoneType: ZoneType | undefined) => {
-  return Boolean(zoneType) && !isHiddenZoneType(zoneType);
-};
+import { isHiddenZoneType } from "@mtg/shared/constants/zones";
 
 export const canViewerSeeLibraryCardByReveal = (
   card: Pick<Card, "knownToAll" | "revealedToAll" | "revealedTo">,

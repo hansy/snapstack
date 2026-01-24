@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canMoveCard, canViewZone, canCreateToken, canUpdatePlayer, canModifyCardState } from '../permissions';
+import { canMoveCard, canViewZone, canCreateToken, canUpdatePlayer, canModifyCardState, canTapCard } from '../permissions';
 import { ZONE } from '@/constants/zones';
 import { Card, Zone, Player } from '@/types';
 
@@ -187,6 +187,28 @@ describe('canModifyCardState', () => {
     const card = makeCard({ ownerId: 'owner', controllerId: 'p1', zoneId: battlefield.id });
     expect(
       canModifyCardState({ actorId: 'spec', role: 'spectator' }, card, battlefield).allowed
+    ).toBe(false);
+  });
+});
+
+describe('canTapCard', () => {
+  it('allows the controller to tap on the battlefield', () => {
+    const battlefield = makeZone('bf', ZONE.BATTLEFIELD, 'owner');
+    const card = makeCard({ ownerId: 'owner', controllerId: 'owner', zoneId: battlefield.id });
+    expect(canTapCard({ actorId: 'owner' }, card, battlefield).allowed).toBe(true);
+  });
+
+  it('denies tapping outside the battlefield', () => {
+    const hand = makeZone('hand', ZONE.HAND, 'owner');
+    const card = makeCard({ ownerId: 'owner', controllerId: 'owner', zoneId: hand.id });
+    expect(canTapCard({ actorId: 'owner' }, card, hand).allowed).toBe(false);
+  });
+
+  it('blocks spectators from tapping cards', () => {
+    const battlefield = makeZone('bf', ZONE.BATTLEFIELD, 'owner');
+    const card = makeCard({ ownerId: 'owner', controllerId: 'owner', zoneId: battlefield.id });
+    expect(
+      canTapCard({ actorId: 'spec', role: 'spectator' }, card, battlefield).allowed
     ).toBe(false);
   });
 });

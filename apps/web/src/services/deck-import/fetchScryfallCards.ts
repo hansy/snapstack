@@ -2,6 +2,13 @@ import type { Card } from "@/types";
 import type { ScryfallCard, ScryfallIdentifier } from "@/types/scryfall";
 import { toScryfallCardLite } from "@/types/scryfallLite";
 import { cacheCards } from "@/services/scryfall/scryfallCache";
+import {
+  buildScryfallHttpError,
+  buildScryfallInvalidResponseError,
+  buildScryfallNetworkError,
+  type ScryfallFetchError,
+  type ScryfallFetchResult,
+} from "@/services/scryfall/scryfallErrors";
 import type { FetchScryfallResult, ParsedCard } from "./types";
 
 type ScryfallCollectionResponse = {
@@ -148,23 +155,37 @@ const mergeMissingCard = (missingMap: Map<string, ParsedCard>, card: ParsedCard)
 const fetchCardByName = async (
   request: (url: string, init?: RequestInit) => Promise<Response>,
   name: string
-): Promise<ScryfallCard | null> => {
-  const tryMode = async (mode: "exact" | "fuzzy") => {
+): Promise<ScryfallFetchResult<ScryfallCard | null>> => {
+  const tryMode = async (mode: "exact" | "fuzzy"): Promise<ScryfallFetchResult<ScryfallCard | null>> => {
     const param = mode === "exact" ? "exact" : "fuzzy";
+    const url = `https://api.scryfall.com/cards/named?${param}=${encodeURIComponent(name)}`;
     try {
-      const response = await request(
-        `https://api.scryfall.com/cards/named?${param}=${encodeURIComponent(name)}`
-      );
-      if (!response.ok) return null;
-      const data = await response.json();
-      if (data.object === "error") return null;
-      return data as ScryfallCard;
-    } catch {
-      return null;
+      const response = await request(url);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { ok: true, data: null };
+        }
+        return { ok: false, error: buildScryfallHttpError({ endpoint: "named", url, response }) };
+      }
+      let data: unknown;
+      try {
+        data = await response.json();
+      } catch (error) {
+        return {
+          ok: false,
+          error: buildScryfallInvalidResponseError({ endpoint: "named", url, error }),
+        };
+      }
+      if ((data as { object?: string })?.object === "error") return { ok: true, data: null };
+      return { ok: true, data: data as ScryfallCard };
+    } catch (error) {
+      return { ok: false, error: buildScryfallNetworkError({ endpoint: "named", url, error }) };
     }
   };
 
-  return (await tryMode("exact")) ?? (await tryMode("fuzzy"));
+  const exact = await tryMode("exact");
+  if (!exact.ok || exact.data) return exact;
+  return await tryMode("fuzzy");
 };
 
 const chunkArray = <T,>(items: T[], size: number): T[][] => {
@@ -243,33 +264,51 @@ export const fetchScryfallCards = async (
   const fetchedCards: (Partial<Card> & { section: ParsedCard["section"] })[] = [];
   const missingMap = new Map<string, ParsedCard>();
   const warnings: string[] = [];
+  const errors: ScryfallFetchError[] = [];
   const cardsToCache: ScryfallCard[] = [];
+  const collectionUrl = "https://api.scryfall.com/cards/collection";
 
   for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
     const identifierChunk = chunks[chunkIndex] ?? [];
     const requestsChunk = requestChunks[chunkIndex] ?? [];
 
     try {
-      const response = await rateLimitedRequest(
-        "https://api.scryfall.com/cards/collection",
-        {
+      const response = await rateLimitedRequest(collectionUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ identifiers: identifierChunk }),
-        }
-      );
+      });
 
       if (!response.ok) {
-        warnings.push(
-          `Scryfall API error (${response.status} ${response.statusText}). Skipping these cards.`
+        errors.push(buildScryfallHttpError({ endpoint: "collection", url: collectionUrl, response }));
+        requestsChunk.forEach((request) => mergeMissingCard(missingMap, request));
+        continue;
+      }
+
+      let data: ScryfallCollectionResponse;
+      try {
+        data = (await response.json()) as ScryfallCollectionResponse;
+      } catch (error) {
+        errors.push(
+          buildScryfallInvalidResponseError({ endpoint: "collection", url: collectionUrl, error })
         );
         requestsChunk.forEach((request) => mergeMissingCard(missingMap, request));
         continue;
       }
 
-      const data = (await response.json()) as ScryfallCollectionResponse;
+      if (!Array.isArray(data.data)) {
+        errors.push(
+          buildScryfallInvalidResponseError({
+            endpoint: "collection",
+            url: collectionUrl,
+            error: new Error("Missing data array"),
+          })
+        );
+        requestsChunk.forEach((request) => mergeMissingCard(missingMap, request));
+        continue;
+      }
       data.warnings?.forEach((warning) => warnings.push(warning));
       data.data.forEach((scryfallCard) => cardsToCache.push(scryfallCard));
 
@@ -285,18 +324,19 @@ export const fetchScryfallCards = async (
         }
       });
     } catch (error) {
-      warnings.push(
-        `Error fetching from Scryfall: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
+      errors.push(buildScryfallNetworkError({ endpoint: "collection", url: collectionUrl, error }));
       requestsChunk.forEach((request) => mergeMissingCard(missingMap, request));
     }
   }
 
   // Fallback: attempt exact/fuzzy lookup for each missing request by name
   for (const missingCard of Array.from(missingMap.values())) {
-    const resolved = await fetchCardByName(rateLimitedRequest, missingCard.name);
+    const resolvedResult = await fetchCardByName(rateLimitedRequest, missingCard.name);
+    if (!resolvedResult.ok) {
+      errors.push(resolvedResult.error);
+      continue;
+    }
+    const resolved = resolvedResult.data;
     if (!resolved) continue;
 
     cardsToCache.push(resolved);
@@ -311,5 +351,5 @@ export const fetchScryfallCards = async (
     cacheCards(cardsToCache).catch(() => {});
   }
 
-  return { cards: fetchedCards, missing: Array.from(missingMap.values()), warnings };
+  return { cards: fetchedCards, missing: Array.from(missingMap.values()), warnings, errors };
 };

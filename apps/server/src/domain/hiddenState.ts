@@ -1,5 +1,5 @@
-import type { Card, CardIdentity } from "../../../web/src/types/cards";
-import type { Zone } from "../../../web/src/types/zones";
+import type { Card, CardIdentity } from "@mtg/shared/types/cards";
+import type { Zone } from "@mtg/shared/types/zones";
 
 import { isHiddenZoneType, ZONE, MAX_HIDDEN_STATE_CHUNK_SIZE, MAX_REVEALED_TO } from "./constants";
 import type { HiddenReveal, HiddenState, Maps } from "./types";

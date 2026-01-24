@@ -1,4 +1,1 @@
-export type PlayerId = string;
-export type CardId = string;
-export type ZoneId = string;
-export type ViewerRole = "player" | "spectator";
+export type { PlayerId, CardId, ZoneId, ViewerRole } from "@mtg/shared/types/ids";

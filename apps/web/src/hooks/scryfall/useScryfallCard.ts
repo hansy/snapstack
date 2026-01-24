@@ -10,6 +10,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ScryfallCard } from '@/types/scryfall';
 import { getCard, getCards } from '@/services/scryfall/scryfallCache';
+import { formatScryfallErrors } from '@/services/scryfall/scryfallErrors';
 
 interface UseScryfallCardResult {
   data: ScryfallCard | null;
@@ -48,9 +49,13 @@ export function useScryfallCard(
       setError(null);
 
       try {
-        const card = await getCard(scryfallId);
+        const result = await getCard(scryfallId);
         if (!cancelled) {
-          setData(card);
+          if (result.errors.length > 0) {
+            const message = formatScryfallErrors(result.errors);
+            setError(new Error(message));
+          }
+          setData(result.card);
           setIsLoading(false);
         }
       } catch (err) {
@@ -103,9 +108,13 @@ export function useScryfallCards(
       setError(null);
 
       try {
-        const cards = await getCards(deduped);
+        const result = await getCards(deduped);
         if (!cancelled) {
-          setData(cards);
+          if (result.errors.length > 0) {
+            const message = formatScryfallErrors(result.errors);
+            setError(new Error(message));
+          }
+          setData(result.cards);
           setIsLoading(false);
         }
       } catch (err) {

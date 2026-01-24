@@ -27,6 +27,11 @@ import type {
   CommanderTaxPayload,
   LifePayload,
 } from "./eventRegistry/playerEvents";
+import type {
+  ConnectionAuthFailurePayload,
+  ConnectionReconnectAbandonedPayload,
+  ConnectionReconnectPayload,
+} from "./eventRegistry/connectionEvents";
 
 export type LogEventPayloadMap = {
   "player.life": LifePayload;
@@ -52,4 +57,7 @@ export type LogEventPayloadMap = {
   "counter.add": CounterPayload;
   "counter.remove": CounterPayload;
   "counter.global.add": GlobalCounterPayload;
+  "connection.reconnect": ConnectionReconnectPayload;
+  "connection.reconnectAbandoned": ConnectionReconnectAbandonedPayload;
+  "connection.authFailure": ConnectionAuthFailurePayload;
 };

@@ -21,12 +21,13 @@ describe("useScryfallCards", () => {
   it("dedupes ids before fetching", async () => {
     const cardA = { id: "a" } as ScryfallCard;
     const cardB = { id: "b" } as ScryfallCard;
-    getCards.mockResolvedValue(
-      new Map([
+    getCards.mockResolvedValue({
+      cards: new Map([
         ["a", cardA],
         ["b", cardB],
-      ])
-    );
+      ]),
+      errors: [],
+    });
 
     const { result } = renderHook(() =>
       useScryfallCards(["b", "a", "a", "  ", "b"])

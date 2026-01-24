@@ -142,6 +142,7 @@ describe('fetchScryfallCards', () => {
         expect(result.cards[0].section).toBe('main');
         expect(result.missing).toHaveLength(0);
         expect(result.warnings).toContain('Using newest printing');
+        expect(result.errors).toHaveLength(0);
     });
 
     it('surfaces missing cards when Scryfall cannot find them', async () => {
@@ -172,6 +173,7 @@ describe('fetchScryfallCards', () => {
         expect(result.missing).toHaveLength(1);
         expect(result.missing[0]).toMatchObject({ name: 'Made Up Card', quantity: 2 });
         expect(result.warnings).toHaveLength(0);
+        expect(result.errors).toHaveLength(0);
     });
 
     it('marks a chunk as missing when the API call fails', async () => {
@@ -196,7 +198,9 @@ describe('fetchScryfallCards', () => {
 
         expect(result.cards).toHaveLength(0);
         expect(result.missing[0]).toMatchObject({ name: 'Island', quantity: 1 });
-        expect(result.warnings[0]).toMatch(/503/);
+        expect(result.warnings).toHaveLength(0);
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0]).toMatchObject({ kind: 'http', status: 503, endpoint: 'collection' });
     });
 
     it('retries with backoff when rate limited', async () => {
@@ -230,6 +234,7 @@ describe('fetchScryfallCards', () => {
         expect(sleep).toHaveBeenCalledWith(1000);
         expect(result.cards).toHaveLength(1);
         expect(result.missing).toHaveLength(0);
+        expect(result.errors).toHaveLength(0);
     });
 
     it('falls back to named lookup for split cards like Wear // Tear', async () => {
@@ -265,6 +270,7 @@ describe('fetchScryfallCards', () => {
         expect(result.cards[0].name).toBe('Wear // Tear');
         // scryfallId should be set (lite version doesn't have 'name' at root)
         expect(result.cards[0].scryfallId).toBe('some-scryfall-id');
+        expect(result.errors).toHaveLength(0);
     });
 
     it('falls back to fuzzy lookup when exact named fails', async () => {
@@ -300,6 +306,7 @@ describe('fetchScryfallCards', () => {
         expect(result.missing).toHaveLength(0);
         expect(result.cards).toHaveLength(1);
         expect(result.cards[0].name).toBe('Nicol Bolas, the Ravager');
+        expect(result.errors).toHaveLength(0);
     });
 
     it('matches front-face names for double-faced cards (e.g., Ojer Taq, Deepest Foundation // Temple of Civilization)', async () => {
@@ -328,6 +335,7 @@ describe('fetchScryfallCards', () => {
         expect(result.missing).toHaveLength(0);
         expect(result.cards).toHaveLength(1);
         expect(result.cards[0].name).toBe('Ojer Taq, Deepest Foundation');
+        expect(result.errors).toHaveLength(0);
     });
 
     it('resolves duplicate requests across sections without named fallback', async () => {
@@ -350,6 +358,7 @@ describe('fetchScryfallCards', () => {
         expect(result.cards).toHaveLength(3);
         expect(result.cards.filter((c) => c.section === 'main')).toHaveLength(2);
         expect(result.cards.filter((c) => c.section === 'commander')).toHaveLength(1);
+        expect(result.errors).toHaveLength(0);
     });
 
     it('matches slash-separated split names in collection results (Wear/Tear)', async () => {
@@ -378,22 +387,47 @@ describe('fetchScryfallCards', () => {
         expect(result.cards).toHaveLength(1);
         expect(result.cards[0].name).toBe('Wear // Tear');
         expect(result.cards[0].scryfallId).toBe('wear-tear');
+        expect(result.errors).toHaveLength(0);
     });
 });
 
 describe('validateImportResult', () => {
     it('fails when Scryfall returns zero cards', () => {
         const parsed = parseDeckList('1 Lightning Bolt');
-        const validation = validateImportResult(parsed, { cards: [], missing: [], warnings: [] });
+        const validation = validateImportResult(parsed, { cards: [], missing: [], warnings: [], errors: [] });
         expect(validation.ok).toBe(false);
         if (!validation.ok) {
             expect(validation.error).toMatch(/0 cards/i);
         }
     });
 
+    it('surfaces Scryfall fetch errors with a clear message', () => {
+        const parsed = parseDeckList('1 Lightning Bolt');
+        const validation = validateImportResult(parsed, {
+            cards: [],
+            missing: [],
+            warnings: [],
+            errors: [
+                {
+                    kind: 'http',
+                    endpoint: 'collection',
+                    url: 'https://api.scryfall.com/cards/collection',
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    message: 'Scryfall responded with 503 Service Unavailable',
+                },
+            ],
+        });
+        expect(validation.ok).toBe(false);
+        if (!validation.ok) {
+            expect(validation.error).toMatch(/temporarily unavailable/i);
+            expect(validation.error).toMatch(/503/);
+        }
+    });
+
     it('fails with missing card list', () => {
         const parsed: ParsedCard[] = [{ quantity: 1, name: 'Missing Card', set: '', collectorNumber: '', section: 'main' }];
-        const validation = validateImportResult(parsed, { cards: [], missing: parsed, warnings: [] });
+        const validation = validateImportResult(parsed, { cards: [], missing: parsed, warnings: [], errors: [] });
         expect(validation.ok).toBe(false);
         if (!validation.ok) {
             expect(validation.error).toContain('Missing Card');
@@ -408,6 +442,7 @@ describe('validateImportResult', () => {
             cards: makeCards(requested - 1),
             missing: [{ quantity: 1, name: 'Missing', set: '', collectorNumber: '', section: 'main' }],
             warnings: [],
+            errors: [],
         });
 
         expect(validation.ok).toBe(false);
@@ -422,6 +457,7 @@ describe('validateImportResult', () => {
             cards: makeCards(2),
             missing: [],
             warnings: ['Using newest printing'],
+            errors: [],
         });
 
         expect(validation.ok).toBe(true);

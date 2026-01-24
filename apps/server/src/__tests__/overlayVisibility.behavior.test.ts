@@ -4,9 +4,9 @@ import * as Y from "yjs";
 import { applyIntentToDoc } from "../domain/intents/applyIntentToDoc";
 import { buildOverlayForViewer } from "../domain/overlay";
 import { createEmptyHiddenState } from "../domain/hiddenState";
-import type { Card } from "../../../web/src/types/cards";
-import type { Player } from "../../../web/src/types/players";
-import type { Zone, ZoneType } from "../../../web/src/types/zones";
+import type { Card } from "@mtg/shared/types/cards";
+import type { Player } from "@mtg/shared/types/players";
+import type { Zone, ZoneType } from "@mtg/shared/types/zones";
 
 const createDoc = () => {
   const doc = new Y.Doc();

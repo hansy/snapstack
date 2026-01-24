@@ -1,4 +1,4 @@
-import type { Card } from "../../../web/src/types/cards";
+import type { Card } from "@mtg/shared/types/cards";
 
 import { ZONE } from "./constants";
 import { toCardLite } from "./cards";

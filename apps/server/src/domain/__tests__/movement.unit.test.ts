@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
-import type { Card } from "../../../../web/src/types/cards";
-import type { Zone } from "../../../../web/src/types/zones";
+import type { Card } from "@mtg/shared/types/cards";
+import type { Zone } from "@mtg/shared/types/zones";
 import { ZONE } from "../constants";
 import { createEmptyHiddenState } from "../hiddenState";
 import { applyCardMove } from "../movement";

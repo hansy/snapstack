@@ -20,12 +20,16 @@ export const buildLogEntry = <K extends LogEventId>(params: {
   createId: () => string;
 }): LogMessage<K> => {
   const parts = params.def.format(params.payload, params.ctx);
+  const actorId =
+    params.payload && "actorId" in params.payload
+      ? (params.payload as { actorId?: string }).actorId
+      : undefined;
 
   return {
     id: params.existingId ?? params.createId(),
     ts: params.timestamp,
     eventId: params.eventId,
-    actorId: params.payload?.actorId,
+    actorId,
     visibility: "public",
     parts,
     payload: params.payload,

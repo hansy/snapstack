@@ -7,6 +7,7 @@ import { diceEvents } from "./eventRegistry/diceEvents";
 import { deckEvents } from "./eventRegistry/deckEvents";
 import { libraryEvents } from "./eventRegistry/libraryEvents";
 import { playerEvents } from "./eventRegistry/playerEvents";
+import { connectionEvents } from "./eventRegistry/connectionEvents";
 
 export const logEventRegistry: LogEventRegistry = {
   ...playerEvents,
@@ -16,4 +17,5 @@ export const logEventRegistry: LogEventRegistry = {
   ...coinEvents,
   ...counterEvents,
   ...diceEvents,
+  ...connectionEvents,
 };

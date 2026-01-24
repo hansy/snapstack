@@ -1,7 +1,6 @@
-import type { Zone, ZoneType } from "../../../web/src/types/zones";
+import type { Zone, ZoneType } from "@mtg/shared/types/zones";
 
-import { ZONE } from "./constants";
-import { isCommanderZoneType } from "./cards";
+import { isCommanderZoneType, ZONE } from "./constants";
 import type { Maps } from "./types";
 import { readRecord, readZone } from "./yjsStore";
 

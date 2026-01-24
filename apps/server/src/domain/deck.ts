@@ -1,7 +1,7 @@
-import type { CardIdentity } from "../../../web/src/types/cards";
+import type { CardIdentity } from "@mtg/shared/types/cards";
 
 import { LEGACY_COMMAND_ZONE, ZONE } from "./constants";
-import type { Zone } from "../../../web/src/types/zones";
+import type { Zone } from "@mtg/shared/types/zones";
 import { enforceZoneCounterRules, mergeCardIdentity, resetCardToFrontFace } from "./cards";
 import { clearFaceDownStateForCard, syncLibraryRevealsToAllForPlayer, updatePlayerCounts } from "./hiddenState";
 import { placeCardId, removeFromArray } from "./lists";

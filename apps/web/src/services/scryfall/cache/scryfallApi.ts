@@ -1,18 +1,36 @@
 import type { ScryfallCard, ScryfallIdentifier } from "@/types/scryfall";
+import {
+  buildScryfallHttpError,
+  buildScryfallInvalidResponseError,
+  buildScryfallNetworkError,
+  type ScryfallFetchResult,
+  type ScryfallFetchError,
+} from "@/services/scryfall/scryfallErrors";
 
 export type Sleep = (ms: number) => Promise<void>;
 
 export const defaultSleep: Sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const fetchCardById = async (fetchFn: typeof fetch, scryfallId: string): Promise<ScryfallCard | null> => {
+export const fetchCardById = async (
+  fetchFn: typeof fetch,
+  scryfallId: string
+): Promise<ScryfallFetchResult<ScryfallCard>> => {
+  const url = `https://api.scryfall.com/cards/${scryfallId}`;
   try {
-    const response = await fetchFn(`https://api.scryfall.com/cards/${scryfallId}`);
+    const response = await fetchFn(url);
     if (!response.ok) {
-      return null;
+      return { ok: false, error: buildScryfallHttpError({ endpoint: "card", url, response }) };
     }
-    return (await response.json()) as ScryfallCard;
-  } catch {
-    return null;
+    try {
+      return { ok: true, data: (await response.json()) as ScryfallCard };
+    } catch (error) {
+      return {
+        ok: false,
+        error: buildScryfallInvalidResponseError({ endpoint: "card", url, error }),
+      };
+    }
+  } catch (error) {
+    return { ok: false, error: buildScryfallNetworkError({ endpoint: "card", url, error }) };
   }
 };
 
@@ -24,9 +42,11 @@ export const fetchCardCollection = async (
     rateLimitMs = 100,
     sleep = defaultSleep,
   }: { chunkSize?: number; rateLimitMs?: number; sleep?: Sleep } = {}
-): Promise<Map<string, ScryfallCard>> => {
+): Promise<ScryfallFetchResult<{ cards: Map<string, ScryfallCard>; errors: ScryfallFetchError[] }>> => {
   const results = new Map<string, ScryfallCard>();
+  const errors: ScryfallFetchError[] = [];
   const identifiers: ScryfallIdentifier[] = scryfallIds.map((id) => ({ id }));
+  const url = "https://api.scryfall.com/cards/collection";
 
   for (let i = 0; i < identifiers.length; i += chunkSize) {
     const chunk = identifiers.slice(i, i + chunkSize);
@@ -36,25 +56,46 @@ export const fetchCardCollection = async (
         await sleep(rateLimitMs);
       }
 
-      const response = await fetchFn("https://api.scryfall.com/cards/collection", {
+      const response = await fetchFn(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifiers: chunk }),
       });
 
-      if (!response.ok) continue;
+      if (!response.ok) {
+        errors.push(buildScryfallHttpError({ endpoint: "collection", url, response }));
+        continue;
+      }
 
-      const data = (await response.json()) as {
-        data: ScryfallCard[];
-        not_found?: ScryfallIdentifier[];
-      };
+      let data: { data: ScryfallCard[]; not_found?: ScryfallIdentifier[] };
+      try {
+        data = (await response.json()) as {
+          data: ScryfallCard[];
+          not_found?: ScryfallIdentifier[];
+        };
+      } catch (error) {
+        errors.push(buildScryfallInvalidResponseError({ endpoint: "collection", url, error }));
+        continue;
+      }
+
+      if (!Array.isArray(data.data)) {
+        errors.push(
+          buildScryfallInvalidResponseError({
+            endpoint: "collection",
+            url,
+            error: new Error("Missing data array"),
+          })
+        );
+        continue;
+      }
 
       for (const card of data.data) {
         results.set(card.id, card);
       }
-    } catch {
+    } catch (error) {
+      errors.push(buildScryfallNetworkError({ endpoint: "collection", url, error }));
     }
   }
 
-  return results;
+  return { ok: true, data: { cards: results, errors } };
 };

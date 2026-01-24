@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@mtg/shared": "workspace:*",
     "partyserver": "^0.1.0",
     "y-partyserver": "^1.0.0",
     "yjs": "^13.6.27"

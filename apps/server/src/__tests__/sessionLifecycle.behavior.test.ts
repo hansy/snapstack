@@ -51,7 +51,6 @@ beforeEach(() => {
   superOnConnect.mockClear();
 });
 
-const OVERLAY_DIFF_CAPABILITY = "overlay-diff-v1";
 const LIBRARY_VIEW_PING_TIMEOUT_MS = 45_000;
 const HIDDEN_STATE_PERSIST_IDLE_MS = 5_000;
 const INTENT_LOG_META_KEY = "intent-log:meta";
@@ -289,11 +288,8 @@ describe("server lifecycle guards", () => {
       sent.push(payload);
     };
 
-    (server as any).connectionCapabilities.set(
-      conn.id,
-      new Set([OVERLAY_DIFF_CAPABILITY])
-    );
-    (server as any).overlayStates.set(conn.id, {
+    const overlayService = (server as any).overlayService;
+    overlayService.overlayStates.set(conn.id, {
       overlayVersion: 1,
       cardHashes: new Map([["c1", "old"]]),
       zoneOrderHashes: new Map(),
@@ -321,16 +317,17 @@ describe("server lifecycle guards", () => {
       meta: { cardCount: 1, cardsWithArt: 0, viewerHandCount: 0 },
     };
 
-    (server as any).sendOverlayForConnectionWithBuildResult(
+    overlayService.sendOverlayForConnection({
       conn,
       buildResult,
-      "p1"
-    );
+      viewerId: "p1",
+      supportsDiff: true,
+    });
 
     expect(sent).toHaveLength(1);
     const message = JSON.parse(sent[0]);
     expect(message.type).toBe("privateOverlay");
-    expect((server as any).overlayResyncCount).toBe(1);
+    expect(overlayService.getMetrics().resyncCount).toBe(1);
   });
 
   it("expires library views after missed pings", async () => {

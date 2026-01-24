@@ -54,6 +54,7 @@ describe("loadDeckModel", () => {
       ],
       missing: [],
       warnings: [],
+      errors: [],
     };
 
     const zones: Record<string, Zone> = {
@@ -95,7 +96,7 @@ describe("loadDeckModel", () => {
         zones: {},
         parseDeckList: () => [],
         validateDeckListLimits: () => ({ ok: true }),
-        fetchScryfallCards: async () => ({ cards: [], missing: [], warnings: [] }),
+        fetchScryfallCards: async () => ({ cards: [], missing: [], warnings: [], errors: [] }),
         validateImportResult: () => ({ ok: true, warnings: [] }),
       })
     ).rejects.toThrow("No valid cards found in the list.");
@@ -111,10 +112,9 @@ describe("loadDeckModel", () => {
           { quantity: 1, name: "A", set: "set", collectorNumber: "1", section: "main" },
         ],
         validateDeckListLimits: () => ({ ok: false, error: "Too many cards" }),
-        fetchScryfallCards: async () => ({ cards: [], missing: [], warnings: [] }),
+        fetchScryfallCards: async () => ({ cards: [], missing: [], warnings: [], errors: [] }),
         validateImportResult: () => ({ ok: true, warnings: [] }),
       })
     ).rejects.toThrow("Too many cards");
   });
 });
-
