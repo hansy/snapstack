@@ -7,6 +7,12 @@ import { ensureLocalStorage } from '@test/utils/storage';
 vi.mock('@/partykit/intentTransport', () => ({
   sendIntent: vi.fn(),
   clearIntentTransport: vi.fn(),
+  getIntentConnectionMeta: vi.fn(() => ({
+    isOpen: false,
+    everConnected: true,
+    lastOpenAt: null,
+    lastCloseAt: 0,
+  })),
 }));
 
 const sendIntentMock = vi.mocked(sendIntent);
