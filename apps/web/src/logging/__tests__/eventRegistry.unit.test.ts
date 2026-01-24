@@ -29,6 +29,9 @@ const EVENT_IDS = [
   "counter.add",
   "counter.remove",
   "counter.global.add",
+  "connection.reconnect",
+  "connection.reconnectAbandoned",
+  "connection.authFailure",
 ] as const satisfies ReadonlyArray<LogEventId>;
 
 const makePlayer = (id: string, name: string): Player => ({
@@ -166,6 +169,30 @@ describe("logEventRegistry", () => {
     expect(removed.map((p) => p.text).join("")).toBe(
       "Alice removed 2 commander tax from Commander"
     );
+  });
+
+  it("formats reconnect events with reason and delay", () => {
+    const ctx: LogContext = { players: {}, cards: {}, zones: {} };
+
+    const parts = logEventRegistry["connection.reconnect"].format(
+      { reason: "close", attempt: 2, delayMs: 1500 },
+      ctx
+    );
+
+    expect(parts.map((p) => p.text).join("")).toBe(
+      "Reconnecting after connection closed (attempt 2) in 1.5s"
+    );
+  });
+
+  it("formats auth failure events with reason", () => {
+    const ctx: LogContext = { players: {}, cards: {}, zones: {} };
+
+    const parts = logEventRegistry["connection.authFailure"].format(
+      { reason: "policy" },
+      ctx
+    );
+
+    expect(parts.map((p) => p.text).join("")).toBe("Connection auth failed (policy)");
   });
 
   it("formats card moves to battlefield as played-from", () => {
