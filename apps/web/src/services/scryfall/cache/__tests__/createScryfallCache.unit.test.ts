@@ -56,8 +56,8 @@ describe("createScryfallCache", () => {
     const p2 = cache.getCard("c1");
 
     expect(fetchFn).toHaveBeenCalledTimes(1);
-    await expect(p1).resolves.toEqual(makeCard("c1"));
-    await expect(p2).resolves.toEqual(makeCard("c1"));
+    await expect(p1).resolves.toEqual({ card: makeCard("c1"), errors: [] });
+    await expect(p2).resolves.toEqual({ card: makeCard("c1"), errors: [] });
   });
 
   it("returns a non-expired store hit without fetching", async () => {
@@ -75,13 +75,13 @@ describe("createScryfallCache", () => {
       fetchFn,
     });
 
-    const card = await cache.getCard("c1");
-    expect(card?.id).toBe("c1");
+    const result = await cache.getCard("c1");
+    expect(result.card?.id).toBe("c1");
     expect(fetchFn).not.toHaveBeenCalled();
 
     // Second call should hit memory (store.get called only once).
     const again = await cache.getCard("c1");
-    expect(again?.id).toBe("c1");
+    expect(again.card?.id).toBe("c1");
     expect(store.get).toHaveBeenCalledTimes(1);
   });
 
@@ -102,8 +102,8 @@ describe("createScryfallCache", () => {
       fetchFn,
     });
 
-    const card = await cache.getCard("c1");
-    expect(card?.id).toBe("c1");
+    const result = await cache.getCard("c1");
+    expect(result.card?.id).toBe("c1");
     expect(store.delete).toHaveBeenCalledWith("c1");
     expect(store.put).toHaveBeenCalledWith({ scryfallId: "c1", data: makeCard("c1"), cachedAt: 10_000 });
   });
@@ -138,9 +138,10 @@ describe("createScryfallCache", () => {
     });
 
     const results = await cache.getCards(["c1", "c2", "c3"]);
-    expect(results.get("c1")?.id).toBe("c1");
-    expect(results.get("c2")?.id).toBe("c2");
-    expect(results.get("c3")?.id).toBe("c3");
+    expect(results.cards.get("c1")?.id).toBe("c1");
+    expect(results.cards.get("c2")?.id).toBe("c2");
+    expect(results.cards.get("c3")?.id).toBe("c3");
+    expect(results.errors).toHaveLength(0);
 
     // Only the collection endpoint should be used (for c3).
     expect(fetchFnMock).toHaveBeenCalledTimes(1);

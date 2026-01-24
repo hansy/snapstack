@@ -1,6 +1,6 @@
 import type { FetchScryfallResult, ParsedCard } from "./types";
 import { formatMissingCards } from "./formatMissingCards";
-import { formatScryfallErrors } from "./formatScryfallErrors";
+import { formatScryfallErrors } from "@/services/scryfall/scryfallErrors";
 
 export const validateImportResult = (
   parsedDeck: ParsedCard[],

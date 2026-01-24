@@ -28,27 +28,30 @@ describe("gameContextMenu/relatedParts", () => {
 
   it("only fetches related parts for battlefield cards", async () => {
     const fetchCardById = async () => ({
-      object: "card" as const,
-      id: "c1",
-      lang: "en",
-      name: "X",
-      layout: "normal",
-      uri: "u",
-      scryfall_uri: "s",
-      type_line: "Creature",
-      color_identity: [],
-      keywords: [],
-      legalities: {},
-      games: [],
-      set: "set",
-      set_name: "Set",
-      collector_number: "1",
-      rarity: "common" as const,
-      prices: {},
-      related_uris: {},
-      all_parts: [
-        { object: "related_card" as const, id: "1", component: "token", name: "T", uri: "t" },
-      ],
+      card: {
+        object: "card" as const,
+        id: "c1",
+        lang: "en",
+        name: "X",
+        layout: "normal",
+        uri: "u",
+        scryfall_uri: "s",
+        type_line: "Creature",
+        color_identity: [],
+        keywords: [],
+        legalities: {},
+        games: [],
+        set: "set",
+        set_name: "Set",
+        collector_number: "1",
+        rarity: "common" as const,
+        prices: {},
+        related_uris: {},
+        all_parts: [
+          { object: "related_card" as const, id: "1", component: "token", name: "T", uri: "t" },
+        ],
+      },
+      errors: [],
     });
 
     expect(

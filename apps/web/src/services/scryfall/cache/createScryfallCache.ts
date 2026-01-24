@@ -1,12 +1,17 @@
 import type { ScryfallCard } from "@/types/scryfall";
+import type { ScryfallFetchError } from "@/services/scryfall/scryfallErrors";
 
 import type { LruCache } from "./memoryLru";
 import type { CachedCard, ScryfallCardStore } from "./store";
 import { fetchCardById, fetchCardCollection, type Sleep } from "./scryfallApi";
 
 export type ScryfallCache = {
-  getCard: (scryfallId: string) => Promise<ScryfallCard | null>;
-  getCards: (scryfallIds: string[]) => Promise<Map<string, ScryfallCard>>;
+  getCard: (
+    scryfallId: string
+  ) => Promise<{ card: ScryfallCard | null; errors: ScryfallFetchError[] }>;
+  getCards: (
+    scryfallIds: string[]
+  ) => Promise<{ cards: Map<string, ScryfallCard>; errors: ScryfallFetchError[] }>;
   cacheCards: (cards: ScryfallCard[]) => Promise<void>;
   cleanupExpired: () => Promise<number>;
   clearCache: () => Promise<void>;
@@ -30,7 +35,10 @@ export const createScryfallCache = ({
   rateLimitMs?: number;
   sleep?: Sleep;
 }): ScryfallCache => {
-  const pendingFetches = new Map<string, Promise<ScryfallCard | null>>();
+  const pendingFetches = new Map<
+    string,
+    Promise<{ card: ScryfallCard | null; errors: ScryfallFetchError[] }>
+  >();
 
   const isExpired = (cachedAt: number) => now() - cachedAt > expiryMs;
 
@@ -75,10 +83,10 @@ export const createScryfallCache = ({
   };
 
   const getCard: ScryfallCache["getCard"] = async (scryfallId) => {
-    if (!scryfallId) return null;
+    if (!scryfallId) return { card: null, errors: [] };
 
     const memoryHit = memory.get(scryfallId);
-    if (memoryHit) return memoryHit;
+    if (memoryHit) return { card: memoryHit, errors: [] };
 
     const pending = pendingFetches.get(scryfallId);
     if (pending) return pending;
@@ -86,15 +94,16 @@ export const createScryfallCache = ({
     const promise = (async () => {
       if (store) {
         const storeHit = await readFromStore(scryfallId);
-        if (storeHit) return storeHit;
+        if (storeHit) return { card: storeHit, errors: [] };
       }
 
       const cardResult = await fetchCardById(fetchFn, scryfallId);
       if (cardResult.ok) {
         await writeToCache(cardResult.data, { awaitStore: true });
-        return cardResult.data;
+        return { card: cardResult.data, errors: [] };
       }
-      return null;
+      console.error("[scryfallCache] Failed to fetch card:", cardResult.error);
+      return { card: null, errors: [cardResult.error] };
     })();
 
     pendingFetches.set(scryfallId, promise);
@@ -107,6 +116,7 @@ export const createScryfallCache = ({
 
   const getCards: ScryfallCache["getCards"] = async (scryfallIds) => {
     const results = new Map<string, ScryfallCard>();
+    const errors: ScryfallFetchError[] = [];
     const toCheckStore: string[] = [];
     const toFetch: string[] = [];
 
@@ -142,10 +152,19 @@ export const createScryfallCache = ({
           // Store async (best-effort), don't block the batch.
           void writeToCache(card, { awaitStore: false });
         }
+        if (fetched.data.errors.length > 0) {
+          errors.push(...fetched.data.errors);
+          fetched.data.errors.forEach((error) => {
+            console.error("[scryfallCache] Failed to fetch cards:", error);
+          });
+        }
+      } else {
+        errors.push(fetched.error);
+        console.error("[scryfallCache] Failed to fetch cards:", fetched.error);
       }
     }
 
-    return results;
+    return { cards: results, errors };
   };
 
   const cacheCards: ScryfallCache["cacheCards"] = async (cards) => {
