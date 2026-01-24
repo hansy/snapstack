@@ -1,4 +1,5 @@
 import React from "react";
+import { Loader2 } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -108,6 +109,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   shareLinksReady,
 }) => {
   const suppressSingleOverlay = isGroupDragging && !showGroupDragOverlay;
+  const showConnectingOverlay =
+    syncStatus === "connecting" && Object.keys(players).length === 0;
 
   return (
     <CardPreviewProvider>
@@ -140,6 +143,17 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
             isSpectator={viewerRole === "spectator"}
             shareLinksReady={shareLinksReady}
           />
+
+          {showConnectingOverlay && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="pointer-events-none absolute left-1/2 top-4 z-[70] flex -translate-x-1/2 items-center gap-2 rounded-full border border-amber-500/40 bg-zinc-950/80 px-3 py-1.5 text-sm text-amber-200 shadow-lg backdrop-blur"
+            >
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Connecting...
+            </div>
+          )}
 
           <div className="flex h-full w-full">
             <div className={`flex-1 min-w-0 h-full grid ${gridClass} pl-12`}>

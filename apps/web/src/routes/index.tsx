@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createRoomId } from "@/lib/roomId";
 import {
@@ -21,6 +22,7 @@ const LandingPage = () => {
     (state) => state.clearLastSessionId,
   );
   const [resumeSessionId, setResumeSessionId] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     destroyAllSessions();
@@ -48,6 +50,8 @@ const LandingPage = () => {
   }, [hasHydrated, lastSessionId, clearLastSessionId]);
 
   const handleCreateGame = () => {
+    if (isCreating) return;
+    setIsCreating(true);
     const sessionId = createRoomId();
     markRoomAsHostPending(sessionId);
     navigate({ to: "/game/$sessionId", params: { sessionId } });
@@ -111,9 +115,13 @@ const LandingPage = () => {
         {resumeSessionId ? null : (
           <button
             onClick={handleCreateGame}
-            className="w-full py-3 px-4 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-zinc-50 font-medium transition"
+            disabled={isCreating}
+            className="w-full py-3 px-4 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-zinc-50 font-medium transition disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-indigo-500"
           >
-            Create game
+            <span className="inline-flex items-center justify-center gap-2">
+              {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isCreating ? "Creating..." : "Create game"}
+            </span>
           </button>
         )}
       </div>
