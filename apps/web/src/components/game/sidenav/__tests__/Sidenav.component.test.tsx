@@ -33,7 +33,13 @@ describe("Sidenav", () => {
   it("opens the share dialog from the share button", () => {
     const onOpenShareDialog = vi.fn();
 
-    render(<Sidenav onOpenCoinFlipper={vi.fn()} onOpenDiceRoller={vi.fn()} onOpenShareDialog={onOpenShareDialog} />);
+    render(
+      <Sidenav
+        onOpenCoinFlipper={vi.fn()}
+        onOpenDiceRoller={vi.fn()}
+        onOpenShareDialog={onOpenShareDialog}
+      />
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Share room" }));
     expect(onOpenShareDialog).toHaveBeenCalledTimes(1);
