@@ -17,9 +17,9 @@ export const MultiplayerBoard: FC<MultiplayerBoardProps> = ({ sessionId }) => {
     viewerRole,
     setViewerRole,
     roomOverCapacity,
-    handleCreateNewGame,
     ...viewProps
   } = controller;
+  const { handleCreateNewGame } = controller;
   const isSpectator = viewerRole === "spectator";
   const canSpectate =
     joinBlockedReason === "full" || joinBlockedReason === "locked";
