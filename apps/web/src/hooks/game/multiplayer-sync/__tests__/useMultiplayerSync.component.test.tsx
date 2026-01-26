@@ -203,6 +203,7 @@ import {
   isRoomHostPending,
   isRoomUnavailable,
   markRoomUnavailable,
+  readRoomTokensFromStorage,
   resolveInviteTokenFromUrl,
 } from "@/lib/partyKitToken";
 import { useMultiplayerSync } from "../useMultiplayerSync";
@@ -215,6 +216,7 @@ describe("useMultiplayerSync", () => {
     vi.clearAllMocks();
     randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
     logStoreMocks.emitLog.mockClear();
+    vi.mocked(readRoomTokensFromStorage).mockReturnValue(null);
     Object.assign(mockGameState, {
       hasHydrated: true,
       viewerRole: "player" as ViewerRole,
@@ -402,6 +404,31 @@ describe("useMultiplayerSync", () => {
       expect(markRoomUnavailable).not.toHaveBeenCalled();
       expect(result.current.joinBlocked).toBe(true);
       expect(result.current.joinBlockedReason).toBe("invite");
+    });
+  });
+
+  it("treats invalid token as room-unavailable when prior tokens exist", async () => {
+    vi.mocked(readRoomTokensFromStorage).mockReturnValue({
+      playerToken: "stored-player",
+      spectatorToken: "stored-spectator",
+    });
+
+    const { result } = renderHook(() => useMultiplayerSync("session-expired"));
+
+    await waitFor(() => {
+      expect(intentTransportMocks.createIntentTransport).toHaveBeenCalled();
+    });
+
+    const [{ onClose }] = intentTransportMocks.createIntentTransport.mock.calls[0] as any;
+
+    act(() => {
+      onClose({ code: 1008, reason: "invalid token" });
+    });
+
+    await waitFor(() => {
+      expect(markRoomUnavailable).toHaveBeenCalledWith("session-expired");
+      expect(result.current.joinBlocked).toBe(true);
+      expect(result.current.joinBlockedReason).toBe("room-unavailable");
     });
   });
 

@@ -87,6 +87,11 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
   const resourcesRef = useRef<SessionSetupResult | null>(null);
   const pendingIntentJoinRef = useRef(false);
   const authFailureHandled = useRef(false);
+  const priorSessionEvidenceRef = useRef({
+    sessionId: "",
+    hasTokens: false,
+    hadLastSession: false,
+  });
   const setLastSessionId = useClientPrefsStore((state) => state.setLastSessionId);
   const clearLastSessionId = useClientPrefsStore((state) => state.clearLastSessionId);
 
@@ -212,6 +217,31 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
     const unavailable = isRoomUnavailable(sessionId);
     roomUnavailableRef.current = unavailable;
     setRoomUnavailable(unavailable);
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId) {
+      priorSessionEvidenceRef.current = {
+        sessionId: "",
+        hasTokens: false,
+        hadLastSession: false,
+      };
+      return;
+    }
+    const storedTokens = readRoomTokensFromStorage(sessionId);
+    const storeTokens = useGameStore.getState().roomTokens;
+    const hasTokens = Boolean(
+      storedTokens?.playerToken ||
+        storedTokens?.spectatorToken ||
+        storeTokens?.playerToken ||
+        storeTokens?.spectatorToken
+    );
+    const lastSessionId = useClientPrefsStore.getState().lastSessionId;
+    priorSessionEvidenceRef.current = {
+      sessionId,
+      hasTokens,
+      hadLastSession: lastSessionId === sessionId,
+    };
   }, [sessionId]);
 
   useEffect(() => {
@@ -417,6 +447,16 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
         if (authFailureHandled.current) return;
         authFailureHandled.current = true;
         emitConnectionLog("connection.authFailure", { reason });
+        const priorEvidence = priorSessionEvidenceRef.current;
+        const shouldTreatAsUnavailable =
+          reason === "invalid token" &&
+          priorEvidence.sessionId === sessionId &&
+          (priorEvidence.hasTokens || priorEvidence.hadLastSession);
+        if (shouldTreatAsUnavailable) {
+          applyRoomUnavailable();
+          return;
+        }
+
         dispatchConnectionEvent({ type: "reset" });
         const store = useGameStore.getState();
         store.setRoomTokens(null);

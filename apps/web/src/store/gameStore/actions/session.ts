@@ -124,6 +124,7 @@ export const createSessionActions = (
       dispatchIntent({
         type: "player.leave",
         payload: { playerId, actorId: playerId },
+        suppressDropToast: true,
       });
 
       try {

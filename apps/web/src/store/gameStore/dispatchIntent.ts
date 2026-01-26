@@ -12,6 +12,7 @@ export type DispatchIntentArgs = {
   applyLocal?: (state: GameState) => Partial<GameState> | GameState;
   isRemote?: boolean;
   skipSend?: boolean;
+  suppressDropToast?: boolean;
 };
 
 export type DispatchIntent = (args: DispatchIntentArgs) => string | null;
@@ -118,7 +119,14 @@ export const handleIntentAck = (
 export const createIntentDispatcher = (
   setState: StoreApi<GameState>["setState"]
 ): DispatchIntent => {
-  return ({ type, payload, applyLocal, isRemote, skipSend }) => {
+  return ({
+    type,
+    payload,
+    applyLocal,
+    isRemote,
+    skipSend,
+    suppressDropToast,
+  }) => {
     if (isRemote) {
       if (applyLocal) {
         setState(applyLocal);
@@ -135,7 +143,9 @@ export const createIntentDispatcher = (
       };
       const sent = sendIntent(intent);
       if (sent === false) {
-        warnIntentDropped();
+        if (!suppressDropToast) {
+          warnIntentDropped();
+        }
         return null;
       }
     }

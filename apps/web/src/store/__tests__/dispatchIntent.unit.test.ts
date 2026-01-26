@@ -115,6 +115,22 @@ describe("dispatchIntent", () => {
     expect(reconciled).toEqual(baseState);
   });
 
+  it("suppresses dropped intent warnings when requested", () => {
+    sendIntentMock.mockReturnValue(false);
+    const setState = vi.fn();
+    const dispatchIntent = createIntentDispatcher(setState);
+
+    const intentId = dispatchIntent({
+      type: "player.leave",
+      payload: { playerId: "p1" },
+      suppressDropToast: true,
+    });
+
+    expect(intentId).toBeNull();
+    expect(sendIntentMock).toHaveBeenCalled();
+    expect(warningToastMock).not.toHaveBeenCalled();
+  });
+
   it("throttles dropped intent warnings", () => {
     sendIntentMock.mockReturnValue(false);
     vi.useFakeTimers();
