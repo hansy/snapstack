@@ -202,6 +202,7 @@ import {
   clearRoomUnavailable,
   isRoomHostPending,
   isRoomUnavailable,
+  markRoomUnavailable,
   resolveInviteTokenFromUrl,
 } from "@/lib/partyKitToken";
 import { useMultiplayerSync } from "../useMultiplayerSync";
@@ -355,6 +356,26 @@ describe("useMultiplayerSync", () => {
         "session-host",
         expect.any(Object)
       );
+    });
+  });
+
+  it("treats invalid token as invite-required", async () => {
+    const { result } = renderHook(() => useMultiplayerSync("session-invalid"));
+
+    await waitFor(() => {
+      expect(intentTransportMocks.createIntentTransport).toHaveBeenCalled();
+    });
+
+    const [{ onClose }] = intentTransportMocks.createIntentTransport.mock.calls[0] as any;
+
+    act(() => {
+      onClose({ code: 1008, reason: "invalid token" });
+    });
+
+    await waitFor(() => {
+      expect(markRoomUnavailable).not.toHaveBeenCalled();
+      expect(result.current.joinBlocked).toBe(true);
+      expect(result.current.joinBlockedReason).toBe("invite");
     });
   });
 

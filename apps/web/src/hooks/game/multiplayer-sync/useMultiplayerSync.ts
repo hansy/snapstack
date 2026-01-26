@@ -417,11 +417,6 @@ export function useMultiplayerSync(sessionId: string) {
         if (authFailureHandled.current) return;
         authFailureHandled.current = true;
         emitConnectionLog("connection.authFailure", { reason });
-        const normalizedReason = (reason ?? "").trim().toLowerCase();
-        if (normalizedReason === "invalid token") {
-          applyRoomUnavailable();
-          return;
-        }
         dispatchConnectionEvent({ type: "reset" });
         const store = useGameStore.getState();
         store.setRoomTokens(null);
