@@ -44,6 +44,8 @@ const mockPrefsState = vi.hoisted(() => ({
 
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
+  useRouterState: ({ select }: any) =>
+    select ? select({ location: { search: "" } }) : { location: { search: "" } },
 }));
 
 vi.mock("@/store/gameStore", () => {

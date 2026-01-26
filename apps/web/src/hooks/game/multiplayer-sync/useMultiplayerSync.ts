@@ -49,7 +49,7 @@ type JoinBlockedReason =
 const CONNECTION_LOGS_ENABLED = false;
 const INTENT_DISCONNECT_GRACE_MS = 15_000;
 
-export function useMultiplayerSync(sessionId: string) {
+export function useMultiplayerSync(sessionId: string, locationKey?: string) {
   const hasHydrated = useGameStore((state) => state.hasHydrated);
   const viewerRole = useGameStore((state) => state.viewerRole);
   const roomTokens = useGameStore((state) => state.roomTokens);
@@ -548,6 +548,7 @@ export function useMultiplayerSync(sessionId: string) {
     isPaused,
     setLastSessionId,
     clearLastSessionId,
+    locationKey,
   ]);
 
   return { status, peerCounts, joinBlocked, joinBlockedReason };

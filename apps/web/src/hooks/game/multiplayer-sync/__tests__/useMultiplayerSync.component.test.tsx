@@ -359,6 +359,32 @@ describe("useMultiplayerSync", () => {
     });
   });
 
+  it("rechecks invites when the location key changes", async () => {
+    vi.mocked(isRoomUnavailable).mockReturnValueOnce(true).mockReturnValueOnce(true);
+    vi.mocked(isRoomHostPending).mockReturnValueOnce(false).mockReturnValueOnce(false);
+    vi.mocked(resolveInviteTokenFromUrl)
+      .mockReturnValueOnce({})
+      .mockReturnValueOnce({
+        token: "player-token",
+        role: "player",
+      });
+
+    const { rerender, result } = renderHook(
+      ({ locationKey }) => useMultiplayerSync("session-location", locationKey),
+      { initialProps: { locationKey: "?stale=1" } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.joinBlockedReason).toBe("room-unavailable");
+    });
+
+    rerender({ locationKey: "?gt=player-token" });
+
+    await waitFor(() => {
+      expect(clearRoomUnavailable).toHaveBeenCalledWith("session-location");
+    });
+  });
+
   it("treats invalid token as invite-required", async () => {
     const { result } = renderHook(() => useMultiplayerSync("session-invalid"));
 

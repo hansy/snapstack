@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 
 import { useDragStore } from "@/store/dragStore";
 import { useClientPrefsStore } from "@/store/clientPrefsStore";
@@ -85,8 +85,11 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const { slots, layoutMode, myPlayerId } = usePlayerLayout();
   const gridClass = React.useMemo(() => getGridClass(layoutMode), [layoutMode]);
 
+  const locationSearch = useRouterState({
+    select: (state) => state.location.search,
+  }) as string;
   const { status: syncStatus, peerCounts, joinBlocked, joinBlockedReason } =
-    useMultiplayerSync(sessionId);
+    useMultiplayerSync(sessionId, locationSearch);
 
   const [zoneViewerState, setZoneViewerState] = React.useState<{
     isOpen: boolean;
