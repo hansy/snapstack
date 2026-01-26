@@ -170,6 +170,7 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/partyKitToken", () => ({
   clearInviteTokenFromUrl: vi.fn(),
   clearRoomHostPending: vi.fn(),
+  clearRoomUnavailable: vi.fn(),
   isRoomHostPending: vi.fn(() => true),
   isRoomUnavailable: vi.fn(() => false),
   markRoomUnavailable: vi.fn(),
@@ -197,7 +198,12 @@ vi.mock("../fullSyncToStore", () => ({ createFullSyncToStore }));
 
 vi.mock("../disposeSessionTransport", () => ({ disposeSessionTransport }));
 
-import { resolveInviteTokenFromUrl } from "@/lib/partyKitToken";
+import {
+  clearRoomUnavailable,
+  isRoomHostPending,
+  isRoomUnavailable,
+  resolveInviteTokenFromUrl,
+} from "@/lib/partyKitToken";
 import { useMultiplayerSync } from "../useMultiplayerSync";
 
 describe("useMultiplayerSync", () => {
@@ -310,6 +316,45 @@ describe("useMultiplayerSync", () => {
     await waitFor(() => {
       expect(mockGameState.setViewerRole).toHaveBeenCalledWith("player");
       expect(mockGameState.viewerRole).toBe("player");
+    });
+  });
+
+  it("clears room unavailable when a fresh invite token is present", async () => {
+    vi.mocked(isRoomUnavailable).mockReturnValueOnce(true).mockReturnValueOnce(true);
+    vi.mocked(isRoomHostPending).mockReturnValueOnce(false);
+    vi.mocked(resolveInviteTokenFromUrl)
+      .mockReturnValueOnce({
+        token: "player-token",
+        role: "player",
+      })
+      .mockReturnValueOnce({
+        token: "player-token",
+        role: "player",
+      });
+
+    renderHook(() => useMultiplayerSync("session-available"));
+
+    await waitFor(() => {
+      expect(clearRoomUnavailable).toHaveBeenCalledWith("session-available");
+      expect(docManagerMocks.setSessionProvider).toHaveBeenCalledWith(
+        "session-available",
+        expect.any(Object)
+      );
+    });
+  });
+
+  it("clears room unavailable when host pending is set", async () => {
+    vi.mocked(isRoomUnavailable).mockReturnValueOnce(true).mockReturnValueOnce(true);
+    vi.mocked(isRoomHostPending).mockReturnValueOnce(true);
+
+    renderHook(() => useMultiplayerSync("session-host"));
+
+    await waitFor(() => {
+      expect(clearRoomUnavailable).toHaveBeenCalledWith("session-host");
+      expect(docManagerMocks.setSessionProvider).toHaveBeenCalledWith(
+        "session-host",
+        expect.any(Object)
+      );
     });
   });
 

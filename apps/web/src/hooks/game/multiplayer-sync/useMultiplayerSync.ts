@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
 import {
+  clearRoomUnavailable,
   clearRoomHostPending,
   isRoomHostPending,
   isRoomUnavailable,
@@ -294,9 +295,17 @@ export function useMultiplayerSync(sessionId: string) {
     if (typeof window === "undefined") return;
     if (!hasHydrated) return;
     if (isPaused) return;
+    const inviteToken = resolveInviteTokenFromUrl(window.location.href);
+    const hostPending = isRoomHostPending(sessionId);
     if (roomUnavailableRef.current || isRoomUnavailable(sessionId)) {
-      applyRoomUnavailable();
-      return;
+      if (inviteToken.token || hostPending) {
+        clearRoomUnavailable(sessionId);
+        roomUnavailableRef.current = false;
+        setRoomUnavailable(false);
+      } else {
+        applyRoomUnavailable();
+        return;
+      }
     }
     // Skip if we've already processed this epoch AND we have active resources.
     // If resources were torn down (e.g. by StrictMode cleanup), we need to reconnect.
@@ -305,7 +314,6 @@ export function useMultiplayerSync(sessionId: string) {
     setJoinBlocked(false);
     setJoinBlockedReason(null);
 
-    const inviteToken = resolveInviteTokenFromUrl(window.location.href);
     const storedTokens = readRoomTokensFromStorage(sessionId);
     const hasToken = Boolean(
       inviteToken.token ||
@@ -314,7 +322,7 @@ export function useMultiplayerSync(sessionId: string) {
         roomTokens?.playerToken ||
         roomTokens?.spectatorToken
     );
-    const canConnect = hasToken || isRoomHostPending(sessionId);
+    const canConnect = hasToken || hostPending;
     if (!canConnect) {
       dispatchConnectionEvent({ type: "reset" });
       const activeResources = resourcesRef.current;
