@@ -7,38 +7,55 @@ type OrbitRing = {
   reverse?: boolean;
   color: string;
   glow: string;
+  dotSize?: string;
+  shadow?: string;
+  ring?: string;
 };
 
 const orbitRings: OrbitRing[] = [
   {
     sizeClass:
-      "h-[120px] w-[120px] sm:h-[150px] sm:w-[150px] lg:h-[280px] lg:w-[280px]",
+      "h-[200px] w-[200px] sm:h-[240px] sm:w-[240px] lg:h-[520px] lg:w-[520px]",
     duration: "12s",
-    color: "#f43f5e",
-    glow: "rgba(244, 63, 94, 0.7)",
+    color: "#0b0a0f",
+    glow: "rgba(246, 241, 222, 0.9)",
+    ring: "rgba(246, 241, 222, 0.6)",
   },
   {
     sizeClass:
-      "h-[150px] w-[150px] sm:h-[190px] sm:w-[190px] lg:h-[330px] lg:w-[330px]",
+      "h-[230px] w-[230px] sm:h-[280px] sm:w-[280px] lg:h-[580px] lg:w-[580px]",
     duration: "15s",
     reverse: true,
-    color: "#8b5cf6",
-    glow: "rgba(139, 92, 246, 0.7)",
+    color: "#0b0a0f",
+    glow: "rgba(14, 104, 171, 0.95)",
+    ring: "rgba(14, 104, 171, 0.7)",
   },
   {
     sizeClass:
-      "h-[180px] w-[180px] sm:h-[220px] sm:w-[220px] lg:h-[380px] lg:w-[380px]",
+      "h-[260px] w-[260px] sm:h-[320px] sm:w-[320px] lg:h-[640px] lg:w-[640px]",
     duration: "18s",
-    color: "#38bdf8",
-    glow: "rgba(56, 189, 248, 0.7)",
+    color: "#f8fafc",
+    glow: "rgba(0, 0, 0, 0.95)",
+    dotSize: "8px",
+    shadow: "rgba(0, 0, 0, 1)",
+    ring: "rgba(248, 250, 252, 0.85)",
   },
   {
     sizeClass:
-      "h-[210px] w-[210px] sm:h-[250px] sm:w-[250px] lg:h-[420px] lg:w-[420px]",
+      "h-[290px] w-[290px] sm:h-[360px] sm:w-[360px] lg:h-[700px] lg:w-[700px]",
     duration: "21s",
     reverse: true,
-    color: "#f59e0b",
-    glow: "rgba(245, 158, 11, 0.7)",
+    color: "#0b0a0f",
+    glow: "rgba(211, 32, 42, 0.95)",
+    ring: "rgba(211, 32, 42, 0.7)",
+  },
+  {
+    sizeClass:
+      "h-[320px] w-[320px] sm:h-[400px] sm:w-[400px] lg:h-[760px] lg:w-[760px]",
+    duration: "24s",
+    color: "#0b0a0f",
+    glow: "rgba(0, 115, 62, 0.95)",
+    ring: "rgba(0, 115, 62, 0.7)",
   },
 ];
 
@@ -69,13 +86,15 @@ export function OrbitAnimation({ className }: OrbitAnimationProps) {
                 {
                   "--dot-color": ring.color,
                   "--dot-glow": ring.glow,
+                  "--dot-ring": ring.ring ?? ring.glow,
+                  "--dot-shadow": ring.shadow,
+                  "--dot-size": ring.dotSize,
                 } as CSSProperties
               }
             />
           </div>
         </div>
       ))}
-      <div className="landing-orbit-core" />
     </div>
   );
 }

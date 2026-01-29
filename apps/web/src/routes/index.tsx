@@ -28,6 +28,8 @@ const LandingPage = () => {
   );
   const [resumeSessionId, setResumeSessionId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  // Debug toggle: show the CTA even when the reconnect card is visible.
+  const showCtaWithReconnect = false;
 
   useEffect(() => {
     destroyAllSessions();
@@ -93,10 +95,18 @@ const LandingPage = () => {
     <div className="relative min-h-screen overflow-hidden bg-[#0b0a0f] text-zinc-100">
       <LandingBackground />
       <div className="relative z-10 flex min-h-screen flex-col">
+        <header className="flex items-center justify-between px-6 pt-6 sm:px-10">
+          <a
+            href="/"
+            className="text-md font-semibold uppercase tracking-[0.3em] text-zinc-200/80 transition hover:text-zinc-50"
+          >
+            Drawspell
+          </a>
+        </header>
         <LandingHero
           badge="No accounts - No login"
-          title="Start a game in seconds."
-          description="Drawspell is a free virtual tabletop simulator for playing Magic: The Gathering. Create a room, share the link, and play together."
+          title="Simply Magic"
+          description="Drawspell is a free virtual tabletop simulator for playing Magic: The Gathering. Create a room, share with friends, and play together."
           animation={
             <OrbitAnimation className="h-[180px] w-[180px] sm:h-[220px] sm:w-[220px] lg:h-[420px] lg:w-[420px]" />
           }
@@ -106,11 +116,11 @@ const LandingPage = () => {
             ) : null
           }
           primaryAction={
-            resumeSessionId ? null : (
+            resumeSessionId && !showCtaWithReconnect ? null : (
               <button
                 onClick={handleCreateGame}
                 disabled={isCreating}
-                className="w-full max-w-sm rounded-full border border-white/10 bg-white/10 px-6 py-3 text-base font-semibold text-white shadow-[0_0_30px_rgba(99,102,241,0.25)] transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-70"
+                className="w-full max-w-sm rounded-full border border-white/20 bg-white/25 px-6 py-3 text-base font-semibold text-white shadow-[0_0_30px_rgba(99,102,241,0.25)] transition hover:bg-white/35 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}

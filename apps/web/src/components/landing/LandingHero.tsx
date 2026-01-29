@@ -19,8 +19,13 @@ export function LandingHero({
 }: LandingHeroProps) {
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6 pb-10 pt-12 text-center">
-      <div className="flex w-full max-w-4xl flex-col items-center gap-8">
-        <div className="flex flex-col items-center gap-4">
+      <div className="relative flex w-full max-w-4xl flex-col items-center gap-8">
+        {animation ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-80">
+            {animation}
+          </div>
+        ) : null}
+        <div className="relative z-10 flex flex-col items-center gap-5">
           <span className="rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs uppercase tracking-[0.35em] text-zinc-200/80">
             {badge}
           </span>
@@ -43,12 +48,7 @@ export function LandingHero({
             {description}
           </p>
         </div>
-        <div className="relative flex w-full flex-col items-center gap-5">
-          {animation ? (
-            <div className="pointer-events-none relative flex items-center justify-center lg:absolute lg:inset-0 lg:-z-10 lg:opacity-80">
-              {animation}
-            </div>
-          ) : null}
+        <div className="relative z-10 flex w-full flex-col items-center gap-5">
           {secondaryPanel}
           {primaryAction}
         </div>
