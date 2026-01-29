@@ -81,7 +81,6 @@ export const createIntentTransport = ({
   let transport: IntentTransport | null = null;
   let socket: ReturnType<typeof createIntentSocket> | null = null;
   let socketPromise: Promise<ReturnType<typeof createIntentSocket> | null> | null = null;
-  let currentJoinToken: string | undefined;
 
   const handleOpen = () => {
     if (transport && activeTransport === transport) {
@@ -99,7 +98,7 @@ export const createIntentTransport = ({
     onClose?.(event);
   };
 
-  const buildSocket = (resolvedJoinToken?: string | null) => {
+  const buildSocket = () => {
     socket = createIntentSocket({
       host,
       room,
@@ -107,33 +106,20 @@ export const createIntentTransport = ({
       tokenRole,
       playerId,
       viewerRole,
-      joinToken: resolvedJoinToken ?? undefined,
+      joinToken,
+      getJoinToken,
       onMessage,
       onOpen: handleOpen,
       onClose: handleClose,
       socketOptions,
     });
-    currentJoinToken = resolvedJoinToken ?? undefined;
     return socket;
   };
 
-  const ensureSocket = async (forceRefreshToken = false) => {
+  const ensureSocket = async () => {
     if (socketPromise) return socketPromise;
-    const desiredJoinToken =
-      joinToken ?? (getJoinToken ? await getJoinToken() : null);
-    const shouldRefresh =
-      forceRefreshToken &&
-      socket &&
-      socket.readyState === socket.CLOSED &&
-      desiredJoinToken !== currentJoinToken;
-    if (shouldRefresh && socket) {
-      try {
-        socket.close();
-      } catch (_err) {}
-      socket = null;
-    }
-    if (socket && !shouldRefresh) return socket;
-    socketPromise = Promise.resolve(buildSocket(desiredJoinToken)).finally(() => {
+    if (socket) return socket;
+    socketPromise = Promise.resolve(buildSocket()).finally(() => {
       socketPromise = null;
     });
     return socketPromise;
@@ -142,7 +128,7 @@ export const createIntentTransport = ({
   const isOpen = () =>
     Boolean(socket && socket.readyState === socket.OPEN);
   const connect = () => {
-    void ensureSocket(true).then((resolved) => {
+    void ensureSocket().then((resolved) => {
       if (!resolved) return;
       if (typeof (resolved as any).reconnect !== "function") return;
       if (

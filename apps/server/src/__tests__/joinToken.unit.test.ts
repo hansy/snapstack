@@ -57,7 +57,9 @@ describe("join tokens", () => {
     const exp = Date.now() + 60_000;
     const token = await createJoinToken({ roomId: "room-xyz", exp }, secret);
     const [payload, signature] = token.split(".");
-    const tampered = `${payload}.${signature.slice(0, -1)}x`;
+    const lastChar = signature.slice(-1);
+    const replacement = lastChar === "a" ? "b" : "a";
+    const tampered = `${payload}.${signature.slice(0, -1)}${replacement}`;
     const result = await verifyJoinToken(tampered, secret, { now: Date.now() });
     expect(result.ok).toBe(false);
   });
