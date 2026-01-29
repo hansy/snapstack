@@ -94,18 +94,15 @@ const LandingPage = () => {
       <LandingBackground />
       <div className="relative z-10 flex min-h-screen flex-col">
         <LandingHero
-          badge="Four players - one orbit"
+          badge="No accounts - No login"
           title="Start a game in seconds."
-          description="Drawspell is a shared tabletop for spells, cards, and sketches. Create a room, share the link, and feel everyone's presence the moment they join."
+          description="Drawspell is a free virtual tabletop simulator for playing Magic: The Gathering. Create a room, share the link, and play together."
           animation={
             <OrbitAnimation className="h-[180px] w-[180px] sm:h-[220px] sm:w-[220px] lg:h-[420px] lg:w-[420px]" />
           }
           secondaryPanel={
             resumeSessionId ? (
-              <ResumeCard
-                onReconnect={handleReconnect}
-                onLeave={handleLeave}
-              />
+              <ResumeCard onReconnect={handleReconnect} onLeave={handleLeave} />
             ) : null
           }
           primaryAction={
