@@ -16,6 +16,8 @@
     "production": {
       "vars": {
         "VITE_SERVER_HOST": "ws.drawspell.space",
+        "VITE_PUBLIC_POSTHOG_KEY": "phc_oYFcMPG9V4ARE4INIzfQQnLmADFN2GRLaYfDFiLSaQ6",
+        "VITE_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
       },
     },
   },
