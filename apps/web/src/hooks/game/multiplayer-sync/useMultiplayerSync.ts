@@ -30,7 +30,8 @@ import {
 import { createAwarenessLifecycle } from "./awarenessLifecycle";
 import { createAttemptJoin } from "./attemptJoin";
 import { emitLog } from "@/logging/logStore";
-import { isRoomResetClose } from "./connectionBackoff";
+import { resolveJoinToken } from "@/lib/joinToken";
+import { isRateLimitedClose, isRoomResetClose } from "./connectionBackoff";
 import {
   createConnectionMachineState,
   transitionConnectionMachine,
@@ -75,11 +76,11 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stableResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intentCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectAttemptTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionMachineRef = useRef(createConnectionMachineState());
   const dispatchConnectionEventRef = useRef<(event: ConnectionMachineEvent) => void>(() => {});
   const lastConnectEpoch = useRef(-1);
   const pausedRef = useRef(false);
-  const stoppedRef = useRef(false);
   const connectionGeneration = useRef(0);
   const roomUnavailableRef = useRef(roomUnavailable);
   const intentClosedAtRef = useRef<number | null>(null);
@@ -147,6 +148,13 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
     }
   };
 
+  const clearConnectAttemptTimer = (reason?: string) => {
+    if (connectAttemptTimer.current) {
+      clearTimeout(connectAttemptTimer.current);
+      connectAttemptTimer.current = null;
+    }
+  };
+
   const applyConnectionEffects = (effects: ConnectionMachineEffect[]) => {
     effects.forEach((effect) => {
       switch (effect.type) {
@@ -201,6 +209,12 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
     });
   };
 
+  const disableProviderAutoReconnect = (provider: any) => {
+    if (provider && "shouldConnect" in provider) {
+      provider.shouldConnect = false;
+    }
+  };
+
   const dispatchConnectionEvent = (event: ConnectionMachineEvent) => {
     const { state, effects } = transitionConnectionMachine(
       connectionMachineRef.current,
@@ -215,6 +229,10 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
   useEffect(() => {
     roomUnavailableRef.current = roomUnavailable;
   }, [roomUnavailable]);
+
+  useEffect(() => {
+    dispatchConnectionEvent({ type: "reset" });
+  }, [sessionId]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -333,7 +351,6 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
 
   useEffect(() => {
     return () => {
-      stoppedRef.current = true;
       dispatchConnectionEvent({ type: "pause" });
       if (reconnectTimer.current) {
         clearTimeout(reconnectTimer.current);
@@ -347,153 +364,54 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
   }, []);
 
   useEffect(() => {
-    if (!sessionId) return;
-    if (typeof window === "undefined") return;
-    if (!hasHydrated) return;
-    if (isPaused) return;
-    const inviteToken = resolveInviteTokenFromUrl(window.location.href);
-    const hostPending = isRoomHostPending(sessionId);
-    if (roomUnavailableRef.current || isRoomUnavailable(sessionId)) {
-      if (inviteToken.token || hostPending) {
-        clearRoomUnavailable(sessionId);
-        roomUnavailableRef.current = false;
-        setRoomUnavailable(false);
-      } else {
-        applyRoomUnavailable();
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+
+    const run = async () => {
+      if (!sessionId) {
         return;
       }
-    }
-    // Skip if we've already processed this epoch AND we have active resources.
-    // If resources were torn down (e.g. by StrictMode cleanup), we need to reconnect.
-    if (connectEpoch === lastConnectEpoch.current && resourcesRef.current) return;
-
-    setJoinBlocked(false);
-    setJoinBlockedReason(null);
-
-    const storedTokens = readRoomTokensFromStorage(sessionId);
-    const hasToken = Boolean(
-      inviteToken.token ||
-        storedTokens?.playerToken ||
-        storedTokens?.spectatorToken ||
-        roomTokens?.playerToken ||
-        roomTokens?.spectatorToken
-    );
-    const canConnect = hasToken || hostPending;
-    if (!canConnect) {
-      dispatchConnectionEvent({ type: "reset" });
-      const activeResources = resourcesRef.current;
-      if (activeResources) {
-        teardownSessionResources(sessionId, {
-          awareness: activeResources.awareness,
-          provider: activeResources.provider,
-          intentTransport: activeResources.intentTransport,
-        });
-        resourcesRef.current = null;
-        connectionGeneration.current += 1;
-      }
-      resetIntentCloseTracking();
-      setJoinBlocked(true);
-      setJoinBlockedReason("invite");
-      if (useClientPrefsStore.getState().lastSessionId === sessionId) {
-        clearLastSessionId();
-      }
-      return;
-    }
-
-    lastConnectEpoch.current = connectEpoch;
-
-    const nextGeneration = connectionGeneration.current + 1;
-    const shouldHandleDisconnect = () => {
-      if (stoppedRef.current || pausedRef.current) return false;
-      if (connectionGeneration.current !== nextGeneration) return false;
-      return true;
-    };
-
-    const handleDisconnect = (event?: { code?: number; reason?: string } | null) => {
-      if (!shouldHandleDisconnect()) return;
-      if (event?.code === 1008) return;
-      if (isRoomResetClose(event)) {
-        applyRoomUnavailable();
+      if (typeof window === "undefined") {
         return;
       }
-      setStatus("connecting");
-      dispatchConnectionEvent({
-        type: "disconnected",
-        reason: "close",
-      });
-
-      const activeResources = resourcesRef.current;
-      if (activeResources) {
-        teardownSessionResources(sessionId, {
-          awareness: activeResources.awareness,
-          provider: activeResources.provider,
-          intentTransport: activeResources.intentTransport,
-        });
-        resourcesRef.current = null;
+      if (!hasHydrated) {
+        return;
       }
-      resetIntentCloseTracking();
-      connectionGeneration.current += 1;
-    };
-
-    const maybeTriggerIntentFallback = () => {
-      if (!shouldHandleDisconnect()) return;
-      if (intentClosedAtRef.current === null) return;
-      const elapsed = Date.now() - intentClosedAtRef.current;
-      if (elapsed < INTENT_DISCONNECT_GRACE_MS) return;
-      handleDisconnect({ code: 1006, reason: "intent-timeout" });
-    };
-
-    const handleIntentClose = () => {
-      if (!shouldHandleDisconnect()) return;
-      intentClosedAtRef.current = Date.now();
-      if (intentCloseTimer.current) {
-        clearTimeout(intentCloseTimer.current);
+      if (isPaused) {
+        return;
       }
-      intentCloseTimer.current = setTimeout(() => {
-        intentCloseTimer.current = null;
-        maybeTriggerIntentFallback();
-      }, INTENT_DISCONNECT_GRACE_MS);
-    };
-
-    const handleIntentOpen = () => {
-      resetIntentCloseTracking();
-      if (attemptJoinRef.current) {
-        attemptJoinRef.current();
-      } else {
-        pendingIntentJoinRef.current = true;
-      }
-    };
-
-    const resources = setupSessionResources({
-      sessionId,
-      statusSetter: setStatus,
-      onIntentClose: handleIntentClose,
-      onIntentOpen: handleIntentOpen,
-      onAuthFailure: (reason) => {
-        if (authFailureHandled.current) return;
-        authFailureHandled.current = true;
-        emitConnectionLog("connection.authFailure", { reason });
-        const priorEvidence = priorSessionEvidenceRef.current;
-        const shouldTreatAsUnavailable =
-          reason === "invalid token" &&
-          priorEvidence.sessionId === sessionId &&
-          (priorEvidence.hasTokens || priorEvidence.hadLastSession);
-        if (shouldTreatAsUnavailable) {
+      const inviteToken = resolveInviteTokenFromUrl(window.location.href);
+      const hostPending = isRoomHostPending(sessionId);
+      if (roomUnavailableRef.current || isRoomUnavailable(sessionId)) {
+        if (inviteToken.token || hostPending) {
+          clearRoomUnavailable(sessionId);
+          roomUnavailableRef.current = false;
+          setRoomUnavailable(false);
+        } else {
           applyRoomUnavailable();
           return;
         }
+      }
+      // Skip if we've already processed this epoch AND we have active resources.
+      // If resources were torn down (e.g. by StrictMode cleanup), we need to reconnect.
+      if (connectEpoch === lastConnectEpoch.current && resourcesRef.current) {
+        return;
+      }
 
+      setJoinBlocked(false);
+      setJoinBlockedReason(null);
+
+      const storedTokens = readRoomTokensFromStorage(sessionId);
+      const hasToken = Boolean(
+        inviteToken.token ||
+          storedTokens?.playerToken ||
+          storedTokens?.spectatorToken ||
+          roomTokens?.playerToken ||
+          roomTokens?.spectatorToken
+      );
+      const canConnect = hasToken || hostPending;
+      if (!canConnect) {
         dispatchConnectionEvent({ type: "reset" });
-        const store = useGameStore.getState();
-        store.setRoomTokens(null);
-        writeRoomTokensToStorage(sessionId, null);
-        clearRoomHostPending(sessionId);
-        if (useClientPrefsStore.getState().lastSessionId === sessionId) {
-          clearLastSessionId();
-        }
-        setJoinBlocked(true);
-        setJoinBlockedReason("invite");
-
         const activeResources = resourcesRef.current;
         if (activeResources) {
           teardownSessionResources(sessionId, {
@@ -505,106 +423,270 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
           connectionGeneration.current += 1;
         }
         resetIntentCloseTracking();
-      },
-    });
+        setJoinBlocked(true);
+        setJoinBlockedReason("invite");
+        if (useClientPrefsStore.getState().lastSessionId === sessionId) {
+          clearLastSessionId();
+        }
+        return;
+      }
 
-    if (!resources) return;
-    connectionGeneration.current = nextGeneration;
-    setLastSessionId(sessionId);
+      const expectedEpoch = connectEpoch;
+      const joinToken = await resolveJoinToken(sessionId);
+      if (cancelled || expectedEpoch !== connectEpoch) {
+        return;
+      }
+      if (!joinToken) {
+        setStatus("connecting");
+        dispatchConnectionEvent({ type: "disconnected", reason: "join-token" });
+        return;
+      }
 
-    const {
-      awareness,
-      provider,
-      intentTransport,
-      ensuredPlayerId,
-      fullSyncToStore,
-      doc,
-    } = resources;
-    awarenessRef.current = awareness;
-    localPlayerIdRef.current = ensuredPlayerId;
-    resourcesRef.current = resources;
-    authFailureHandled.current = false;
+      lastConnectEpoch.current = connectEpoch;
 
-    const attemptJoin = createAttemptJoin({
-      playerId: ensuredPlayerId,
-      setJoinState: (blocked, reason) => {
-        setJoinBlocked(blocked);
-        setJoinBlockedReason(reason);
-      },
-      getRole: () => useGameStore.getState().viewerRole,
-    });
-    attemptJoinRef.current = attemptJoin;
-    if (pendingIntentJoinRef.current) {
-      pendingIntentJoinRef.current = false;
-      attemptJoin();
-    }
+      const nextGeneration = connectionGeneration.current + 1;
+      const getDisconnectGuard = () => {
+        if (cancelled) return { ok: false, reason: "cancelled" as const };
+        if (pausedRef.current) return { ok: false, reason: "paused" as const };
+        if (connectionGeneration.current !== nextGeneration) {
+          return {
+            ok: false,
+            reason: "generation-mismatch" as const,
+            current: connectionGeneration.current,
+            expected: nextGeneration,
+          };
+        }
+        return { ok: true as const };
+      };
+      const shouldHandleDisconnect = () => getDisconnectGuard().ok;
 
-    const SYNC_DEBOUNCE_MS = 50;
-    const scheduleFullSync = () => {
-      scheduleDebouncedTimeout(fullSyncTimer, SYNC_DEBOUNCE_MS, fullSyncToStore);
-    };
+      const handleDisconnect = (event?: { code?: number; reason?: string } | null) => {
+        const guard = getDisconnectGuard();
+        if (!guard.ok) {
+          return;
+        }
+        if (event?.code === 1008) return;
+        if (isRoomResetClose(event)) {
+          applyRoomUnavailable();
+          return;
+        }
+        clearConnectAttemptTimer("disconnect");
+        setStatus("connecting");
+        dispatchConnectionEvent({
+          type: "disconnected",
+          reason: isRateLimitedClose(event) ? "rate-limit" : "close",
+        });
 
-    const handleDocUpdate = () => {
-      if (isApplyingRemoteUpdate()) return;
-      scheduleFullSync();
-    };
-    doc.on("update", handleDocUpdate);
+        const activeResources = resourcesRef.current;
+        if (activeResources) {
+          disableProviderAutoReconnect(activeResources.provider as any);
+          teardownSessionResources(sessionId, {
+            awareness: activeResources.awareness,
+            provider: activeResources.provider,
+            intentTransport: activeResources.intentTransport,
+          });
+          resourcesRef.current = null;
+        }
+        resetIntentCloseTracking();
+        connectionGeneration.current += 1;
+      };
 
-    const { pushLocalAwareness, handleAwarenessChange, disposeAwareness } =
-      createAwarenessLifecycle({
-        awareness,
-        playerId: ensuredPlayerId,
-        getViewerRole: () => useGameStore.getState().viewerRole,
-        onPeerCounts: setPeerCounts,
+      const maybeTriggerIntentFallback = () => {
+        if (!shouldHandleDisconnect()) {
+          return;
+        }
+        if (intentClosedAtRef.current === null) return;
+        const elapsed = Date.now() - intentClosedAtRef.current;
+        if (elapsed < INTENT_DISCONNECT_GRACE_MS) return;
+        handleDisconnect({ code: 1006, reason: "intent-timeout" });
+      };
+
+      const handleIntentClose = (event?: CloseEvent) => {
+        if (!shouldHandleDisconnect()) return;
+        if (isRateLimitedClose(event) || isRoomResetClose(event)) {
+          handleDisconnect(event);
+          return;
+        }
+        intentClosedAtRef.current = Date.now();
+        if (intentCloseTimer.current) {
+          clearTimeout(intentCloseTimer.current);
+        }
+        intentCloseTimer.current = setTimeout(() => {
+          intentCloseTimer.current = null;
+          maybeTriggerIntentFallback();
+        }, INTENT_DISCONNECT_GRACE_MS);
+      };
+
+      const handleIntentOpen = () => {
+        resetIntentCloseTracking();
+        if (attemptJoinRef.current) {
+          attemptJoinRef.current();
+        } else {
+          pendingIntentJoinRef.current = true;
+        }
+      };
+
+      const resources = setupSessionResources({
+        sessionId,
+        statusSetter: setStatus,
+        onIntentClose: handleIntentClose,
+        onIntentOpen: handleIntentOpen,
+        joinToken,
+        onAuthFailure: (reason) => {
+          if (authFailureHandled.current) return;
+          authFailureHandled.current = true;
+          emitConnectionLog("connection.authFailure", { reason });
+          const priorEvidence = priorSessionEvidenceRef.current;
+          const shouldTreatAsUnavailable =
+            reason === "invalid token" &&
+            priorEvidence.sessionId === sessionId &&
+            (priorEvidence.hasTokens || priorEvidence.hadLastSession);
+          if (shouldTreatAsUnavailable) {
+            applyRoomUnavailable();
+            return;
+          }
+
+          dispatchConnectionEvent({ type: "reset" });
+          const store = useGameStore.getState();
+          store.setRoomTokens(null);
+          writeRoomTokensToStorage(sessionId, null);
+          clearRoomHostPending(sessionId);
+          if (useClientPrefsStore.getState().lastSessionId === sessionId) {
+            clearLastSessionId();
+          }
+          setJoinBlocked(true);
+          setJoinBlockedReason("invite");
+
+          const activeResources = resourcesRef.current;
+          if (activeResources) {
+            teardownSessionResources(sessionId, {
+              awareness: activeResources.awareness,
+              provider: activeResources.provider,
+              intentTransport: activeResources.intentTransport,
+            });
+            resourcesRef.current = null;
+            connectionGeneration.current += 1;
+          }
+          resetIntentCloseTracking();
+        },
       });
-    pushLocalAwareness();
-    awareness.on("change", handleAwarenessChange);
-    handleAwarenessChange();
 
-    provider.on("status", ({ status: s }: any) => {
-      if (connectionGeneration.current !== nextGeneration) return;
-      if (s === "connected") {
-        pushLocalAwareness();
-        dispatchConnectionEvent({ type: "connected" });
+      if (!resources) return;
+      connectionGeneration.current = nextGeneration;
+      setLastSessionId(sessionId);
+
+      const {
+        awareness,
+        provider,
+        intentTransport,
+        ensuredPlayerId,
+        fullSyncToStore,
+        doc,
+      } = resources;
+      awarenessRef.current = awareness;
+      localPlayerIdRef.current = ensuredPlayerId;
+      resourcesRef.current = resources;
+      authFailureHandled.current = false;
+
+      const attemptJoin = createAttemptJoin({
+        playerId: ensuredPlayerId,
+        setJoinState: (blocked, reason) => {
+          setJoinBlocked(blocked);
+          setJoinBlockedReason(reason);
+        },
+        getRole: () => useGameStore.getState().viewerRole,
+      });
+      attemptJoinRef.current = attemptJoin;
+      if (pendingIntentJoinRef.current) {
+        pendingIntentJoinRef.current = false;
+        attemptJoin();
       }
-      if (s === "disconnected") {
-        dispatchConnectionEvent({ type: "status-disconnected" });
-        maybeTriggerIntentFallback();
+
+      const SYNC_DEBOUNCE_MS = 50;
+      const scheduleFullSync = () => {
+        scheduleDebouncedTimeout(fullSyncTimer, SYNC_DEBOUNCE_MS, fullSyncToStore);
+      };
+
+      const handleDocUpdate = () => {
+        if (isApplyingRemoteUpdate()) return;
+        scheduleFullSync();
+      };
+      doc.on("update", handleDocUpdate);
+
+      const { pushLocalAwareness, handleAwarenessChange, disposeAwareness } =
+        createAwarenessLifecycle({
+          awareness,
+          playerId: ensuredPlayerId,
+          getViewerRole: () => useGameStore.getState().viewerRole,
+          onPeerCounts: setPeerCounts,
+        });
+      pushLocalAwareness();
+      awareness.on("change", handleAwarenessChange);
+      handleAwarenessChange();
+
+      provider.on("status", ({ status: s }: any) => {
+        if (connectionGeneration.current !== nextGeneration) return;
+        if (s === "connected") {
+          pushLocalAwareness();
+          dispatchConnectionEvent({ type: "connected" });
+        }
+        if (s === "disconnected") {
+          dispatchConnectionEvent({ type: "status-disconnected" });
+          maybeTriggerIntentFallback();
+        }
+      });
+
+      if ("on" in provider && typeof provider.on === "function") {
+        provider.on("connection-close", (event: CloseEvent) => {
+          handleDisconnect(event);
+        });
+        provider.on("connection-error", (event: Event) => {
+          handleDisconnect(event as any);
+        });
       }
-    });
 
-    if ("on" in provider && typeof provider.on === "function") {
-      provider.on("connection-close", handleDisconnect as any);
-      provider.on("connection-error", handleDisconnect as any);
-    }
+      provider.on("sync", (isSynced: boolean) => {
+        if (!isSynced) return;
+        scheduleDebouncedTimeout(postSyncFullSyncTimer, 50, fullSyncToStore);
+        scheduleDebouncedTimeout(postSyncInitTimer, 60, attemptJoin);
+      });
 
-    provider.on("sync", (isSynced: boolean) => {
-      if (!isSynced) return;
-      scheduleDebouncedTimeout(postSyncFullSyncTimer, 50, fullSyncToStore);
-      scheduleDebouncedTimeout(postSyncInitTimer, 60, attemptJoin);
-    });
+      await provider.connect?.();
+      disableProviderAutoReconnect(provider as any);
+      intentTransport.connect?.();
 
-    provider.connect?.();
-    intentTransport.connect?.();
+      clearConnectAttemptTimer();
+      connectAttemptTimer.current = setTimeout(() => {
+        connectAttemptTimer.current = null;
+        handleDisconnect({ code: 1006, reason: "connect-timeout" });
+      }, 12_000);
+
+      cleanup = () => {
+        disposeAwareness();
+        awarenessRef.current = null;
+        localPlayerIdRef.current = null;
+        resetIntentCloseTracking();
+        clearConnectAttemptTimer("cleanup");
+
+        awareness.off("change", handleAwarenessChange);
+        doc.off("update", handleDocUpdate);
+        cancelDebouncedTimeout(fullSyncTimer);
+        cancelDebouncedTimeout(postSyncFullSyncTimer);
+        cancelDebouncedTimeout(postSyncInitTimer);
+
+        teardownSessionResources(sessionId, { awareness, provider, intentTransport });
+        resourcesRef.current = null;
+        connectionGeneration.current += 1;
+
+        attemptJoinRef.current = null;
+      };
+    };
+
+    void run();
 
     return () => {
-      disposeAwareness();
-      awarenessRef.current = null;
-      localPlayerIdRef.current = null;
-      resetIntentCloseTracking();
-
-      awareness.off("change", handleAwarenessChange);
-      doc.off("update", handleDocUpdate);
-      cancelDebouncedTimeout(fullSyncTimer);
-      cancelDebouncedTimeout(postSyncFullSyncTimer);
-      cancelDebouncedTimeout(postSyncInitTimer);
-      dispatchConnectionEvent({ type: "reset" });
-
-      teardownSessionResources(sessionId, { awareness, provider, intentTransport });
-      resourcesRef.current = null;
-      connectionGeneration.current += 1;
-
-      attemptJoinRef.current = null;
+      cancelled = true;
+      cleanup?.();
     };
   }, [
     sessionId,
