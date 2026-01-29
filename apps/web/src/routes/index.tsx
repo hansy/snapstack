@@ -13,6 +13,11 @@ import { clearIntentTransport } from "@/partykit/intentTransport";
 import { destroyAllSessions } from "@/yjs/docManager";
 import { useClientPrefsStore } from "@/store/clientPrefsStore";
 import { useGameStore } from "@/store/gameStore";
+import { FooterLinks } from "@/components/landing/FooterLinks";
+import { LandingBackground } from "@/components/landing/LandingBackground";
+import { LandingHero } from "@/components/landing/LandingHero";
+import { OrbitAnimation } from "@/components/landing/OrbitAnimation";
+import { ResumeCard } from "@/components/landing/ResumeCard";
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -85,50 +90,40 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100">
-      <div className="max-w-xl w-full px-8 py-12 rounded-2xl border border-zinc-800 bg-zinc-900/60 shadow-lg">
-        <h1 className="text-3xl font-semibold tracking-tight mb-4">
-          Drawspell
-        </h1>
-        <p className="text-zinc-300 mb-8">
-          Start a multiplayer table and share the link so others can join.
-        </p>
-        {resumeSessionId ? (
-          <div className="mb-8 rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
-            <h2 className="text-lg font-semibold text-zinc-100">
-              You're already in a game
-            </h2>
-            <p className="text-sm text-zinc-300 mt-1">
-              Reconnect to your last session or leave it to stop syncing.
-            </p>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+    <div className="relative min-h-screen overflow-hidden bg-[#0b0a0f] text-zinc-100">
+      <LandingBackground />
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <LandingHero
+          badge="Four players - one orbit"
+          title="Start a game in seconds."
+          description="Drawspell is a shared tabletop for spells, cards, and sketches. Create a room, share the link, and feel everyone's presence the moment they join."
+          animation={
+            <OrbitAnimation className="h-[180px] w-[180px] sm:h-[220px] sm:w-[220px] lg:h-[420px] lg:w-[420px]" />
+          }
+          secondaryPanel={
+            resumeSessionId ? (
+              <ResumeCard
+                onReconnect={handleReconnect}
+                onLeave={handleLeave}
+              />
+            ) : null
+          }
+          primaryAction={
+            resumeSessionId ? null : (
               <button
-                onClick={handleReconnect}
-                className="flex-1 py-2.5 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-medium transition"
+                onClick={handleCreateGame}
+                disabled={isCreating}
+                className="w-full max-w-sm rounded-full border border-white/10 bg-white/10 px-6 py-3 text-base font-semibold text-white shadow-[0_0_30px_rgba(99,102,241,0.25)] transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Reconnect
+                <span className="inline-flex items-center justify-center gap-2">
+                  {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {isCreating ? "Starting..." : "Start a game"}
+                </span>
               </button>
-              <button
-                onClick={handleLeave}
-                className="flex-1 py-2.5 px-4 rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-100 font-medium transition"
-              >
-                Leave game
-              </button>
-            </div>
-          </div>
-        ) : null}
-        {resumeSessionId ? null : (
-          <button
-            onClick={handleCreateGame}
-            disabled={isCreating}
-            className="w-full py-3 px-4 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-zinc-50 font-medium transition disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-indigo-500"
-          >
-            <span className="inline-flex items-center justify-center gap-2">
-              {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isCreating ? "Creating..." : "Create game"}
-            </span>
-          </button>
-        )}
+            )
+          }
+        />
+        <FooterLinks />
       </div>
     </div>
   );
@@ -141,7 +136,7 @@ export const Route = createFileRoute("/")({
       { title: "Drawspell" },
       {
         name: "description",
-        content: "Online card tabletop simulator. No accounts. No login.",
+        content: "Multiplayer tabletop for spells, cards, and sketches.",
       },
     ],
   }),
