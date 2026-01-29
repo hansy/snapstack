@@ -34,11 +34,11 @@ const orbitRings: OrbitRing[] = [
     sizeClass:
       "h-[260px] w-[260px] sm:h-[320px] sm:w-[320px] lg:h-[640px] lg:w-[640px]",
     duration: "18s",
-    color: "#f8fafc",
-    glow: "rgba(0, 0, 0, 0.95)",
-    dotSize: "8px",
-    shadow: "rgba(0, 0, 0, 1)",
-    ring: "rgba(248, 250, 252, 0.85)",
+    color: "#0b0a0f",
+    glow: "rgba(147, 51, 234, 0.5)",
+    dotSize: "12px",
+    ring: "rgba(147, 51, 234, 0.4)",
+    shadow: "rgba(147, 51, 234, 0.2)",
   },
   {
     sizeClass:

@@ -41,7 +41,7 @@
 
 .landing-orbit-dot {
   position: absolute;
-  top: -5px;
+  top: -6px;
   left: 50%;
   transform: translateX(-50%);
   width: var(--dot-size, 12px);
@@ -54,6 +54,23 @@
     0 0 18px var(--dot-glow),
     0 0 32px var(--dot-glow),
     0 0 48px var(--dot-shadow, transparent);
+  transition: all 0.3s ease;
+}
+
+.landing-orbit-dot::before {
+  content: "";
+  position: absolute;
+  top: 15%;
+  left: 15%;
+  width: 35%;
+  height: 35%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  filter: blur(0.5px);
 }
 
 .landing-orbit-core {
