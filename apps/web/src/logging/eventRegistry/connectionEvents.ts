@@ -27,6 +27,10 @@ const formatReconnectReason = (reason: BackoffReason) => {
       return "room reset";
     case "resume":
       return "resume";
+    case "rate-limit":
+      return "rate limited";
+    case "join-token":
+      return "join token unavailable";
     case "close":
     default:
       return "connection closed";

@@ -3,6 +3,7 @@ import {
   DEFAULT_BACKOFF_CONFIG,
   computeBackoffDelay,
   isRoomResetClose,
+  isRateLimitedClose,
   shouldAbandonReconnect,
 } from "../connectionBackoff";
 
@@ -26,6 +27,11 @@ describe("computeBackoffDelay", () => {
     );
     expect(delay).toBe(DEFAULT_BACKOFF_CONFIG.roomResetMinMs);
   });
+
+  it("uses fixed delay for rate-limit reason", () => {
+    const delay = computeBackoffDelay(3, "rate-limit", DEFAULT_BACKOFF_CONFIG, () => 0.9);
+    expect(delay).toBe(DEFAULT_BACKOFF_CONFIG.rateLimitMs);
+  });
 });
 
 describe("isRoomResetClose", () => {
@@ -39,6 +45,20 @@ describe("isRoomResetClose", () => {
 
   it("ignores other closes", () => {
     expect(isRoomResetClose({ code: 1006, reason: "abnormal" })).toBe(false);
+  });
+});
+
+describe("isRateLimitedClose", () => {
+  it("detects rate limit by code", () => {
+    expect(isRateLimitedClose({ code: 1013, reason: "rate limited" })).toBe(true);
+  });
+
+  it("ignores room reset reason even with 1013", () => {
+    expect(isRateLimitedClose({ code: 1013, reason: "room reset" })).toBe(false);
+  });
+
+  it("detects rate limit by reason", () => {
+    expect(isRateLimitedClose({ code: 1006, reason: "Rate limit exceeded" })).toBe(true);
   });
 });
 

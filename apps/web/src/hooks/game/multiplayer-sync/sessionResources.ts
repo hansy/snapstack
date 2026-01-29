@@ -60,6 +60,7 @@ export type SessionSetupDeps = {
   onAuthFailure?: (reason: string) => void;
   onIntentOpen?: () => void;
   onIntentClose?: (event: CloseEvent) => void;
+  joinToken?: string;
 };
 
 export function setupSessionResources({
@@ -68,6 +69,7 @@ export function setupSessionResources({
   onAuthFailure,
   onIntentOpen,
   onIntentClose,
+  joinToken,
 }: SessionSetupDeps): SessionSetupResult | null {
   const partyHost =
     (import.meta.env.VITE_SERVER_HOST as string) || "localhost:8787";
@@ -194,7 +196,7 @@ export function setupSessionResources({
         const resolvedSyncToken = resolveTokenForRole(role, state.roomTokens);
         const syncToken = resolvedSyncToken.token;
         const syncTokenRole = resolvedSyncToken.tokenRole;
-        const joinToken = await resolveJoinToken(sessionId);
+        const resolvedJoinToken = joinToken ?? (await resolveJoinToken(sessionId));
         const tokenParam =
           syncToken && syncTokenRole === "spectator"
             ? { st: syncToken }
@@ -204,7 +206,7 @@ export function setupSessionResources({
         return {
           role: "sync",
           ...tokenParam,
-          ...(joinToken ? { jt: joinToken } : {}),
+          ...(resolvedJoinToken ? { jt: resolvedJoinToken } : {}),
           ...(ensuredPlayerId ? { playerId: ensuredPlayerId } : {}),
           ...(role ? { viewerRole: role } : {}),
         };
@@ -258,12 +260,15 @@ export function setupSessionResources({
     tokenRole,
     playerId: ensuredPlayerId,
     viewerRole: intentViewerRole,
-    getJoinToken: () => resolveJoinToken(sessionId),
+    ...(joinToken
+      ? { joinToken }
+      : { getJoinToken: () => resolveJoinToken(sessionId) }),
     socketOptions: {
       maxEnqueuedMessages: 0,
       connectionTimeout: 10_000,
       minReconnectionDelay: 1_000,
       maxReconnectionDelay: 10_000,
+      maxRetries: 0,
       startClosed: true,
     },
     onOpen: () => {

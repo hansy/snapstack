@@ -47,7 +47,7 @@ import { OverlayService, type OverlayBuildResult } from "./overlay/service";
 import { SnapshotStore, type SnapshotMeta } from "./storage/snapshotStore";
 
 const INTENT_ROLE = "intent";
-const EMPTY_ROOM_GRACE_MS = 30_000;
+const EMPTY_ROOM_GRACE_MS = 120_000;
 const ROOM_TEARDOWN_CLOSE_CODE = 1013;
 const Y_DOC_STORAGE_KEY = "yjs:doc";
 const SNAPSHOT_META_KEY = "snapshot:meta";
@@ -1323,6 +1323,8 @@ export class Room extends YServer<Env> {
           }
         : null,
     };
+
+    console.info("[party] perf metrics", metrics);
 
     this.intentApplySamples = [];
     this.overlayService.resetMetrics();
