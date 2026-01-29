@@ -39,7 +39,10 @@ import {
   isRecord,
   syncPlayerOrder,
 } from "./domain/yjsStore";
-import { parseConnectionParams, resolveConnectionAuth } from "./connection/auth";
+import {
+  parseConnectionParams,
+  resolveConnectionAuth,
+} from "./connection/auth";
 import { OverlayService, type OverlayBuildResult } from "./overlay/service";
 import { SnapshotStore, type SnapshotMeta } from "./storage/snapshotStore";
 
@@ -68,10 +71,7 @@ const SERVER_ALLOWED_ORIGINS = new Set([
   "https://drawspell.space",
   "http://localhost:5173",
 ]);
-const SERVER_ALLOWED_HOSTS = new Set([
-  "ws.drawspell.space",
-  "localhost:8787",
-]);
+const SERVER_ALLOWED_HOSTS = new Set(["ws.drawspell.space", "localhost:8787"]);
 const PERF_METRICS_ENABLED = false;
 const PERF_METRICS_ALLOW_PARAM = false;
 const JOIN_TOKEN_MAX_SKEW_MS = 30_000;
@@ -104,7 +104,7 @@ const computeMetricStats = (samples: number[]) => {
   const sorted = [...samples].sort((a, b) => a - b);
   const index = Math.min(
     sorted.length - 1,
-    Math.max(0, Math.floor((sorted.length - 1) * 0.95))
+    Math.max(0, Math.floor((sorted.length - 1) * 0.95)),
   );
   const p95 = sorted[index] ?? sorted[sorted.length - 1] ?? 0;
   return { avg: sum / count, p95, count };
@@ -134,7 +134,7 @@ const isDefaultPortForProtocol = (port: number, protocol: string) => {
 const isHostAllowed = (
   hostHeader: string | null,
   url: URL,
-  allowed: Set<string>
+  allowed: Set<string>,
 ) => {
   if (!hostHeader) return false;
   const host = hostHeader.split(",")[0]?.trim().toLowerCase();
@@ -168,7 +168,6 @@ type IntentLogEntry = {
   intent: Intent;
 };
 
-
 export type Env = {
   rooms: DurableObjectNamespace;
   JOIN_TOKEN_SECRET: string;
@@ -195,10 +194,11 @@ const isNetworkConnectionLost = (error: unknown) => {
 const validatePartyHandshake = async (
   request: Request,
   env: Env,
-  url: URL
+  url: URL,
 ): Promise<Response | null> => {
   const info = getPartyRequestInfo(url);
   if (!info) return null;
+
   const origin = request.headers.get("Origin");
   if (!isOriginAllowed(origin, SERVER_ALLOWED_ORIGINS)) {
     return new Response("Origin not allowed", { status: 403 });
@@ -247,6 +247,16 @@ export default {
       if (isWsUpgrade && isNetworkConnectionLost(error)) {
         return new Response("Client Closed", { status: 499 });
       }
+      console.error("[fetch] error", {
+        url: request.url,
+        isWsUpgrade,
+        message:
+          typeof error === "string"
+            ? error
+            : typeof error === "object" && error && "message" in error
+              ? String((error as { message?: unknown }).message)
+              : "unknown",
+      });
       throw error;
     }
   },
@@ -309,7 +319,12 @@ export class Room extends YServer<Env> {
   private yjsUpdateCount = 0;
   private connectionRate = new Map<
     string,
-    { windowStart: number; attempts: number; blockedUntil: number; lastSeen: number }
+    {
+      windowStart: number;
+      attempts: number;
+      blockedUntil: number;
+      lastSeen: number;
+    }
   >();
   private lastConnectionRateCleanupAt = 0;
 
@@ -396,7 +411,9 @@ export class Room extends YServer<Env> {
           });
         }
       }
-      const hidden = await this.loadHiddenStateFromMeta(snapshotMeta.hiddenStateMeta);
+      const hidden = await this.loadHiddenStateFromMeta(
+        snapshotMeta.hiddenStateMeta,
+      );
       if (hidden) {
         this.hiddenState = hidden;
       }
@@ -417,7 +434,7 @@ export class Room extends YServer<Env> {
     const logMeta = await this.ensureIntentLogMeta(snapshotMeta ?? undefined);
     const replayStart = Math.max(
       logMeta.logStartIndex,
-      (snapshotMeta?.lastIntentIndex ?? -1) + 1
+      (snapshotMeta?.lastIntentIndex ?? -1) + 1,
     );
     const replayEnd = logMeta.nextIndex - 1;
     if (replayEnd >= replayStart) {
@@ -427,10 +444,14 @@ export class Room extends YServer<Env> {
       getMaps(this.document);
       for (let index = replayStart; index <= replayEnd; index += 1) {
         const entry = await this.ctx.storage.get<IntentLogEntry>(
-          `${INTENT_LOG_PREFIX}${index}`
+          `${INTENT_LOG_PREFIX}${index}`,
         );
         if (!entry || !entry.intent) continue;
-        const result = applyIntentToDoc(this.document, entry.intent, this.hiddenState);
+        const result = applyIntentToDoc(
+          this.document,
+          entry.intent,
+          this.hiddenState,
+        );
         if (!result.ok) {
           console.warn("[party] intent replay failed", {
             room: this.name,
@@ -451,7 +472,9 @@ export class Room extends YServer<Env> {
   private async loadHiddenStateFromMeta(meta?: HiddenStateMeta | null) {
     if (!meta) return null;
     const cards: Record<string, Card> = {};
-    const chunkKeys = Array.isArray(meta.cardChunkKeys) ? meta.cardChunkKeys : [];
+    const chunkKeys = Array.isArray(meta.cardChunkKeys)
+      ? meta.cardChunkKeys
+      : [];
     for (const key of chunkKeys) {
       const chunk = await this.ctx.storage.get<Record<string, Card>>(key);
       if (chunk && isRecord(chunk)) {
@@ -463,11 +486,13 @@ export class Room extends YServer<Env> {
   }
 
   private async ensureIntentLogMeta(
-    snapshotMeta?: SnapshotMeta
+    snapshotMeta?: SnapshotMeta,
   ): Promise<IntentLogMeta> {
     if (this.intentLogMeta) return this.intentLogMeta;
-    const stored = await this.ctx.storage.get<IntentLogMeta>(INTENT_LOG_META_KEY);
-    const snapshotIndex = snapshotMeta?.lastIntentIndex ?? stored?.snapshotIndex ?? -1;
+    const stored =
+      await this.ctx.storage.get<IntentLogMeta>(INTENT_LOG_META_KEY);
+    const snapshotIndex =
+      snapshotMeta?.lastIntentIndex ?? stored?.snapshotIndex ?? -1;
     const now = Date.now();
     const createdAt = snapshotMeta?.createdAt ?? stored?.lastSnapshotAt ?? now;
     const base: IntentLogMeta = stored ?? {
@@ -534,14 +559,16 @@ export class Room extends YServer<Env> {
   private async ensureHiddenState(doc: Y.Doc) {
     if (this.hiddenState) return this.hiddenState;
     if (this.snapshotMeta?.hiddenStateMeta) {
-      const restored = await this.loadHiddenStateFromMeta(this.snapshotMeta.hiddenStateMeta);
+      const restored = await this.loadHiddenStateFromMeta(
+        this.snapshotMeta.hiddenStateMeta,
+      );
       if (restored) {
         this.hiddenState = restored;
         return this.hiddenState;
       }
     }
     const storedMeta = await this.ctx.storage.get<HiddenStateMeta>(
-      HIDDEN_STATE_META_KEY
+      HIDDEN_STATE_META_KEY,
     );
     if (storedMeta) {
       const cards: Record<string, Card> = {};
@@ -586,7 +613,7 @@ export class Room extends YServer<Env> {
 
   private async persistHiddenState(
     expectedResetGeneration?: number,
-    connId?: string | null
+    connId?: string | null,
   ) {
     if (!this.hiddenState) return;
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
@@ -605,11 +632,11 @@ export class Room extends YServer<Env> {
 
       const previousSnapshot = this.snapshotMeta;
       const intentLogMeta = await this.ensureIntentLogMeta(
-        this.snapshotMeta ?? undefined
+        this.snapshotMeta ?? undefined,
       );
       const lastIntentIndex = Math.max(
         intentLogMeta.snapshotIndex,
-        intentLogMeta.nextIndex - 1
+        intentLogMeta.nextIndex - 1,
       );
       const createdAt = Date.now();
       const snapshotMeta = await this.snapshotStore.writeSnapshot({
@@ -638,7 +665,7 @@ export class Room extends YServer<Env> {
       intentLogMeta.lastSnapshotAt = createdAt;
       intentLogMeta.logStartIndex = Math.max(
         intentLogMeta.logStartIndex,
-        lastIntentIndex + 1
+        lastIntentIndex + 1,
       );
       if (intentLogMeta.nextIndex < intentLogMeta.logStartIndex) {
         intentLogMeta.nextIndex = intentLogMeta.logStartIndex;
@@ -650,11 +677,14 @@ export class Room extends YServer<Env> {
         await this.pruneIntentLogEntries(
           previousLogStart,
           intentLogMeta.logStartIndex - 1,
-          expectedResetGeneration
+          expectedResetGeneration,
         );
       }
 
-      await this.cleanupPreviousSnapshot(previousSnapshot, expectedResetGeneration);
+      await this.cleanupPreviousSnapshot(
+        previousSnapshot,
+        expectedResetGeneration,
+      );
       await this.cleanupLegacyHiddenStateStorage(expectedResetGeneration);
     } finally {
       releaseSnapshotBarrier();
@@ -663,7 +693,7 @@ export class Room extends YServer<Env> {
 
   private async maybeCleanupHiddenStateChunks(
     meta: HiddenStateMeta,
-    expectedResetGeneration?: number
+    expectedResetGeneration?: number,
   ) {
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     const now = Date.now();
@@ -724,7 +754,7 @@ export class Room extends YServer<Env> {
   private async pruneIntentLogEntries(
     startIndex: number,
     endIndex: number,
-    expectedResetGeneration?: number
+    expectedResetGeneration?: number,
   ) {
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     if (endIndex < startIndex) return;
@@ -738,7 +768,7 @@ export class Room extends YServer<Env> {
 
   private async cleanupPreviousSnapshot(
     previous: SnapshotMeta | null | undefined,
-    expectedResetGeneration?: number
+    expectedResetGeneration?: number,
   ) {
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     if (!previous?.hiddenStateMeta?.cardChunkKeys?.length) return;
@@ -751,7 +781,7 @@ export class Room extends YServer<Env> {
   }
 
   private async cleanupLegacyHiddenStateStorage(
-    expectedResetGeneration?: number
+    expectedResetGeneration?: number,
   ) {
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
     let legacyMeta: HiddenStateMeta | null = null;
@@ -771,7 +801,7 @@ export class Room extends YServer<Env> {
       }
       await this.maybeCleanupHiddenStateChunks(
         legacyMeta,
-        expectedResetGeneration
+        expectedResetGeneration,
       );
     }
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
@@ -813,7 +843,7 @@ export class Room extends YServer<Env> {
   private sendRoomTokens(
     conn: Connection,
     tokens: RoomTokens,
-    viewerRole: "player" | "spectator"
+    viewerRole: "player" | "spectator",
   ) {
     const payload =
       viewerRole === "player"
@@ -965,7 +995,7 @@ export class Room extends YServer<Env> {
 
   private scheduleHiddenStatePersist(
     expectedResetGeneration: number,
-    connId?: string
+    connId?: string,
   ) {
     if (!this.hiddenState) return;
     if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
@@ -973,10 +1003,14 @@ export class Room extends YServer<Env> {
     const changeAt = Math.max(
       now,
       this.hiddenStateLastChangeAt + 1,
-      this.lastHiddenStatePersistAt + 1
+      this.lastHiddenStatePersistAt + 1,
     );
     this.hiddenStateLastChangeAt = changeAt;
-    this.scheduleHiddenStateIdleFlush(expectedResetGeneration, connId, changeAt);
+    this.scheduleHiddenStateIdleFlush(
+      expectedResetGeneration,
+      connId,
+      changeAt,
+    );
     const meta = this.intentLogMeta;
     if (!meta) {
       this.maybeLogPerfMetrics("hidden-state-change");
@@ -1016,7 +1050,7 @@ export class Room extends YServer<Env> {
   private scheduleHiddenStateIdleFlush(
     expectedResetGeneration: number,
     connId: string | undefined,
-    changeAt: number
+    changeAt: number,
   ) {
     if (this.hiddenStateIdleTimer !== null) {
       clearTimeout(this.hiddenStateIdleTimer);
@@ -1036,14 +1070,16 @@ export class Room extends YServer<Env> {
   private async appendIntentLog(
     intent: Intent,
     expectedResetGeneration?: number,
-    connId?: string
+    connId?: string,
   ) {
     let wrote = false;
     this.intentLogWritePending = true;
     const writePromise = this.intentLogWritePromise
       .then(async () => {
         if (!this.shouldPersistHiddenState(expectedResetGeneration)) return;
-        const meta = await this.ensureIntentLogMeta(this.snapshotMeta ?? undefined);
+        const meta = await this.ensureIntentLogMeta(
+          this.snapshotMeta ?? undefined,
+        );
         const index = meta.nextIndex;
         const entry: IntentLogEntry = {
           index,
@@ -1093,7 +1129,7 @@ export class Room extends YServer<Env> {
 
   private enqueueHiddenStatePersist(
     expectedResetGeneration: number,
-    connId?: string | null
+    connId?: string | null,
   ) {
     if (!this.isHiddenStateDirty()) return;
     if (this.hiddenStatePersistInFlight) {
@@ -1105,7 +1141,7 @@ export class Room extends YServer<Env> {
     }
     this.hiddenStatePersistInFlight = this.flushHiddenStatePersist(
       expectedResetGeneration,
-      connId
+      connId,
     ).finally(() => {
       this.hiddenStatePersistInFlight = null;
       const queued = this.hiddenStatePersistQueued;
@@ -1113,7 +1149,7 @@ export class Room extends YServer<Env> {
       if (queued && this.shouldPersistHiddenState(queued.resetGeneration)) {
         this.enqueueHiddenStatePersist(
           queued.resetGeneration,
-          queued.connId ?? null
+          queued.connId ?? null,
         );
       }
     });
@@ -1121,7 +1157,7 @@ export class Room extends YServer<Env> {
 
   private async flushHiddenStatePersist(
     expectedResetGeneration?: number,
-    connId?: string | null
+    connId?: string | null,
   ) {
     const persistStartedAt = Date.now();
     try {
@@ -1211,8 +1247,12 @@ export class Room extends YServer<Env> {
 
     const intentStats = computeMetricStats(this.intentApplySamples);
     const overlayMetrics = this.overlayService.getMetrics();
-    const overlayPlayerStats = computeMetricStats(overlayMetrics.buildSamples.player);
-    const overlaySpectatorStats = computeMetricStats(overlayMetrics.buildSamples.spectator);
+    const overlayPlayerStats = computeMetricStats(
+      overlayMetrics.buildSamples.player,
+    );
+    const overlaySpectatorStats = computeMetricStats(
+      overlayMetrics.buildSamples.spectator,
+    );
     const totalOverlayBytes =
       overlayMetrics.bytesSent.snapshot + overlayMetrics.bytesSent.diff;
     const totalOverlayMessages =
@@ -1284,8 +1324,6 @@ export class Room extends YServer<Env> {
         : null,
     };
 
-    console.log("[perf] room metrics", metrics);
-
     this.intentApplySamples = [];
     this.overlayService.resetMetrics();
     this.intentCountSinceMetrics = 0;
@@ -1302,7 +1340,10 @@ export class Room extends YServer<Env> {
   }
 
   private handleHelloMessage(conn: Connection, payload: unknown) {
-    const requested = payload && typeof payload === "object" ? (payload as any).capabilities : null;
+    const requested =
+      payload && typeof payload === "object"
+        ? (payload as any).capabilities
+        : null;
     const capabilities = Array.isArray(requested)
       ? requested.filter((value) => typeof value === "string")
       : [];
@@ -1314,15 +1355,22 @@ export class Room extends YServer<Env> {
         JSON.stringify({
           type: "helloAck",
           payload: { acceptedCapabilities: accepted },
-        })
+        }),
       );
     } catch (_err) {}
   }
 
   private async handleOverlayResync(conn: Connection, _payload: unknown) {
-    await this.sendOverlayForConnection(conn, undefined, undefined, undefined, undefined, {
-      forceSnapshot: true,
-    });
+    await this.sendOverlayForConnection(
+      conn,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        forceSnapshot: true,
+      },
+    );
   }
 
   private beginPendingPlayerConnection() {
@@ -1334,7 +1382,7 @@ export class Room extends YServer<Env> {
       released = true;
       this.pendingPlayerConnections = Math.max(
         0,
-        this.pendingPlayerConnections - 1
+        this.pendingPlayerConnections - 1,
       );
       this.scheduleEmptyRoomTeardown();
     };
@@ -1535,7 +1583,7 @@ export class Room extends YServer<Env> {
       state,
       storedTokens,
       () => this.ensureRoomTokens(),
-      { allowTokenCreation: true }
+      { allowTokenCreation: true },
     );
     if (!auth.ok) {
       rejectConnection(auth.reason);
@@ -1599,7 +1647,7 @@ export class Room extends YServer<Env> {
   private async bindSyncConnection(
     conn: Connection,
     url: URL,
-    ctx: ConnectionContext
+    ctx: ConnectionContext,
   ) {
     let connectionClosed = false;
     let connectionRegistered = false;
@@ -1649,7 +1697,7 @@ export class Room extends YServer<Env> {
         state,
         storedTokens,
         () => this.ensureRoomTokens(),
-        { allowTokenCreation: false }
+        { allowTokenCreation: false },
       );
       if (!auth.ok) {
         rejectConnection(auth.reason);
@@ -1684,13 +1732,18 @@ export class Room extends YServer<Env> {
     try {
       let ok = false;
       let error: string | undefined;
-      let logEvents: { eventId: string; payload: Record<string, unknown> }[] = [];
+      let logEvents: { eventId: string; payload: Record<string, unknown> }[] =
+        [];
       let hiddenChanged = false;
       let intentImpact: IntentImpact | undefined;
       this.intentCountSinceMetrics += 1;
       const resetGeneration = this.resetGeneration;
       const state = (conn.state ?? {}) as IntentConnectionState;
-      const sendAck = (intentId: string, success: boolean, message?: string) => {
+      const sendAck = (
+        intentId: string,
+        success: boolean,
+        message?: string,
+      ) => {
         const ack = {
           type: "ack",
           intentId,
@@ -1750,7 +1803,7 @@ export class Room extends YServer<Env> {
         const logged = await this.appendIntentLog(
           normalizedIntent,
           resetGeneration,
-          conn.id
+          conn.id,
         );
         if (!logged) {
           this.enqueueHiddenStatePersist(resetGeneration, conn.id);
@@ -1790,7 +1843,7 @@ export class Room extends YServer<Env> {
   }
 
   private broadcastLogEvents(
-    logEvents: { eventId: string; payload: Record<string, unknown> }[]
+    logEvents: { eventId: string; payload: Record<string, unknown> }[],
   ) {
     if (logEvents.length === 0) return;
     const messages = logEvents.map((event) =>
@@ -1798,7 +1851,7 @@ export class Room extends YServer<Env> {
         type: "logEvent",
         eventId: event.eventId,
         payload: event.payload,
-      })
+      }),
     );
     for (const connection of this.intentConnections) {
       for (const message of messages) {
@@ -1815,7 +1868,7 @@ export class Room extends YServer<Env> {
     hidden?: HiddenState,
     snapshot?: Snapshot,
     zoneLookup?: ReturnType<typeof buildOverlayZoneLookup>,
-    options?: { forceSnapshot?: boolean }
+    options?: { forceSnapshot?: boolean },
   ) {
     try {
       const activeHidden =
@@ -1877,7 +1930,7 @@ export class Room extends YServer<Env> {
       (impactedOwners.size === 0 &&
         (revealScopes?.toPlayers?.length ?? 0) === 0);
     const affectedPlayers = new Set<string>(
-      shouldBroadcastAll ? [] : impactedOwners
+      shouldBroadcastAll ? [] : impactedOwners,
     );
     if (!shouldBroadcastAll && Array.isArray(revealScopes?.toPlayers)) {
       revealScopes?.toPlayers.forEach((playerId) => {

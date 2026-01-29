@@ -50,24 +50,40 @@ const resolveServerEnv = (ctx: {
 export const getJoinToken = createServerFn({ method: "POST" })
   .inputValidator(joinTokenValidator)
   .handler(async (ctx): Promise<JoinTokenResponse> => {
-    const payload = ctx.data;
-    const roomId = payload?.roomId?.trim();
-    if (!roomId) {
-      throw new Error("missing room");
-    }
+    try {
+      const payload = ctx.data;
+      const roomId = payload?.roomId?.trim();
+      if (!roomId) {
+        console.error("[joinToken] missing room");
+        throw new Error("missing room");
+      }
 
-    const env = resolveServerEnv(ctx);
-    const request = (ctx as { request?: Request }).request;
-    const origin = request?.headers?.get("Origin") ?? null;
-    if (!isOriginAllowed(origin, CLIENT_ALLOWED_ORIGINS)) {
-      throw new Error("origin not allowed");
-    }
+      const env = resolveServerEnv(ctx);
+      const request = (ctx as { request?: Request }).request;
+      const origin = request?.headers?.get("Origin") ?? null;
+      if (!isOriginAllowed(origin, CLIENT_ALLOWED_ORIGINS)) {
+        console.error("[joinToken] origin not allowed", { origin, roomId });
+        throw new Error("origin not allowed");
+      }
 
-    const secret = env.JOIN_TOKEN_SECRET;
-    if (!secret) {
-      throw new Error("join token secret missing");
+      const secret = env.JOIN_TOKEN_SECRET;
+      if (!secret) {
+        console.error("[joinToken] secret missing", { roomId });
+        throw new Error("join token secret missing");
+      }
+      const exp = Date.now() + JOIN_TOKEN_TTL_MS;
+      const token = await createJoinToken({ roomId, exp }, secret);
+
+      return { token, exp };
+    } catch (error) {
+      console.error("[joinToken] error", {
+        message:
+          typeof error === "string"
+            ? error
+            : typeof error === "object" && error && "message" in error
+              ? String((error as { message?: unknown }).message)
+              : "unknown",
+      });
+      throw error;
     }
-    const exp = Date.now() + JOIN_TOKEN_TTL_MS;
-    const token = await createJoinToken({ roomId, exp }, secret);
-    return { token, exp };
   });
