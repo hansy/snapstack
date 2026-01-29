@@ -1,0 +1,67 @@
+@keyframes landing-orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes landing-orbit-float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.landing-orbit-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  animation: landing-orbit-float 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.landing-orbit-shell {
+  position: absolute;
+  border-radius: 9999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 0 40px rgba(15, 23, 42, 0.4) inset;
+}
+
+.landing-orbit-spin {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  animation: landing-orbit-spin var(--orbit-duration, 12s) linear infinite;
+}
+
+.landing-orbit-dot {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--dot-color);
+  box-shadow: 0 0 12px var(--dot-glow), 0 0 28px var(--dot-glow);
+}
+
+.landing-orbit-core {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: rgba(248, 250, 252, 0.9);
+  box-shadow: 0 0 18px rgba(148, 163, 184, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-orbit-frame,
+  .landing-orbit-spin {
+    animation: none;
+  }
+}
