@@ -16,4 +16,6 @@ todos.json
 .env
 .env.*
 !.env.example
+.dev.vars
+.dev.vars.*
 .vscode

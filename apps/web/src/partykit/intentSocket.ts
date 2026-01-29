@@ -10,6 +10,8 @@ export type IntentSocketOptions = {
   tokenRole?: "player" | "spectator";
   playerId?: string;
   viewerRole?: "player" | "spectator";
+  joinToken?: string;
+  getJoinToken?: () => Promise<string | null>;
   onMessage?: (message: PartyMessage) => void;
   onOpen?: () => void;
   onClose?: (event: CloseEvent) => void;
@@ -34,6 +36,8 @@ export const createIntentSocket = ({
   playerId,
   viewerRole,
   tokenRole,
+  joinToken,
+  getJoinToken,
   onMessage,
   onOpen,
   onClose,
@@ -49,16 +53,32 @@ export const createIntentSocket = ({
           : token
             ? { gt: token }
             : {};
+  const buildQuery = async () => {
+    const resolvedJoinToken = getJoinToken ? await getJoinToken() : joinToken;
+    return {
+      role: "intent",
+      ...tokenParam,
+      ...(resolvedJoinToken ? { jt: resolvedJoinToken } : {}),
+      ...(playerId ? { playerId } : {}),
+      ...(viewerRole ? { viewerRole } : {}),
+    };
+  };
+
+  const query = getJoinToken
+    ? buildQuery
+    : {
+        role: "intent",
+        ...tokenParam,
+        ...(joinToken ? { jt: joinToken } : {}),
+        ...(playerId ? { playerId } : {}),
+        ...(viewerRole ? { viewerRole } : {}),
+      };
+
   const socket = new PartySocket({
     host,
     room,
     party: PARTY_NAME,
-    query: {
-      role: "intent",
-      ...tokenParam,
-      ...(playerId ? { playerId } : {}),
-      ...(viewerRole ? { viewerRole } : {}),
-    },
+    query,
     ...(socketOptions ?? {}),
   });
 

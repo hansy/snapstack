@@ -27,7 +27,7 @@ describe("connectionMachine", () => {
     expect(effects).toEqual([
       {
         type: "scheduleReconnect",
-        delayMs: 500,
+        delayMs: 2500,
         reason: "close",
         attempt: 0,
       },
@@ -55,7 +55,7 @@ describe("connectionMachine", () => {
       { type: "cancelStableReset" },
       {
         type: "scheduleReconnect",
-        delayMs: 500,
+        delayMs: 2500,
         reason: "resume",
         attempt: 0,
       },

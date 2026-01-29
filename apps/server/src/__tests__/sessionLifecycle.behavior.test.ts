@@ -84,6 +84,11 @@ const createState = () => {
   } as any;
 };
 
+const createEnv = () => ({
+  rooms: {} as any,
+  JOIN_TOKEN_SECRET: "test-secret",
+});
+
 class TestConnection {
   id = "conn-1";
   uri = "wss://example.test";
@@ -114,7 +119,7 @@ describe("server lifecycle guards", () => {
     vi.useFakeTimers();
     try {
       const state = createState();
-      const server = new Room(state, { rooms: {} as any });
+      const server = new Room(state, createEnv());
       (server as any).hiddenState = createEmptyHiddenState();
 
       const broadcastGate = createDeferred<void>();
@@ -176,7 +181,7 @@ describe("server lifecycle guards", () => {
       id: { name: "room-test" },
       storage,
     } as any;
-    const server = new Room(state, { rooms: {} as any });
+    const server = new Room(state, createEnv());
     (server as any).hiddenState = createEmptyHiddenState();
 
     const expectedResetGeneration = (server as any).resetGeneration;
@@ -201,7 +206,7 @@ describe("server lifecycle guards", () => {
     vi.useFakeTimers();
     try {
       const state = createState();
-      const server = new Room(state, { rooms: {} as any });
+      const server = new Room(state, createEnv());
       (server as any).hiddenState = createEmptyHiddenState();
       vi
         .spyOn(server as any, "broadcastOverlays")
@@ -243,7 +248,7 @@ describe("server lifecycle guards", () => {
     vi.useFakeTimers();
     try {
       const state = createState();
-      const server = new Room(state, { rooms: {} as any });
+      const server = new Room(state, createEnv());
       (server as any).hiddenState = createEmptyHiddenState();
       vi
         .spyOn(server as any, "broadcastOverlays")
@@ -279,7 +284,7 @@ describe("server lifecycle guards", () => {
 
   it("falls back to snapshot when diff payload is too large", () => {
     const state = createState();
-    const server = new Room(state, { rooms: {} as any });
+    const server = new Room(state, createEnv());
 
     const conn = new TestConnection();
     conn.state = { playerId: "p1", viewerRole: "player" };
@@ -334,7 +339,7 @@ describe("server lifecycle guards", () => {
     vi.useFakeTimers();
     try {
       const state = createState();
-      const server = new Room(state, { rooms: {} as any });
+      const server = new Room(state, createEnv());
       const conn = new TestConnection();
       conn.state = { playerId: "p1", viewerRole: "player" };
       (server as any).intentConnections.add(conn);
@@ -416,7 +421,7 @@ describe("server lifecycle guards", () => {
       },
     });
 
-    const server = new Room(state, { rooms: {} as any });
+    const server = new Room(state, createEnv());
     await (server as any).onLoad();
 
     expect(applyMock).toHaveBeenCalledTimes(1);
@@ -427,7 +432,7 @@ describe("server lifecycle guards", () => {
 
   it("does not register sync connections that close before auth resolves", async () => {
     const state = createState();
-    const server = new Room(state, { rooms: {} as any });
+    const server = new Room(state, createEnv());
     const loadDeferred = createDeferred<unknown>();
     vi.spyOn(server as any, "loadRoomTokens").mockReturnValue(
       loadDeferred.promise
@@ -452,7 +457,7 @@ describe("server lifecycle guards", () => {
     vi.useFakeTimers();
     try {
       const state = createState();
-      const server = new Room(state, { rooms: {} as any });
+      const server = new Room(state, createEnv());
       const loadDeferred = createDeferred<unknown>();
       vi.spyOn(server as any, "loadRoomTokens").mockReturnValue(
         loadDeferred.promise

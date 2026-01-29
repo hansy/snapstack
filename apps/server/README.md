@@ -29,7 +29,10 @@ bun run typecheck
 ## Configuration
 - Durable Object binding `rooms` is defined in `wrangler.jsonc` and is required for local/dev/prod.
 - Compatibility dates are set in `wrangler.jsonc` and `partykit.json`.
-- Env vars: **TBD** (no `process.env` usage found; see `src/server.ts`).
+- Env vars:
+  - `JOIN_TOKEN_SECRET` (required): HMAC secret used to validate join tokens. Must match `apps/web`.
+
+For local dev, set secrets in `apps/server/.dev.vars` or via `wrangler secret put JOIN_TOKEN_SECRET`.
 
 ## Key files
 - [src/server.ts](src/server.ts)

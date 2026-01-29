@@ -11,6 +11,7 @@ import {
   resolveInviteTokenFromUrl,
   writeRoomTokensToStorage,
 } from "@/lib/partyKitToken";
+import { resolveJoinToken } from "@/lib/joinToken";
 import {
   clearIntentTransport,
   createIntentTransport,
@@ -69,7 +70,7 @@ export function setupSessionResources({
   onIntentClose,
 }: SessionSetupDeps): SessionSetupResult | null {
   const partyHost =
-    (import.meta.env.VITE_WEBSOCKET_SERVER as string) || "localhost:8787";
+    (import.meta.env.VITE_SERVER_HOST as string) || "localhost:8787";
 
   cleanupStaleSessions();
   const handles = acquireSession(sessionId);
@@ -193,6 +194,7 @@ export function setupSessionResources({
         const resolvedSyncToken = resolveTokenForRole(role, state.roomTokens);
         const syncToken = resolvedSyncToken.token;
         const syncTokenRole = resolvedSyncToken.tokenRole;
+        const joinToken = await resolveJoinToken(sessionId);
         const tokenParam =
           syncToken && syncTokenRole === "spectator"
             ? { st: syncToken }
@@ -202,6 +204,7 @@ export function setupSessionResources({
         return {
           role: "sync",
           ...tokenParam,
+          ...(joinToken ? { jt: joinToken } : {}),
           ...(ensuredPlayerId ? { playerId: ensuredPlayerId } : {}),
           ...(role ? { viewerRole: role } : {}),
         };
@@ -255,6 +258,7 @@ export function setupSessionResources({
     tokenRole,
     playerId: ensuredPlayerId,
     viewerRole: intentViewerRole,
+    getJoinToken: () => resolveJoinToken(sessionId),
     socketOptions: {
       maxEnqueuedMessages: 0,
       connectionTimeout: 10_000,

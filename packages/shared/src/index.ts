@@ -5,3 +5,4 @@ export * from "./constants/zones";
 export * from "./positions";
 export * from "./rules/types";
 export * from "./rules/permissions";
+export * from "./security/joinToken";

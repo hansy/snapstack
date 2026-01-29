@@ -9,12 +9,12 @@ import {
 describe("computeBackoffDelay", () => {
   it("uses full jitter for normal closes", () => {
     const delay = computeBackoffDelay(0, "close", DEFAULT_BACKOFF_CONFIG, () => 0.5);
-    expect(delay).toBe(500);
+    expect(delay).toBe(2500);
   });
 
   it("caps exponential backoff at maxMs", () => {
     const delay = computeBackoffDelay(8, "close", DEFAULT_BACKOFF_CONFIG, () => 0.25);
-    expect(delay).toBe(7500);
+    expect(delay).toBe(30000);
   });
 
   it("uses room reset range for room-reset reason", () => {
@@ -29,12 +29,12 @@ describe("computeBackoffDelay", () => {
 });
 
 describe("isRoomResetClose", () => {
-  it("detects room reset by code", () => {
-    expect(isRoomResetClose({ code: 1013 })).toBe(true);
-  });
-
   it("detects room reset by reason", () => {
     expect(isRoomResetClose({ reason: "room reset" })).toBe(true);
+  });
+
+  it("ignores 1013 without room reset reason", () => {
+    expect(isRoomResetClose({ code: 1013, reason: "rate limited" })).toBe(false);
   });
 
   it("ignores other closes", () => {
@@ -45,11 +45,11 @@ describe("isRoomResetClose", () => {
 describe("shouldAbandonReconnect", () => {
   it("returns false when under max attempts", () => {
     expect(shouldAbandonReconnect(0)).toBe(false);
-    expect(shouldAbandonReconnect(9)).toBe(false);
+    expect(shouldAbandonReconnect(DEFAULT_BACKOFF_CONFIG.maxAttempts - 1)).toBe(false);
   });
 
   it("returns true when at or over max attempts", () => {
-    expect(shouldAbandonReconnect(10)).toBe(true);
-    expect(shouldAbandonReconnect(100)).toBe(true);
+    expect(shouldAbandonReconnect(DEFAULT_BACKOFF_CONFIG.maxAttempts)).toBe(true);
+    expect(shouldAbandonReconnect(DEFAULT_BACKOFF_CONFIG.maxAttempts + 10)).toBe(true);
   });
 });

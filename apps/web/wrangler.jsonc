@@ -3,19 +3,19 @@
   "name": "drawspell",
   "compatibility_date": "2025-12-02",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  "main": "src/server-entry.ts",
   "observability": {
     "enabled": true,
   },
   "env": {
     "development": {
       "vars": {
-        "VITE_WEBSOCKET_SERVER": "localhost:8787",
+        "VITE_SERVER_HOST": "localhost:8787",
       },
     },
     "production": {
       "vars": {
-        "VITE_WEBSOCKET_SERVER": "drawspell-server.service-fff.workers.dev",
+        "VITE_SERVER_HOST": "ws.drawspell.space",
       },
     },
   },

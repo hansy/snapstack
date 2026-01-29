@@ -8,6 +8,7 @@ import { YServer } from "y-partyserver";
 import * as Y from "yjs";
 
 import type { Card } from "@mtg/shared/types/cards";
+import { verifyJoinToken } from "@mtg/shared/security/joinToken";
 
 import {
   HIDDEN_STATE_CARDS_PREFIX,
@@ -63,6 +64,20 @@ const PERF_METRICS_SAMPLE_LIMIT = 5000;
 const LIBRARY_VIEW_PING_TIMEOUT_MS = 45_000;
 const LIBRARY_VIEW_CLEANUP_INTERVAL_MS = 15_000;
 const OVERLAY_DIFF_CAPABILITY = "overlay-diff-v1";
+const SERVER_ALLOWED_ORIGINS = new Set([
+  "https://drawspell.space",
+  "http://localhost:5173",
+]);
+const SERVER_ALLOWED_HOSTS = new Set([
+  "ws.drawspell.space",
+  "localhost:8787",
+]);
+const PERF_METRICS_ENABLED = false;
+const PERF_METRICS_ALLOW_PARAM = false;
+const JOIN_TOKEN_MAX_SKEW_MS = 30_000;
+const CONNECT_RATE_WINDOW_MS = 60_000;
+const CONNECT_RATE_MAX_ATTEMPTS = 20;
+const CONNECT_RATE_BLOCK_MS = 120_000;
 
 const nowMs = () =>
   typeof performance !== "undefined" && typeof performance.now === "function"
@@ -95,6 +110,50 @@ const computeMetricStats = (samples: number[]) => {
   return { avg: sum / count, p95, count };
 };
 
+const normalizeOrigin = (value: string) => {
+  try {
+    return new URL(value).origin;
+  } catch (_err) {
+    return null;
+  }
+};
+
+const isOriginAllowed = (origin: string | null, allowed: Set<string>) => {
+  if (!origin) return false;
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return false;
+  return allowed.has(normalized);
+};
+
+const isDefaultPortForProtocol = (port: number, protocol: string) => {
+  if (protocol === "https:" || protocol === "wss:") return port === 443;
+  if (protocol === "http:" || protocol === "ws:") return port === 80;
+  return false;
+};
+
+const isHostAllowed = (
+  hostHeader: string | null,
+  url: URL,
+  allowed: Set<string>
+) => {
+  if (!hostHeader) return false;
+  const host = hostHeader.split(",")[0]?.trim().toLowerCase();
+  if (!host) return false;
+  if (allowed.has(host)) return true;
+  const [hostname, portRaw] = host.split(":");
+  if (!hostname || !portRaw) return false;
+  if (!allowed.has(hostname)) return false;
+  const port = Number(portRaw);
+  if (!Number.isFinite(port)) return false;
+  return isDefaultPortForProtocol(port, url.protocol);
+};
+
+const getPartyRequestInfo = (url: URL) => {
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (parts.length < 3) return null;
+  if (parts[0] !== "parties") return null;
+  return { party: parts[1], roomId: parts[2] };
+};
 
 type IntentLogMeta = {
   nextIndex: number;
@@ -112,9 +171,7 @@ type IntentLogEntry = {
 
 export type Env = {
   rooms: DurableObjectNamespace;
-  PERF_METRICS?: string;
-  PERF_METRICS_INTERVAL_MS?: string;
-  PERF_METRICS_ALLOW_PARAM?: string;
+  JOIN_TOKEN_SECRET: string;
 };
 
 export { applyIntentToDoc } from "./domain/intents/applyIntentToDoc";
@@ -135,9 +192,51 @@ const isNetworkConnectionLost = (error: unknown) => {
   );
 };
 
+const validatePartyHandshake = async (
+  request: Request,
+  env: Env,
+  url: URL
+): Promise<Response | null> => {
+  const info = getPartyRequestInfo(url);
+  if (!info) return null;
+  const origin = request.headers.get("Origin");
+  if (!isOriginAllowed(origin, SERVER_ALLOWED_ORIGINS)) {
+    return new Response("Origin not allowed", { status: 403 });
+  }
+  const host = request.headers.get("Host") ?? url.host;
+  if (!isHostAllowed(host, url, SERVER_ALLOWED_HOSTS)) {
+    return new Response("Host not allowed", { status: 403 });
+  }
+  const joinToken = url.searchParams.get("jt");
+  if (!joinToken) {
+    return new Response("Missing join token", { status: 403 });
+  }
+  if (!env.JOIN_TOKEN_SECRET) {
+    return new Response("Join token not configured", { status: 500 });
+  }
+  const result = await verifyJoinToken(joinToken, env.JOIN_TOKEN_SECRET, {
+    now: Date.now(),
+    maxSkewMs: JOIN_TOKEN_MAX_SKEW_MS,
+  });
+  if (!result.ok) {
+    return new Response("Invalid join token", { status: 403 });
+  }
+  if (result.payload.roomId !== info.roomId) {
+    return new Response("Invalid join token", { status: 403 });
+  }
+  return null;
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
+      const isWsUpgrade =
+        request.headers.get("Upgrade")?.toLowerCase() === "websocket";
+      if (isWsUpgrade) {
+        const url = new URL(request.url);
+        const rejection = await validatePartyHandshake(request, env, url);
+        if (rejection) return rejection;
+      }
       return (
         (await routePartykitRequest(request, env)) ??
         new Response("Not Found", { status: 404 })
@@ -208,6 +307,11 @@ export class Room extends YServer<Env> {
   private lastIntentMetricsAt = 0;
   private yjsUpdateBytes = 0;
   private yjsUpdateCount = 0;
+  private connectionRate = new Map<
+    string,
+    { windowStart: number; attempts: number; blockedUntil: number; lastSeen: number }
+  >();
+  private lastConnectionRateCleanupAt = 0;
 
   async onStart() {
     this.overlayService = new OverlayService({
@@ -765,6 +869,61 @@ export class Room extends YServer<Env> {
     }
   }
 
+  private getConnectionRateConfig() {
+    return {
+      windowMs: CONNECT_RATE_WINDOW_MS,
+      maxAttempts: CONNECT_RATE_MAX_ATTEMPTS,
+      blockMs: CONNECT_RATE_BLOCK_MS,
+    };
+  }
+
+  private getClientIp(request: Request): string | null {
+    const raw =
+      request.headers.get("cf-connecting-ip") ??
+      request.headers.get("x-forwarded-for");
+    if (!raw) return null;
+    return raw.split(",")[0]?.trim() ?? null;
+  }
+
+  private shouldRateLimitConnection(request: Request): boolean {
+    const ip = this.getClientIp(request);
+    if (!ip) return false;
+    const now = Date.now();
+    const config = this.getConnectionRateConfig();
+    const entry = this.connectionRate.get(ip) ?? {
+      windowStart: now,
+      attempts: 0,
+      blockedUntil: 0,
+      lastSeen: 0,
+    };
+    if (entry.blockedUntil > now) {
+      this.connectionRate.set(ip, entry);
+      return true;
+    }
+    if (now - entry.windowStart > config.windowMs) {
+      entry.windowStart = now;
+      entry.attempts = 0;
+    }
+    entry.attempts += 1;
+    entry.lastSeen = now;
+    if (entry.attempts > config.maxAttempts) {
+      entry.blockedUntil = now + config.blockMs;
+      entry.attempts = 0;
+    }
+    this.connectionRate.set(ip, entry);
+
+    if (now - this.lastConnectionRateCleanupAt > config.windowMs * 5) {
+      this.lastConnectionRateCleanupAt = now;
+      for (const [key, value] of this.connectionRate.entries()) {
+        if (now - value.lastSeen > config.windowMs * 10) {
+          this.connectionRate.delete(key);
+        }
+      }
+    }
+
+    return entry.blockedUntil > now;
+  }
+
   private ensureLibraryViewCleanupTimer() {
     if (this.libraryViewCleanupTimer !== null) return;
     this.libraryViewCleanupTimer = setInterval(() => {
@@ -985,13 +1144,11 @@ export class Room extends YServer<Env> {
   }
 
   private perfMetricsEnabled(): boolean {
-    const flag = (this.env as Env | undefined)?.PERF_METRICS;
-    return flag === "1" || flag === "true" || this.perfMetricsEnabledFlag;
+    return PERF_METRICS_ENABLED || this.perfMetricsEnabledFlag;
   }
 
   private perfMetricsParamsAllowed(): boolean {
-    const flag = (this.env as Env | undefined)?.PERF_METRICS_ALLOW_PARAM;
-    return flag === "1" || flag === "true";
+    return PERF_METRICS_ALLOW_PARAM;
   }
 
   private clampPerfMetricsInterval(value: number) {
@@ -1008,11 +1165,9 @@ export class Room extends YServer<Env> {
         this.perfMetricsEnabledFlag = true;
       }
     }
-    const intervalParam = allowParams
+    const rawInterval = allowParams
       ? url.searchParams.get("perfMetricsIntervalMs")
       : null;
-    const envInterval = (this.env as Env | undefined)?.PERF_METRICS_INTERVAL_MS;
-    const rawInterval = intervalParam ?? envInterval ?? null;
     if (rawInterval) {
       const parsed = Number(rawInterval);
       if (Number.isFinite(parsed) && parsed > 0) {
@@ -1319,6 +1474,12 @@ export class Room extends YServer<Env> {
     if (this.teardownInProgress) {
       try {
         conn.close(ROOM_TEARDOWN_CLOSE_CODE, "room reset");
+      } catch (_err) {}
+      return;
+    }
+    if (this.shouldRateLimitConnection(ctx.request)) {
+      try {
+        conn.close(1013, "rate limited");
       } catch (_err) {}
       return;
     }

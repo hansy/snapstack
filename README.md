@@ -54,15 +54,16 @@ bun install
 
 ### Environment variables
 
-| Name                    | Used by    | Description                                        | Source                                             |
-| ----------------------- | ---------- | -------------------------------------------------- | -------------------------------------------------- |
-| `VITE_WEBSOCKET_SERVER` | `apps/web` | Overrides the PartyServer host (host or full URL). | `apps/web/wrangler.jsonc` or `.env*` in `apps/web` |
+| Name                | Used by                   | Description                                                          | Source                                                    |
+| ------------------- | ------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------- |
+| `VITE_SERVER_HOST`  | `apps/web`                | Overrides the PartyServer host (host or full URL).                   | `apps/web/wrangler.jsonc` or `.env*` loaded from repo root |
+| `JOIN_TOKEN_SECRET` | `apps/web`, `apps/server` | HMAC secret for join tokens; must match across web + server workers. | Cloudflare secret or local `.env`/`.dev.vars`             |
 
 ### Env files and loading
 
-- Web: Vite loads `.env*` files from `apps/web` if you create them. No `.env` files are checked in.
-- Web deploy values live in `apps/web/wrangler.jsonc` under `env`.
-- Server: Durable Object binding `rooms` is configured in `apps/server/wrangler.jsonc`.
+- Web: Vite loads `.env*` files from the repo root (see `apps/web/vite.config.ts`).
+- Web deploy values live in `apps/web/wrangler.jsonc` under `env`; secrets use `wrangler secret`.
+- Server: Durable Object binding `rooms` is configured in `apps/server/wrangler.jsonc`; secrets use `wrangler secret` or `apps/server/.dev.vars`.
 
 ## Common workflows
 

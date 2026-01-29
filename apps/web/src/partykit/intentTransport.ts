@@ -23,6 +23,8 @@ type IntentTransportOptions = {
   tokenRole?: "player" | "spectator";
   playerId?: string;
   viewerRole?: "player" | "spectator";
+  joinToken?: string;
+  getJoinToken?: () => Promise<string | null>;
   onMessage?: (message: PartyMessage) => void;
   onOpen?: () => void;
   onClose?: (event: CloseEvent) => void;
@@ -69,12 +71,17 @@ export const createIntentTransport = ({
   tokenRole,
   playerId,
   viewerRole,
+  joinToken,
+  getJoinToken,
   onMessage,
   onOpen,
   onClose,
   socketOptions,
 }: IntentTransportOptions): IntentTransport => {
   let transport: IntentTransport | null = null;
+  let socket: ReturnType<typeof createIntentSocket> | null = null;
+  let socketPromise: Promise<ReturnType<typeof createIntentSocket> | null> | null = null;
+
   const handleOpen = () => {
     if (transport && activeTransport === transport) {
       activeIntentMeta.isOpen = true;
@@ -91,40 +98,63 @@ export const createIntentTransport = ({
     onClose?.(event);
   };
 
-  const socket = createIntentSocket({
-    host,
-    room,
-    token,
-    tokenRole,
-    playerId,
-    viewerRole,
-    onMessage,
-    onOpen: handleOpen,
-    onClose: handleClose,
-    socketOptions,
-  });
-  const isOpen = () => socket.readyState === socket.OPEN;
+  const buildSocket = () => {
+    socket = createIntentSocket({
+      host,
+      room,
+      token,
+      tokenRole,
+      playerId,
+      viewerRole,
+      joinToken,
+      getJoinToken,
+      onMessage,
+      onOpen: handleOpen,
+      onClose: handleClose,
+      socketOptions,
+    });
+    return socket;
+  };
+
+  const ensureSocket = async () => {
+    if (socketPromise) return socketPromise;
+    if (socket) return socket;
+    socketPromise = Promise.resolve(buildSocket()).finally(() => {
+      socketPromise = null;
+    });
+    return socketPromise;
+  };
+
+  const isOpen = () =>
+    Boolean(socket && socket.readyState === socket.OPEN);
   const connect = () => {
-    if (typeof (socket as any).reconnect !== "function") return;
-    if (socket.readyState === socket.OPEN || socket.readyState === socket.CONNECTING) {
-      return;
-    }
-    (socket as any).reconnect();
+    void ensureSocket().then((resolved) => {
+      if (!resolved) return;
+      if (typeof (resolved as any).reconnect !== "function") return;
+      if (
+        resolved.readyState === resolved.OPEN ||
+        resolved.readyState === resolved.CONNECTING
+      ) {
+        return;
+      }
+      (resolved as any).reconnect();
+    });
   };
 
   transport = {
     sendIntent: (intent) => {
-      if (!isOpen()) return false;
+      if (!isOpen() || !socket) return false;
       const payload = JSON.stringify({ type: "intent", intent });
       socket.send(payload);
       return true;
     },
     sendMessage: (message) => {
-      if (!isOpen()) return false;
+      if (!isOpen() || !socket) return false;
       socket.send(JSON.stringify(message));
       return true;
     },
     close: () => {
+      if (!socket) return;
       try {
         socket.close();
       } catch (_err) {}

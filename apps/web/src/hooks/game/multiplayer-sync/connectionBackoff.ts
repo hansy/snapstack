@@ -10,12 +10,12 @@ export type BackoffConfig = {
 };
 
 export const DEFAULT_BACKOFF_CONFIG: BackoffConfig = {
-  baseMs: 1000,
-  maxMs: 30000,
-  maxAttempts: 10, // Stop trying after 10 failed attempts (~5 min total with backoff)
-  roomResetMinMs: 5000,
-  roomResetMaxMs: 15000,
-  stableResetMs: 10000,
+  baseMs: 5000,
+  maxMs: 120000,
+  maxAttempts: 6, // Stop trying after 6 failed attempts (~5 min total with backoff)
+  roomResetMinMs: 15000,
+  roomResetMaxMs: 45000,
+  stableResetMs: 60000,
 };
 
 /**
@@ -47,7 +47,6 @@ export const isRoomResetClose = (
   event?: { code?: number; reason?: string } | null
 ) => {
   if (!event) return false;
-  if (event.code === 1013) return true;
   const reason = (event.reason ?? "").trim().replace(/\.$/, "").toLowerCase();
   return reason === "room reset";
 };

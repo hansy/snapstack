@@ -12,6 +12,7 @@
     "./constants/zones": "./src/constants/zones.ts",
     "./positions": "./src/positions.ts",
     "./rules/types": "./src/rules/types.ts",
-    "./rules/permissions": "./src/rules/permissions.ts"
+    "./rules/permissions": "./src/rules/permissions.ts",
+    "./security/joinToken": "./src/security/joinToken.ts"
   }
 }
