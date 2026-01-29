@@ -366,6 +366,7 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
   useEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
+    let cleanedUp = false;
 
     const run = async () => {
       if (!sessionId) {
@@ -652,17 +653,9 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
         scheduleDebouncedTimeout(postSyncInitTimer, 60, attemptJoin);
       });
 
-      await provider.connect?.();
-      disableProviderAutoReconnect(provider as any);
-      intentTransport.connect?.();
-
-      clearConnectAttemptTimer();
-      connectAttemptTimer.current = setTimeout(() => {
-        connectAttemptTimer.current = null;
-        handleDisconnect({ code: 1006, reason: "connect-timeout" });
-      }, 12_000);
-
       cleanup = () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
         disposeAwareness();
         awarenessRef.current = null;
         localPlayerIdRef.current = null;
@@ -681,6 +674,19 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
 
         attemptJoinRef.current = null;
       };
+
+      clearConnectAttemptTimer();
+      connectAttemptTimer.current = setTimeout(() => {
+        connectAttemptTimer.current = null;
+        handleDisconnect({ code: 1006, reason: "connect-timeout" });
+      }, 12_000);
+
+      await provider.connect?.();
+      if (cancelled || cleanedUp || connectionGeneration.current !== nextGeneration) {
+        return;
+      }
+      disableProviderAutoReconnect(provider as any);
+      intentTransport.connect?.();
     };
 
     void run();
