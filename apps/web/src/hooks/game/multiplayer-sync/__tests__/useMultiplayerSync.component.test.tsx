@@ -86,6 +86,7 @@ const intentTransportMocks = vi.hoisted(() => ({
     lastCloseAt: 0,
   })),
 }));
+const resolveJoinToken = vi.hoisted(() => vi.fn(async () => "test-join-token"));
 const logStoreMocks = vi.hoisted(() => ({ emitLog: vi.fn(), clearLogs: vi.fn() }));
 vi.mock("y-partyserver/provider", () => {
   class MockPartyKitProvider {
@@ -181,6 +182,7 @@ vi.mock("@/lib/partyKitToken", () => ({
 }));
 vi.mock("@/lib/partyKitHost", () => ({ resolvePartyKitHost: () => "party.test" }));
 vi.mock("@/partykit/intentTransport", () => intentTransportMocks);
+vi.mock("@/lib/joinToken", () => ({ resolveJoinToken }));
 vi.mock("@/yjs/sync", () => ({
   isApplyingRemoteUpdate: () => false,
   withApplyingRemoteUpdate: (fn: () => void) => fn(),
@@ -216,6 +218,7 @@ describe("useMultiplayerSync", () => {
     vi.clearAllMocks();
     randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
     logStoreMocks.emitLog.mockClear();
+    vi.mocked(resolveJoinToken).mockResolvedValue("test-join-token");
     vi.mocked(readRoomTokensFromStorage).mockReturnValue(null);
     Object.assign(mockGameState, {
       hasHydrated: true,
