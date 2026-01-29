@@ -520,6 +520,7 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
 
       const handleIntentOpen = () => {
         resetIntentCloseTracking();
+        clearConnectAttemptTimer();
         if (attemptJoinRef.current) {
           attemptJoinRef.current();
         } else {
