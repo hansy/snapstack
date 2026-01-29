@@ -6,6 +6,7 @@ import {
 } from "partyserver";
 import { YServer } from "y-partyserver";
 import * as Y from "yjs";
+import { createPostHogClient } from "./analytics/posthog";
 
 import type { Card } from "@mtg/shared/types/cards";
 import { verifyJoinToken } from "@mtg/shared/security/joinToken";
@@ -168,11 +169,6 @@ type IntentLogEntry = {
   intent: Intent;
 };
 
-export type Env = {
-  rooms: DurableObjectNamespace;
-  JOIN_TOKEN_SECRET: string;
-};
-
 export { applyIntentToDoc } from "./domain/intents/applyIntentToDoc";
 export { buildOverlayForViewer } from "./domain/overlay";
 export { createEmptyHiddenState } from "./domain/hiddenState";
@@ -230,6 +226,7 @@ const validatePartyHandshake = async (
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
+      const posthog = createPostHogClient(env);
       const isWsUpgrade =
         request.headers.get("Upgrade")?.toLowerCase() === "websocket";
       if (isWsUpgrade) {
@@ -275,6 +272,7 @@ export class Room extends YServer<Env> {
     roomId: "pending",
     sampleLimit: PERF_METRICS_SAMPLE_LIMIT,
   });
+
   private snapshotStore = new SnapshotStore({
     storage: this.ctx.storage,
     yDocStorageKey: Y_DOC_STORAGE_KEY,

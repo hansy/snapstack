@@ -31,4 +31,12 @@
       "head_sampling_rate": 1,
     },
   },
+  "env": {
+    "production": {
+      "vars": {
+        "POSTHOG_API_KEY": "phc_oYFcMPG9V4ARE4INIzfQQnLmADFN2GRLaYfDFiLSaQ6",
+        "POSTHOG_API_HOST": "https://us.i.posthog.com",
+      },
+    },
+  },
 }
