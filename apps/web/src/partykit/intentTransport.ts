@@ -22,6 +22,7 @@ type IntentTransportOptions = {
   token?: string;
   tokenRole?: "player" | "spectator";
   playerId?: string;
+  userId?: string;
   viewerRole?: "player" | "spectator";
   joinToken?: string;
   getJoinToken?: () => Promise<string | null>;
@@ -70,6 +71,7 @@ export const createIntentTransport = ({
   token,
   tokenRole,
   playerId,
+  userId,
   viewerRole,
   joinToken,
   getJoinToken,
@@ -105,6 +107,7 @@ export const createIntentTransport = ({
       token,
       tokenRole,
       playerId,
+      userId,
       viewerRole,
       joinToken,
       getJoinToken,

@@ -66,6 +66,7 @@ export type IntentConnectionState = {
   playerId?: string;
   viewerRole?: "player" | "spectator";
   token?: string;
+  userId?: string;
 };
 
 export type OverlayMeta = {

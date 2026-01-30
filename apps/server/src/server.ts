@@ -6,7 +6,7 @@ import {
 } from "partyserver";
 import { YServer } from "y-partyserver";
 import * as Y from "yjs";
-import { createPostHogClient } from "./analytics/posthog";
+import { RoomAnalyticsTracker } from "./analytics/roomAnalytics";
 
 import type { Card } from "@mtg/shared/types/cards";
 import { verifyJoinToken } from "@mtg/shared/security/joinToken";
@@ -226,7 +226,6 @@ const validatePartyHandshake = async (
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
-      const posthog = createPostHogClient(env);
       const isWsUpgrade =
         request.headers.get("Upgrade")?.toLowerCase() === "websocket";
       if (isWsUpgrade) {
@@ -281,6 +280,7 @@ export class Room extends YServer<Env> {
   });
   private connectionCapabilities = new Map<string, Set<string>>();
   private connectionRoles = new Map<Connection, "player" | "spectator">();
+  private roomAnalytics: RoomAnalyticsTracker | null = null;
   private pendingPlayerConnections = 0;
   private emptyRoomTimer: number | null = null;
   private teardownGeneration = 0;
@@ -330,6 +330,14 @@ export class Room extends YServer<Env> {
     this.overlayService = new OverlayService({
       roomId: this.name,
       sampleLimit: PERF_METRICS_SAMPLE_LIMIT,
+    });
+    const waitUntil =
+      typeof this.ctx.waitUntil === "function"
+        ? this.ctx.waitUntil.bind(this.ctx)
+        : (_promise: Promise<unknown>) => {};
+    this.roomAnalytics = new RoomAnalyticsTracker({
+      env: this.env,
+      waitUntil,
     });
     await super.onStart();
   }
@@ -1492,6 +1500,7 @@ export class Room extends YServer<Env> {
           connection.close(ROOM_TEARDOWN_CLOSE_CODE, "room reset");
         } catch (_err) {}
       }
+      this.roomAnalytics?.onRoomTeardown();
 
       if (this.isHiddenStateDirty()) {
         await this.flushHiddenStatePersist(this.resetGeneration);
@@ -1547,6 +1556,8 @@ export class Room extends YServer<Env> {
     let connectionRegistered = false;
     let resolvedRole: "player" | "spectator" | undefined;
     let resolvedPlayerId: string | undefined;
+    let resolvedUserId: string | undefined;
+    let resolvedAnalyticsUserId: string | undefined;
     conn.addEventListener("close", () => {
       connectionClosed = true;
       this.intentConnections.delete(conn);
@@ -1558,6 +1569,9 @@ export class Room extends YServer<Env> {
       this.overlayService.removeConnection(conn.id);
       if (!connectionRegistered) return;
       this.unregisterConnection(conn);
+      if (resolvedAnalyticsUserId) {
+        this.roomAnalytics?.onUserLeave(resolvedAnalyticsUserId);
+      }
       console.warn("[party] intent connection closed", {
         room: this.name,
         connId: conn.id,
@@ -1592,6 +1606,15 @@ export class Room extends YServer<Env> {
     const activeTokens = auth.tokens;
     resolvedRole = auth.resolvedRole;
     resolvedPlayerId = auth.playerId;
+    if (typeof state.userId === "string") {
+      const trimmed = state.userId.trim();
+      resolvedUserId = trimmed.length ? trimmed : undefined;
+    }
+    resolvedAnalyticsUserId =
+      resolvedUserId ??
+      (resolvedRole === "player" && resolvedPlayerId
+        ? `player:${resolvedPlayerId}`
+        : undefined);
 
     if (connectionClosed) return;
     this.capturePerfMetricsFlag(url);
@@ -1599,9 +1622,16 @@ export class Room extends YServer<Env> {
       playerId: resolvedPlayerId,
       viewerRole: resolvedRole,
       token: auth.token,
+      userId: resolvedUserId,
     });
     this.registerConnection(conn, resolvedRole);
     connectionRegistered = true;
+    if (resolvedRole === "player") {
+      this.roomAnalytics?.onPlayerJoin();
+    }
+    if (resolvedAnalyticsUserId) {
+      this.roomAnalytics?.onUserJoin(resolvedAnalyticsUserId, resolvedRole);
+    }
     console.info("[party] intent connection established", {
       room: this.name,
       connId: conn.id,

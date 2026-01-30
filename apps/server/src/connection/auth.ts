@@ -26,6 +26,7 @@ const parseViewerRole = (
 
 export const parseConnectionParams = (url: URL): IntentConnectionState => {
   const playerId = url.searchParams.get("playerId") ?? undefined;
+  const userId = url.searchParams.get("uid") ?? undefined;
   const spectatorToken = url.searchParams.get("st");
   const playerToken = url.searchParams.get("gt");
   const token = spectatorToken ?? playerToken ?? undefined;
@@ -36,7 +37,7 @@ export const parseConnectionParams = (url: URL): IntentConnectionState => {
   } else if (playerToken && viewerRole !== "spectator") {
     viewerRole = "player";
   }
-  return { playerId, viewerRole, token };
+  return { playerId, viewerRole, token, userId };
 };
 
 const resolveRequestedRole = (

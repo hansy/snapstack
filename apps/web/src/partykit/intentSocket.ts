@@ -9,6 +9,7 @@ export type IntentSocketOptions = {
   token?: string;
   tokenRole?: "player" | "spectator";
   playerId?: string;
+  userId?: string;
   viewerRole?: "player" | "spectator";
   joinToken?: string;
   getJoinToken?: () => Promise<string | null>;
@@ -34,6 +35,7 @@ export const createIntentSocket = ({
   room,
   token,
   playerId,
+  userId,
   viewerRole,
   tokenRole,
   joinToken,
@@ -60,6 +62,7 @@ export const createIntentSocket = ({
       ...tokenParam,
       ...(resolvedJoinToken ? { jt: resolvedJoinToken } : {}),
       ...(playerId ? { playerId } : {}),
+      ...(userId ? { uid: userId } : {}),
       ...(viewerRole ? { viewerRole } : {}),
     };
   };
@@ -71,6 +74,7 @@ export const createIntentSocket = ({
         ...tokenParam,
         ...(joinToken ? { jt: joinToken } : {}),
         ...(playerId ? { playerId } : {}),
+        ...(userId ? { uid: userId } : {}),
         ...(viewerRole ? { viewerRole } : {}),
       };
 

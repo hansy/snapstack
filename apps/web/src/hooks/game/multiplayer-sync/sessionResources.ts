@@ -3,6 +3,7 @@ import { Awareness } from "y-protocols/awareness";
 import YPartyServerProvider from "y-partyserver/provider";
 import { toast } from "sonner";
 import { clearLogs, emitLog } from "@/logging/logStore";
+import { getPostHogDistinctId } from "@/lib/posthog";
 import {
   clearInviteTokenFromUrl,
   clearRoomHostPending,
@@ -171,6 +172,7 @@ export function setupSessionResources({
 
   const intentViewerRole = useGameStore.getState().viewerRole;
   const intentCapabilities = ["overlay-diff-v1"];
+  const userId = getPostHogDistinctId() ?? undefined;
   const resolvedIntentToken =
     inviteToken.token && inviteToken.role
       ? { token: inviteToken.token, tokenRole: inviteToken.role }
@@ -208,6 +210,7 @@ export function setupSessionResources({
           ...tokenParam,
           ...(resolvedJoinToken ? { jt: resolvedJoinToken } : {}),
           ...(ensuredPlayerId ? { playerId: ensuredPlayerId } : {}),
+          ...(userId ? { uid: userId } : {}),
           ...(role ? { viewerRole: role } : {}),
         };
       },
@@ -259,6 +262,7 @@ export function setupSessionResources({
     token,
     tokenRole,
     playerId: ensuredPlayerId,
+    userId,
     viewerRole: intentViewerRole,
     ...(joinToken
       ? { joinToken }
