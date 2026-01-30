@@ -28,6 +28,7 @@ export class RoomAnalyticsTracker {
   private sessionStartedAt: number | null = null;
   private sessionPlayerIds = new Set<string>();
   private activeUsers = new Map<string, ActiveUser>();
+  private pendingUsers = new Map<string, ActiveUser>();
 
   constructor(options: RoomAnalyticsOptions) {
     this.env = options.env;
@@ -41,30 +42,31 @@ export class RoomAnalyticsTracker {
 
   onUserJoin(userId: string, role: UserRole) {
     const timestamp = this.now();
-    if (!this.sessionId) return;
-    if (role === "player") {
-      this.sessionPlayerIds.add(userId);
-    }
-
-    const existing = this.activeUsers.get(userId);
-    if (!existing) {
-      this.activeUsers.set(userId, { count: 1, joinedAt: timestamp, role });
-      this.capture("room:user_join", userId, {
-        session_id: this.sessionId,
-        user_id: userId,
-        role,
-      });
+    if (!this.sessionId) {
+      const existing = this.pendingUsers.get(userId);
+      if (!existing) {
+        this.pendingUsers.set(userId, { count: 1, joinedAt: timestamp, role });
+        return;
+      }
+      existing.count += 1;
+      if (role === "player" && existing.role !== "player") {
+        existing.role = "player";
+      }
       return;
     }
 
-    existing.count += 1;
-    if (role === "player" && existing.role !== "player") {
-      existing.role = "player";
-    }
+    this.registerActiveUser(userId, role, timestamp, 1);
   }
 
   onUserLeave(userId: string) {
-    if (!this.sessionId) return;
+    if (!this.sessionId) {
+      const existing = this.pendingUsers.get(userId);
+      if (!existing) return;
+      existing.count -= 1;
+      if (existing.count > 0) return;
+      this.pendingUsers.delete(userId);
+      return;
+    }
     const existing = this.activeUsers.get(userId);
     if (!existing) return;
     existing.count -= 1;
@@ -125,6 +127,7 @@ export class RoomAnalyticsTracker {
     this.capture("room:create", sessionId, {
       session_id: sessionId,
     });
+    this.flushPendingUsers();
   }
 
   private resetSession() {
@@ -132,6 +135,47 @@ export class RoomAnalyticsTracker {
     this.sessionStartedAt = null;
     this.sessionPlayerIds.clear();
     this.activeUsers.clear();
+    this.pendingUsers.clear();
+  }
+
+  private registerActiveUser(
+    userId: string,
+    role: UserRole,
+    joinedAt: number,
+    count: number,
+  ) {
+    if (!this.sessionId) return;
+    if (role === "player") {
+      this.sessionPlayerIds.add(userId);
+    }
+
+    const existing = this.activeUsers.get(userId);
+    if (!existing) {
+      this.activeUsers.set(userId, { count, joinedAt, role });
+      this.capture("room:user_join", userId, {
+        session_id: this.sessionId,
+        user_id: userId,
+        role,
+      });
+      return;
+    }
+
+    existing.count += count;
+    if (joinedAt < existing.joinedAt) {
+      existing.joinedAt = joinedAt;
+    }
+    if (role === "player" && existing.role !== "player") {
+      existing.role = "player";
+    }
+  }
+
+  private flushPendingUsers() {
+    if (!this.sessionId) return;
+    for (const [userId, entry] of this.pendingUsers.entries()) {
+      if (entry.count <= 0) continue;
+      this.registerActiveUser(userId, entry.role, entry.joinedAt, entry.count);
+    }
+    this.pendingUsers.clear();
   }
 
   private capture(
