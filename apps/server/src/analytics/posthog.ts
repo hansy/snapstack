@@ -1,14 +1,9 @@
 import { PostHog } from "posthog-node";
 
-type PostHogEnv = Env & { POSTHOG_HOST?: string };
-
-const resolvePostHogHost = (env: PostHogEnv) =>
-  env.POSTHOG_API_HOST ?? env.POSTHOG_HOST;
-
 export const createPostHogClient = (env: Env) => {
-  const posthogEnv = env as PostHogEnv;
-  const apiKey = posthogEnv.POSTHOG_API_KEY ?? "";
-  const host = resolvePostHogHost(posthogEnv);
+  const apiKey = env.POSTHOG_API_KEY ?? "";
+  const host = env.POSTHOG_API_HOST ?? "";
+
   if (!apiKey || !host) {
     return null;
   }
