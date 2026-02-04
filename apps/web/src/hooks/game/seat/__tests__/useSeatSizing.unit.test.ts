@@ -11,17 +11,18 @@ vi.mock("@/hooks/shared/useElementSize", () => ({
 import {
   computeSeatSizing,
   useSeatSizing,
-  LG_MEDIA_QUERY,
+  getLgMediaQuery,
   PREVIEW_MAX_WIDTH_PX,
   PREVIEW_MIN_WIDTH_PX,
   PREVIEW_SCALE_K,
 } from "../useSeatSizing";
 
 const setMatchMedia = (matches: boolean) => {
+  const lgQuery = getLgMediaQuery();
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
-      matches: query === LG_MEDIA_QUERY ? matches : false,
+      matches: query === lgQuery ? matches : false,
       media: query,
       onchange: null,
       addEventListener: vi.fn(),
@@ -72,6 +73,7 @@ describe("computeSeatSizing", () => {
 
 describe("useSeatSizing", () => {
   beforeEach(() => {
+    document.documentElement.style.setProperty("--breakpoint-lg", "1024px");
     setMatchMedia(true);
   });
 
@@ -88,5 +90,12 @@ describe("useSeatSizing", () => {
     expect(result.current.cssVars).toBeDefined();
     const cssVars = result.current.cssVars as Record<string, string> | undefined;
     expect(cssVars?.["--card-h"]).toBeDefined();
+    const expected = computeSeatSizing({ seatWidth: 1000, seatHeight: 800 });
+    expect(cssVars?.["--modal-max-w"]).toBe(
+      `min(90vw, ${expected.modalMaxWidthPx}px)`
+    );
+    expect(cssVars?.["--modal-max-h"]).toBe(
+      `min(90vh, ${expected.modalMaxHeightPx}px)`
+    );
   });
 });

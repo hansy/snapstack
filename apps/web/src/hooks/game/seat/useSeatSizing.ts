@@ -3,7 +3,9 @@ import * as React from "react";
 import { useElementSize } from "@/hooks/shared/useElementSize";
 import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from "@/lib/constants";
 
-export const LG_MEDIA_QUERY = "(min-width: 1024px)";
+export const LG_BREAKPOINT_VAR = "--breakpoint-lg";
+export const DEFAULT_LG_BREAKPOINT = "1024px";
+export const LG_MEDIA_QUERY = `(min-width: ${DEFAULT_LG_BREAKPOINT})`;
 
 export const SEAT_BOTTOM_BAR_PCT = 0.22;
 export const SEAT_HAND_MIN_PCT = 0.15;
@@ -31,8 +33,6 @@ export interface SeatSizingOptions {
   zonePadPx?: number;
   sideAreaPadPx?: number;
   modalPadPx?: number;
-  viewportWidth?: number;
-  viewportHeight?: number;
 }
 
 export interface SeatSizing {
@@ -78,8 +78,6 @@ export const computeSeatSizing = (params: SeatSizingOptions & {
     zonePadPx = ZONE_PAD_PX,
     sideAreaPadPx = SIDE_AREA_PAD_PX,
     modalPadPx = MODAL_PAD_PX,
-    viewportWidth,
-    viewportHeight,
   } = params;
 
   const minHandHeight = seatHeight * handMinPct;
@@ -111,10 +109,8 @@ export const computeSeatSizing = (params: SeatSizingOptions & {
 
   const modalMainWidth = previewWidthPx + modalPadPx * 2;
   const modalMainHeight = previewHeightPx + modalPadPx * 2;
-  const vw = viewportWidth ?? Number.POSITIVE_INFINITY;
-  const vh = viewportHeight ?? Number.POSITIVE_INFINITY;
-  const modalMaxWidthPx = Math.min(vw * 0.9, modalMainWidth);
-  const modalMaxHeightPx = Math.min(vh * 0.9, modalMainHeight);
+  const modalMaxWidthPx = modalMainWidth;
+  const modalMaxHeightPx = modalMainHeight;
 
   const viewScale = BASE_CARD_HEIGHT > 0 ? baseCardHeightPx / BASE_CARD_HEIGHT : 1;
 
@@ -140,6 +136,21 @@ export const computeSeatSizing = (params: SeatSizingOptions & {
     sideAreaPadPx,
     modalPadPx,
   };
+};
+
+export const getLgMediaQuery = () => {
+  if (
+    typeof window === "undefined" ||
+    typeof document === "undefined" ||
+    typeof getComputedStyle === "undefined"
+  ) {
+    return LG_MEDIA_QUERY;
+  }
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(LG_BREAKPOINT_VAR)
+    .trim();
+  const breakpoint = value || DEFAULT_LG_BREAKPOINT;
+  return `(min-width: ${breakpoint})`;
 };
 
 const useMediaQuery = (query: string) => {
@@ -194,7 +205,8 @@ export const useSeatSizing = (options: SeatSizingOptions = {}) => {
     debounceMs: 16,
     thresholdPx: 1,
   });
-  const isLg = useMediaQuery(LG_MEDIA_QUERY);
+  const lgQuery = React.useMemo(getLgMediaQuery, []);
+  const isLg = useMediaQuery(lgQuery);
 
   const sizing = React.useMemo(() => {
     if (!isLg || size.width <= 0 || size.height <= 0) {
@@ -214,8 +226,6 @@ export const useSeatSizing = (options: SeatSizingOptions = {}) => {
       zonePadPx,
       sideAreaPadPx,
       modalPadPx,
-      viewportWidth: typeof window === "undefined" ? undefined : window.innerWidth,
-      viewportHeight: typeof window === "undefined" ? undefined : window.innerHeight,
     });
   }, [
     isLg,
@@ -252,8 +262,8 @@ export const useSeatSizing = (options: SeatSizingOptions = {}) => {
       "--cmdr-offset": `${sizing.cmdrStackOffsetPx}px`,
       "--preview-h": `${sizing.previewHeightPx}px`,
       "--preview-w": `${sizing.previewWidthPx}px`,
-      "--modal-max-w": `${sizing.modalMaxWidthPx}px`,
-      "--modal-max-h": `${sizing.modalMaxHeightPx}px`,
+      "--modal-max-w": `min(90vw, ${sizing.modalMaxWidthPx}px)`,
+      "--modal-max-h": `min(90vh, ${sizing.modalMaxHeightPx}px)`,
       "--modal-pad": `${sizing.modalPadPx}px`,
     } as React.CSSProperties;
   }, [sizing]);
