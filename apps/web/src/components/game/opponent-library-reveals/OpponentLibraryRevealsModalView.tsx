@@ -3,6 +3,8 @@ import React from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../ui/dialog";
 import { Card } from "../card/Card";
 import { cn } from "@/lib/utils";
+import { getPreviewDimensions } from "@/hooks/game/seat/useSeatSizing";
+import { useGameStore } from "@/store/gameStore";
 
 import type { OpponentLibraryRevealsController } from "@/hooks/game/opponent-library-reveals/useOpponentLibraryRevealsController";
 
@@ -13,9 +15,18 @@ export const OpponentLibraryRevealsModalView: React.FC<OpponentLibraryRevealsCon
   revealedCards,
   actualTopCardId,
 }) => {
+  const ownerId = revealedCards[0]?.ownerId;
+  const baseCardWidthPx = useGameStore((state) =>
+    ownerId ? state.battlefieldGridSizing[ownerId]?.baseCardWidthPx : undefined
+  );
+  const { previewWidthPx, previewHeightPx } = React.useMemo(
+    () => getPreviewDimensions(baseCardWidthPx),
+    [baseCardWidthPx]
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[90vw] h-[70vh] bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col">
+      <DialogContent className="w-[94vw] max-w-[94vw] h-[94vh] max-h-[94vh] bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-xl capitalize flex items-center gap-2">
             <span>Revealed cards in {ownerName}&apos;s library</span>
@@ -37,7 +48,10 @@ export const OpponentLibraryRevealsModalView: React.FC<OpponentLibraryRevealsCon
                       {isActualTop ? "Top" : "Topmost revealed"}
                     </div>
                   )}
-                  <div className={cn("w-[150px] h-[210px] rounded-lg shadow-lg")}>
+                  <div
+                    className={cn("rounded-lg shadow-lg")}
+                    style={{ width: previewWidthPx, height: previewHeightPx }}
+                  >
                     <Card card={card} faceDown={false} className="w-full h-full" disableDrag />
                   </div>
                 </div>

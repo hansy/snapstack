@@ -6,6 +6,8 @@ import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 
 import type { TokenCreationController } from "@/hooks/game/token-creation/useTokenCreationController";
+import { getPreviewDimensions } from "@/hooks/game/seat/useSeatSizing";
+import { useGameStore } from "@/store/gameStore";
 
 export const TokenCreationModalView: React.FC<TokenCreationController> = ({
   isOpen,
@@ -22,14 +24,24 @@ export const TokenCreationModalView: React.FC<TokenCreationController> = ({
   incrementQuantity,
   handleCreate,
 }) => {
+  const baseCardWidthPx = useGameStore((state) => {
+    const myPlayerId = state.myPlayerId;
+    if (!myPlayerId) return undefined;
+    return state.battlefieldGridSizing[myPlayerId]?.baseCardWidthPx;
+  });
+  const { previewWidthPx, previewHeightPx } = React.useMemo(
+    () => getPreviewDimensions(baseCardWidthPx),
+    [baseCardWidthPx]
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-[700px] h-[80vh] flex flex-col bg-zinc-950 border-zinc-800 text-zinc-100 p-0 gap-0">
-        <DialogHeader className="p-6 pb-4 border-b border-zinc-800">
+      <DialogContent className="w-[94vw] max-w-[94vw] h-[94vh] max-h-[94vh] flex flex-col bg-zinc-950 border-zinc-800 text-zinc-100">
+        <DialogHeader className="border-b border-zinc-800 pb-4">
           <DialogTitle>Create Token</DialogTitle>
         </DialogHeader>
 
-        <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
+        <div className="border-b border-zinc-800 pb-4 bg-zinc-900/50 rounded-md px-4 py-3">
           <div className="flex items-center gap-2 bg-zinc-900 rounded-lg border border-zinc-700 px-4 py-3">
             <Search className="h-5 w-5 text-zinc-400" />
             <Input
@@ -42,7 +54,7 @@ export const TokenCreationModalView: React.FC<TokenCreationController> = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto">
           <div className="mb-4 text-zinc-400 text-sm">
             {query.length > 0 && (
               <>
@@ -60,7 +72,7 @@ export const TokenCreationModalView: React.FC<TokenCreationController> = ({
                 <div className="text-zinc-400">Searching tokens...</div>
               </div>
             ) : results.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="flex flex-wrap gap-4 items-start">
                 {results.map((token) => {
                   const imageUrl =
                     token.image_uris?.normal || token.card_faces?.[0]?.image_uris?.normal;
@@ -74,15 +86,16 @@ export const TokenCreationModalView: React.FC<TokenCreationController> = ({
                         relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all
                         ${isSelected ? "border-indigo-500 ring-2 ring-indigo-500/50" : "border-transparent hover:border-zinc-700"}
                       `}
+                      style={{ width: previewWidthPx, height: previewHeightPx }}
                     >
                       {imageUrl ? (
                         <img
                           src={imageUrl}
                           alt={token.name}
-                          className="w-full h-auto object-cover aspect-[2.5/3.5]"
+                          className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full aspect-[2.5/3.5] bg-zinc-900 flex items-center justify-center p-2 text-center text-xs text-zinc-500">
+                        <div className="w-full h-full bg-zinc-900 flex items-center justify-center p-2 text-center text-xs text-zinc-500">
                           No Image Available
                         </div>
                       )}
@@ -106,7 +119,7 @@ export const TokenCreationModalView: React.FC<TokenCreationController> = ({
           </div>
         </div>
 
-        <div className="p-4 border-t border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
+        <div className="pt-4 border-t border-zinc-800 bg-zinc-900/50 rounded-md px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <label className="text-zinc-400 text-sm font-medium">Quantity:</label>
             <div className="flex items-center gap-2 bg-zinc-900 rounded-md border border-zinc-700 p-1">
@@ -151,4 +164,3 @@ export const TokenCreationModalView: React.FC<TokenCreationController> = ({
     </Dialog>
   );
 };
-

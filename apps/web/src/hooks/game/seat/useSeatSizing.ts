@@ -50,8 +50,6 @@ export interface SeatSizing {
   previewWidthPx: number;
   previewHeightPx: number;
   cmdrStackOffsetPx: number;
-  modalMaxWidthPx: number;
-  modalMaxHeightPx: number;
   viewScale: number;
   zonePadPx: number;
   sideAreaPadPx: number;
@@ -60,6 +58,34 @@ export interface SeatSizing {
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
+
+export const getPreviewDimensions = (
+  baseCardWidthPx?: number,
+  options: {
+    previewScale?: number;
+    previewMinWidthPx?: number;
+    previewMaxWidthPx?: number;
+  } = {}
+) => {
+  const {
+    previewScale = PREVIEW_SCALE_K,
+    previewMinWidthPx = PREVIEW_MIN_WIDTH_PX,
+    previewMaxWidthPx = PREVIEW_MAX_WIDTH_PX,
+  } = options;
+  const resolvedBaseWidth =
+    Number.isFinite(baseCardWidthPx) && (baseCardWidthPx ?? 0) > 0
+      ? baseCardWidthPx!
+      : BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
+  const previewWidthPx = clamp(
+    resolvedBaseWidth * previewScale,
+    previewMinWidthPx,
+    previewMaxWidthPx
+  );
+  return {
+    previewWidthPx,
+    previewHeightPx: previewWidthPx / CARD_ASPECT_RATIO,
+  };
+};
 
 export const computeSeatSizing = (params: SeatSizingOptions & {
   seatWidth: number;
@@ -95,22 +121,16 @@ export const computeSeatSizing = (params: SeatSizingOptions & {
   const landscapeCardWidthPx = baseCardHeightPx;
   const landscapeCardHeightPx = baseCardWidthPx;
 
-  const previewWidthPx = clamp(
-    baseCardWidthPx * previewScale,
+  const { previewWidthPx, previewHeightPx } = getPreviewDimensions(baseCardWidthPx, {
+    previewScale,
     previewMinWidthPx,
-    previewMaxWidthPx
-  );
-  const previewHeightPx = previewWidthPx / CARD_ASPECT_RATIO;
+    previewMaxWidthPx,
+  });
 
   const sideZoneWidthPx = landscapeCardWidthPx + zonePadPx * 2;
   const sideZoneHeightPx = landscapeCardHeightPx + zonePadPx * 2;
   const sideAreaWidthPx = sideZoneWidthPx + sideAreaPadPx * 2;
   const cmdrStackOffsetPx = baseCardHeightPx * 0.3;
-
-  const modalMainWidth = previewWidthPx + modalPadPx * 2;
-  const modalMainHeight = previewHeightPx + modalPadPx * 2;
-  const modalMaxWidthPx = modalMainWidth;
-  const modalMaxHeightPx = modalMainHeight;
 
   const viewScale = BASE_CARD_HEIGHT > 0 ? baseCardHeightPx / BASE_CARD_HEIGHT : 1;
 
@@ -129,8 +149,6 @@ export const computeSeatSizing = (params: SeatSizingOptions & {
     previewWidthPx,
     previewHeightPx,
     cmdrStackOffsetPx,
-    modalMaxWidthPx,
-    modalMaxHeightPx,
     viewScale,
     zonePadPx,
     sideAreaPadPx,
@@ -262,8 +280,6 @@ export const useSeatSizing = (options: SeatSizingOptions = {}) => {
       "--cmdr-offset": `${sizing.cmdrStackOffsetPx}px`,
       "--preview-h": `${sizing.previewHeightPx}px`,
       "--preview-w": `${sizing.previewWidthPx}px`,
-      "--modal-max-w": `min(90vw, ${sizing.modalMaxWidthPx}px)`,
-      "--modal-max-h": `min(90vh, ${sizing.modalMaxHeightPx}px)`,
       "--modal-pad": `${sizing.modalPadPx}px`,
     } as React.CSSProperties;
   }, [sizing]);

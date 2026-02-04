@@ -21,7 +21,7 @@ export const AddCounterModalView: React.FC<AddCounterController> = ({
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-[425px] bg-zinc-900 border-zinc-800 text-zinc-100">
+      <DialogContent className="sm:max-w-[425px] bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader>
           <DialogTitle>Add Counter</DialogTitle>
         </DialogHeader>

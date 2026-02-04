@@ -90,12 +90,7 @@ describe("useSeatSizing", () => {
     expect(result.current.cssVars).toBeDefined();
     const cssVars = result.current.cssVars as Record<string, string> | undefined;
     expect(cssVars?.["--card-h"]).toBeDefined();
-    const expected = computeSeatSizing({ seatWidth: 1000, seatHeight: 800 });
-    expect(cssVars?.["--modal-max-w"]).toBe(
-      `min(90vw, ${expected.modalMaxWidthPx}px)`
-    );
-    expect(cssVars?.["--modal-max-h"]).toBe(
-      `min(90vh, ${expected.modalMaxHeightPx}px)`
-    );
+    expect(cssVars?.["--preview-w"]).toBeDefined();
+    expect(cssVars?.["--preview-h"]).toBeDefined();
   });
 });

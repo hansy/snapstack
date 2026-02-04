@@ -19,7 +19,10 @@ Sizing Refactor Plan (lg+ Only)
 - All zones should be landscape.
 - Exception: commander zone stays portrait.
 - Base card height clamp: none for now (derived directly from battlefield height / 4).
-- Modals should size to the base card size.
+- Modals/dialogs share consistent styling (padding/margins).
+- Default modal behavior: size to content, no minimum size.
+- Card-display modals (zone viewer, opponent reveals, token creation, etc.) should be near-viewport size with adjustable padding; cards inside use preview card size.
+- Non-card UIs (drawers, username dialog, counters, prompts, etc.) should not be based on base card size.
 - Sidenav + log drawer can use clamp-based sizes.
 - Minimum readable font size: ~14px.
 - Hand resize bounds: 15% - 40% of seat height.
@@ -27,10 +30,11 @@ Sizing Refactor Plan (lg+ Only)
 - Commander stack offset: 30% of base card height.
 - Side area width: zone size + side area padding.
 - Zone size: landscape card size + zone padding.
-- Modal main area (horizontal layout): card preview size + modal padding.
 - zonePadPx = 6 (derived from current side zone scale-90 against 120px width).
 - sideAreaPadPx = 20 (derived from current sidebar width 160px - zone width 120px).
 - modalPadPx = 24 (DialogContent default p-6).
+- cardModalMaxW = 94vw (near-viewport target; adjust as needed).
+- cardModalMaxH = 94vh (near-viewport target; adjust as needed).
 
 4. Open Questions (Need confirmation)
 - None for now.
@@ -57,9 +61,10 @@ Sizing Refactor Plan (lg+ Only)
   - sideZoneHeight = landscapeCardHeight + (zonePadPx * 2)
   - sideAreaWidth = sideZoneWidth + (sideAreaPadPx * 2)
   - cmdrStackOffset = baseCardHeight * 0.3
-  - modalMainWidth = previewWidth + (modalPadPx * 2)
-  - modalMaxWidth = min(90vw, modalMainWidth)
-  - modalMaxHeight = min(90vh, previewHeight + (modalPadPx * 2))
+  - cardModalMaxWidth = cardModalMaxW (near-viewport)
+  - cardModalMaxHeight = cardModalMaxH (near-viewport)
+  - cardModalCardWidth = previewWidth
+  - cardModalCardHeight = previewHeight
 
 6. Sizing Tokens (CSS variables)
 - Global or seat-scoped variables (lg+ only):
@@ -74,8 +79,8 @@ Sizing Refactor Plan (lg+ Only)
   - --sidearea-pad
   - --cmdr-offset
   - --preview-h
-  - --modal-max-w, --modal-max-h
   - --modal-pad
+  - --card-modal-max-w, --card-modal-max-h
   - --sidenav-w (clamp), --log-w (clamp)
 
 7. Frontend Feature Inventory (Preserve)
@@ -194,27 +199,27 @@ Epic E-05: Previews, Overlays, and Hover
   - Files: `apps/web/src/components/game/card/__tests__/CardPreview.component.test.tsx`
 
 Epic E-06: Modals and Dialogs
-- T-050 (not-started): Zone Viewer modal dimensions + card sizes tied to base card size.
+- T-050 (done): Zone Viewer modal near-viewport sizing; card tiles use preview card size.
   - Files: `apps/web/src/components/game/zone-viewer/ZoneViewerModalView.tsx`, `apps/web/src/components/game/zone-viewer/ZoneViewerLinearView.tsx`
-- T-051 (not-started): Token creation modal grid + card tiles tied to base card size.
+- T-051 (done): Token creation modal near-viewport sizing; card tiles use preview card size.
   - Files: `apps/web/src/components/game/token-creation/TokenCreationModalView.tsx`
-- T-052 (not-started): Load deck modal sizing tied to base card size.
+- T-052 (done): Load deck modal uses content sizing; no base-card dependency; apply consistent modal padding/margins.
   - Files: `apps/web/src/components/game/load-deck/LoadDeckModalView.tsx`
-- T-053 (not-started): Share room modal sizing tied to base card size.
+- T-053 (done): Share room modal uses content sizing; no base-card dependency; apply consistent modal padding/margins.
   - Files: `apps/web/src/components/game/share/ShareRoomDialog.tsx`
-- T-054 (not-started): Add counter modal sizing tied to base card size.
+- T-054 (done): Add counter modal uses content sizing; no base-card dependency; apply consistent modal padding/margins.
   - Files: `apps/web/src/components/game/add-counter/AddCounterModalView.tsx`
-- T-055 (not-started): Coin/Dice dialogs sizing tied to base card size.
+- T-055 (done): Coin/Dice dialogs use content sizing; no base-card dependency; apply consistent modal padding/margins.
   - Files: `apps/web/src/components/game/coin/CoinFlipDialog.tsx`, `apps/web/src/components/game/dice/DiceRollDialog.tsx`
-- T-056 (not-started): Prompt dialogs sizing tied to base card size.
+- T-056 (done): Prompt dialogs use content sizing; no base-card dependency; apply consistent modal padding/margins.
   - Files: `apps/web/src/components/game/prompts/NumberPromptDialog.tsx`, `apps/web/src/components/game/prompts/TextPromptDialog.tsx`
-- T-057 (not-started): Opponent library reveals modal sizing tied to base card size.
+- T-057 (done): Opponent library reveals modal near-viewport sizing; card tiles use preview card size.
   - Files: `apps/web/src/components/game/opponent-library-reveals/OpponentLibraryRevealsModalView.tsx`
-- T-058 (not-started): Shortcuts drawer sizing and layout tied to base card size.
+- T-058 (done): Shortcuts drawer sizing and layout not tied to base card size; apply consistent spacing.
   - Files: `apps/web/src/components/game/shortcuts/ShortcutsDrawer.tsx`
-- T-059 (not-started): Edit username and other non-game dialogs sized via base card tokens.
+- T-059 (done): Edit username and other non-game dialogs use content sizing; no base-card dependency; apply consistent modal padding/margins.
   - Files: `apps/web/src/components/username/EditUsernameDialog.tsx`
-- T-060 (not-started): Update modal/dialog tests affected by sizing changes.
+- T-060 (done): Update modal/dialog tests affected by sizing changes.
   - Files: `apps/web/src/components/game/zone-viewer/__tests__/**`, `apps/web/src/components/game/opponent-library-reveals/__tests__/**`, `apps/web/src/components/username/__tests__/**`
 
 Epic E-07: Global UI + Shell
@@ -238,6 +243,7 @@ Manual QA Checklist (lg+)
 9. Acceptance Criteria
 - For lg+ viewports, all board sizes are derived from seat height and the sizing chain.
 - Card size, zones, previews, and modal contents scale proportionally and stay aligned with drag/snap math.
+- Modals/dialogs share consistent spacing; defaults size to content with no minimums; card-display modals are near-viewport and use preview card size.
 - No UI text appears smaller than 14px (except intentionally tiny labels).
 - Below lg, existing behavior is unchanged.
 
