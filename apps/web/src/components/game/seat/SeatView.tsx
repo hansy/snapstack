@@ -15,6 +15,7 @@ import { Hand } from "./Hand";
 import { SideZone } from "./SideZone";
 import type { SeatModel } from "@/models/game/seat/seatModel";
 import { HAND_BASE_CARD_SCALE, HAND_DEFAULT_HEIGHT } from "./handSizing";
+import { useSeatSizing } from "@/hooks/game/seat/useSeatSizing";
 
 interface SeatViewProps {
   player: Player;
@@ -62,10 +63,18 @@ export const SeatView: React.FC<SeatViewProps> = ({
   onLifeContextMenu,
 }) => {
   const [handHeight, setHandHeight] = React.useState(HAND_DEFAULT_HEIGHT);
+  const [hasHandOverride, setHasHandOverride] = React.useState(false);
+  const { ref: seatRef, cssVars } = useSeatSizing({
+    handHeightOverridePx: hasHandOverride ? handHeight : undefined,
+  });
   const handCardScale = React.useMemo(
     () => HAND_BASE_CARD_SCALE * (handHeight / HAND_DEFAULT_HEIGHT),
     [handHeight]
   );
+  const handleHandHeightChange = React.useCallback((height: number) => {
+    setHasHandOverride(true);
+    setHandHeight(height);
+  }, []);
 
   const {
     isTop,
@@ -130,7 +139,11 @@ export const SeatView: React.FC<SeatViewProps> = ({
   const libraryFaceDown = libraryTopCard ? !canSeeLibraryTop : true;
 
   return (
-    <div className={cn("relative w-full h-full", className)}>
+    <div
+      ref={seatRef}
+      className={cn("relative w-full h-full", className)}
+      style={cssVars}
+    >
       {/* Scaled Wrapper */}
       <div
         className={cn(
@@ -317,7 +330,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
             isTop={isTop}
             isRight={isRight}
             height={handHeight}
-            onHeightChange={isMe ? setHandHeight : undefined}
+            onHeightChange={isMe ? handleHandHeightChange : undefined}
           >
             {/* Commander Zone */}
             {commander && (

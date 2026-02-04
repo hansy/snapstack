@@ -151,15 +151,15 @@ Epic E-01 Outputs
 - T-003 lg detection: JS matchMedia("(min-width: 1024px)") aligned with Tailwind lg.
 
 Epic E-02: Sizing Foundation
-- T-010 (not-started): Implement a seat sizing hook (ResizeObserver) that computes seat sizes and derived variables.
+- T-010 (done): Implement a seat sizing hook (ResizeObserver) that computes seat sizes and derived variables.
   - Proposed file: `apps/web/src/hooks/game/seat/useSeatSizing.ts`
   - Outputs: `handHeightPx`, `baseCardHeightPx`, `viewScale`, `sideAreaWidthPx`, `sideZoneDims`, `previewHeightPx`.
-- T-011 (not-started): Apply CSS variables to the seat root in `SeatView` and expose computed scales to children.
+- T-011 (done): Apply CSS variables to the seat root in `SeatView` and expose computed scales to children.
   - Files: `apps/web/src/components/game/seat/SeatView.tsx`
-- T-012 (not-started): Introduce lg-only gating for new sizing (CSS `@media (min-width: lg)` or JS check).
-- T-013 (not-started): Add unit tests for sizing formula outputs and lg gating.
+- T-012 (done): Introduce lg-only gating for new sizing (CSS `@media (min-width: lg)` or JS check).
+- T-013 (done): Add unit tests for sizing formula outputs and lg gating.
   - Files: new tests in `apps/web/src/hooks/game/seat/__tests__`
-- T-014 (not-started): Finalize padding constants (zonePadPx, sideAreaPadPx, modalPadPx) and document them.
+- T-014 (done): Finalize padding constants (zonePadPx, sideAreaPadPx, modalPadPx) and document them.
 
 Epic E-03: Board + Seat Layout Conversion
 - T-020 (not-started): Replace fixed sidebar width with `--sidebar-w`.
