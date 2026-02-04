@@ -12,7 +12,8 @@ export { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO };
 export const getCardWidth = (height: number) => height * CARD_ASPECT_RATIO;
 
 // Tailwind classes (derived from base)
-export const CARD_HEIGHT_CLASS = 'h-[120px] lg:h-[var(--card-h)] lg:w-[var(--card-w)] lg:aspect-auto';
+export const CARD_HEIGHT_CLASS =
+  'h-[120px] lg:h-[var(--card-h,120px)] lg:w-[var(--card-w,80px)] lg:aspect-auto';
 export const CARD_ASPECT_CLASS = 'aspect-[2/3]';
 export const ZONE_BASE_CLASSES = `${CARD_HEIGHT_CLASS} ${CARD_ASPECT_CLASS}`;
 export const ZONE_SIDEWAYS_CLASSES =

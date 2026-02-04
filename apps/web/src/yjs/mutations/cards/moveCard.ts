@@ -24,9 +24,11 @@ export function moveCard(
   position?: { x: number; y: number },
   opts?: {
     skipCollision?: boolean;
+    gridStepY?: number;
     groupCollision?: {
       movingCardIds: string[];
       targetPositions: Record<string, { x: number; y: number } | undefined>;
+      stepYById?: Record<string, number>;
     };
   }
 ) {
@@ -64,11 +66,15 @@ export function moveCard(
         targetPositions: opts.groupCollision.targetPositions,
         orderedCardIds: toOrder.toArray(),
         getPosition: (id) => readCard(maps, id)?.position,
-        getStepY: (id) => getNormalizedGridSteps({ isTapped: readCard(maps, id)?.tapped }).stepY,
+        getStepY: (id) =>
+          opts.groupCollision?.stepYById?.[id] ??
+          opts?.gridStepY ??
+          getNormalizedGridSteps({ isTapped: readCard(maps, id)?.tapped }).stepY,
       });
       newPosition = resolvedPositions[cardId] ?? basePosition;
     } else {
-      const stepY = getNormalizedGridSteps({ isTapped: card.tapped }).stepY;
+      const stepY =
+        opts?.gridStepY ?? getNormalizedGridSteps({ isTapped: card.tapped }).stepY;
       newPosition = resolveBattlefieldCollisionPosition({
         movingCardId: cardId,
         targetPosition: basePosition,

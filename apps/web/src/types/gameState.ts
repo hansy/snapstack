@@ -24,6 +24,7 @@ export interface GameState {
   libraryRevealsToAll: LibraryRevealsToAll;
   faceDownRevealsToAll: FaceDownRevealsToAll;
   battlefieldViewScale: Record<PlayerId, number>;
+  battlefieldGridSizing: Record<PlayerId, BattlefieldGridSizing>;
   roomHostId: PlayerId | null;
   roomLockedByHost: boolean;
   roomOverCapacity: boolean;
@@ -69,12 +70,14 @@ export interface GameState {
       faceDown?: boolean;
       faceDownMode?: FaceDownMode;
       skipCollision?: boolean;
+      gridStepY?: number;
       groupCollision?: {
         movingCardIds: CardId[];
         targetPositions: Record<
           CardId,
           { x: number; y: number } | undefined
         >;
+        stepYById?: Record<CardId, number>;
       };
     }
   ) => void;
@@ -172,6 +175,10 @@ export interface GameState {
   ensureSessionVersion: (sessionId: string) => number;
   leaveGame: () => void;
   setBattlefieldViewScale: (playerId: PlayerId, scale: number) => void;
+  setBattlefieldGridSizing: (
+    playerId: PlayerId,
+    sizing: BattlefieldGridSizing | null
+  ) => void;
   setViewerRole: (role: ViewerRole) => void;
   applyPrivateOverlay: (overlay: PrivateOverlayPayload) => void;
   applyPrivateOverlayDiff: (diff: PrivateOverlayDiffPayload) => boolean;
@@ -182,3 +189,10 @@ export interface GameState {
   hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
 }
+
+export type BattlefieldGridSizing = {
+  zoneHeightPx: number;
+  baseCardHeightPx: number;
+  baseCardWidthPx: number;
+  viewScale: number;
+};

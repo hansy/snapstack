@@ -8,6 +8,7 @@ import { useGameStore } from '@/store/gameStore';
 import { useSelectionStore } from '@/store/selectionStore';
 import { computeBattlefieldCardLayout } from '@/models/game/seat/battlefieldModel';
 import { getCardPixelSize } from '@/lib/positions';
+import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from '@/lib/constants';
 import { useElementSize } from "@/hooks/shared/useElementSize";
 import { useBattlefieldZoomControls } from "@/hooks/game/board/useBattlefieldZoomControls";
 import { useBattlefieldSelection } from "@/hooks/game/board/useBattlefieldSelection";
@@ -143,6 +144,9 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
     const { ref: zoneSizeRef, size: zoneSize } = useElementSize<HTMLDivElement>();
     const zoneNodeRef = React.useRef<HTMLDivElement | null>(null);
     const [zoneNode, setZoneNode] = React.useState<HTMLDivElement | null>(null);
+    const setBattlefieldGridSizing = useGameStore(
+        (state) => state.setBattlefieldGridSizing
+    );
     const setZoneRef = React.useCallback((node: HTMLDivElement | null) => {
         zoneSizeRef(node);
         zoneNodeRef.current = node;
@@ -151,6 +155,31 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
     const isSelectionEnabled = Boolean(isMe && zone.ownerId === viewerPlayerId);
     const selectedCardIds = useSelectionStore((state) => state.selectedCardIds);
     const selectionZoneId = useSelectionStore((state) => state.selectionZoneId);
+    const resolvedBaseHeight = baseCardHeight ?? BASE_CARD_HEIGHT;
+    const resolvedBaseWidth = resolvedBaseHeight * CARD_ASPECT_RATIO;
+
+    React.useEffect(() => {
+        if (!zoneSize.height) {
+            setBattlefieldGridSizing(zone.ownerId, null);
+            return;
+        }
+        setBattlefieldGridSizing(zone.ownerId, {
+            zoneHeightPx: zoneSize.height,
+            baseCardHeightPx: resolvedBaseHeight,
+            baseCardWidthPx: resolvedBaseWidth,
+            viewScale,
+        });
+        return () => {
+            setBattlefieldGridSizing(zone.ownerId, null);
+        };
+    }, [
+        resolvedBaseHeight,
+        resolvedBaseWidth,
+        setBattlefieldGridSizing,
+        viewScale,
+        zone.ownerId,
+        zoneSize.height,
+    ]);
 
     useBattlefieldZoomControls({
         playerId: viewerPlayerId,

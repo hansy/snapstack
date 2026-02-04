@@ -125,9 +125,11 @@ export type MoveOpts = {
   faceDown?: boolean;
   faceDownMode?: FaceDownMode;
   skipCollision?: boolean;
+  gridStepY?: number;
   groupCollision?: {
     movingCardIds: string[];
     targetPositions: Record<string, { x: number; y: number } | undefined>;
+    stepYById?: Record<string, number>;
   };
 };
 

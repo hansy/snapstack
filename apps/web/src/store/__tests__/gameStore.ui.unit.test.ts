@@ -11,6 +11,7 @@ describe('gameStore ui actions', () => {
     localStorage.clear();
     useGameStore.setState({
       battlefieldViewScale: {},
+      battlefieldGridSizing: {},
       activeModal: null,
       myPlayerId: 'me',
     });
@@ -33,5 +34,24 @@ describe('gameStore ui actions', () => {
 
     useGameStore.getState().setBattlefieldViewScale('me', 0.8);
     expect(useGameStore.getState().battlefieldViewScale.me).toBe(0.8);
+  });
+
+  it('setBattlefieldGridSizing stores and clears sizing per player', () => {
+    useGameStore.getState().setBattlefieldGridSizing('me', {
+      zoneHeightPx: 600,
+      baseCardHeightPx: 160,
+      baseCardWidthPx: 106.6667,
+      viewScale: 0.9,
+    });
+
+    expect(useGameStore.getState().battlefieldGridSizing.me).toEqual({
+      zoneHeightPx: 600,
+      baseCardHeightPx: 160,
+      baseCardWidthPx: 106.6667,
+      viewScale: 0.9,
+    });
+
+    useGameStore.getState().setBattlefieldGridSizing('me', null);
+    expect(useGameStore.getState().battlefieldGridSizing.me).toBeUndefined();
   });
 });

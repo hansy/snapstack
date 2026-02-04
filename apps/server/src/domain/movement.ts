@@ -287,11 +287,15 @@ export const applyCardMove = (
           targetPositions,
           orderedCardIds: ordered,
           getPosition: (id) => cardsById[id]?.position,
-          getStepY: (id) => getNormalizedGridSteps({ isTapped: cardsById[id]?.tapped }).stepY,
+          getStepY: (id) =>
+            opts?.groupCollision?.stepYById?.[id] ??
+            opts?.gridStepY ??
+            getNormalizedGridSteps({ isTapped: cardsById[id]?.tapped }).stepY,
         });
         resolvedPosition = resolved[cardId] ?? resolvedPosition;
       } else {
-        const stepY = getNormalizedGridSteps({ isTapped: card.tapped }).stepY;
+        const stepY =
+          opts?.gridStepY ?? getNormalizedGridSteps({ isTapped: card.tapped }).stepY;
         resolvedPosition = resolveBattlefieldCollisionPosition({
           movingCardId: cardId,
           targetPosition: resolvedPosition,
@@ -637,11 +641,15 @@ export const applyCardMove = (
           targetPositions,
           orderedCardIds: ordered,
           getPosition: (id) => cardsById[id]?.position,
-          getStepY: (id) => getNormalizedGridSteps({ isTapped: cardsById[id]?.tapped }).stepY,
+          getStepY: (id) =>
+            opts?.groupCollision?.stepYById?.[id] ??
+            opts?.gridStepY ??
+            getNormalizedGridSteps({ isTapped: cardsById[id]?.tapped }).stepY,
         });
         resolvedPosition = resolved[cardId] ?? resolvedPosition;
       } else {
-        const stepY = getNormalizedGridSteps({ isTapped: card.tapped }).stepY;
+        const stepY =
+          opts?.gridStepY ?? getNormalizedGridSteps({ isTapped: card.tapped }).stepY;
         resolvedPosition = resolveBattlefieldCollisionPosition({
           movingCardId: cardId,
           targetPosition: resolvedPosition,

@@ -64,6 +64,7 @@ export const createSessionActions = (
       libraryRevealsToAll: {},
       faceDownRevealsToAll: {},
       battlefieldViewScale: {},
+      battlefieldGridSizing: {},
       roomHostId: null,
       roomLockedByHost: false,
       roomOverCapacity: false,

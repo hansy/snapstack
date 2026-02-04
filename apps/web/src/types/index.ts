@@ -10,7 +10,7 @@ export type {
 } from "./reveals";
 export type { ZoneType, Zone } from "./zones";
 export type { Player, LibraryTopRevealMode } from "./players";
-export type { GameState } from "./gameState";
+export type { BattlefieldGridSizing, GameState } from "./gameState";
 
 export type {
   ScryfallCard,

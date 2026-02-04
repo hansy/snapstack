@@ -10,6 +10,7 @@ const mockGameState = vi.hoisted(() => ({
   libraryRevealsToAll: {},
   playerOrder: [],
   battlefieldViewScale: {},
+  battlefieldGridSizing: {},
   viewerRole: "player" as const,
   setViewerRole: vi.fn(),
   roomHostId: "player-1",
@@ -28,6 +29,7 @@ const mockGameState = vi.hoisted(() => ({
 const mockDragState = vi.hoisted(() => ({
   overCardScale: 1,
   activeCardId: null as string | null,
+  activeCardScale: 1,
   isGroupDragging: false,
   ghostCards: null as any,
 }));

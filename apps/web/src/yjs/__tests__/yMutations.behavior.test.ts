@@ -193,6 +193,48 @@ describe('moveCard', () => {
     expect(snapshot.cards.c1?.position.x).toBeCloseTo(0.1, 6);
     expect(snapshot.cards.c1?.position.y).toBeCloseTo(0.1 + GRID_STEP_Y, 6);
   });
+
+  it('honors an explicit gridStepY override when resolving collisions', () => {
+    const maps = createSharedMaps();
+
+    const zone: Zone = {
+      id: 'z1',
+      type: ZONE.BATTLEFIELD,
+      ownerId: 'p1',
+      cardIds: ['c1', 'c2'],
+    };
+    yUpsertZone(maps, zone);
+
+    yUpsertCard(maps, {
+      id: 'c1',
+      ownerId: 'p1',
+      controllerId: 'p1',
+      zoneId: zone.id,
+      name: 'Mover',
+      tapped: false,
+      faceDown: false,
+      position: { x: 0.2, y: 0.2 },
+      rotation: 0,
+      counters: [],
+    });
+    yUpsertCard(maps, {
+      id: 'c2',
+      ownerId: 'p1',
+      controllerId: 'p1',
+      zoneId: zone.id,
+      name: 'Occupied',
+      tapped: false,
+      faceDown: false,
+      position: { x: 0.1, y: 0.1 },
+      rotation: 0,
+      counters: [],
+    });
+
+    moveCard(maps, 'c1', zone.id, { x: 0.1, y: 0.1 }, { gridStepY: 0.2 });
+
+    const snapshot = sharedSnapshot(maps);
+    expect(snapshot.cards.c1?.position.y).toBeCloseTo(0.3, 6);
+  });
 });
 
 describe('resetDeck', () => {

@@ -52,6 +52,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   setActiveModal,
   overCardScale,
   activeCardId,
+  activeCardScale,
   isGroupDragging,
   showGroupDragOverlay,
   groupDragCardIds,
@@ -130,9 +131,10 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
     }
     const rect = node.getBoundingClientRect();
     const maxDim = Math.max(rect.width, rect.height);
-    const denom = BASE_CARD_HEIGHT * scale * (activeViewScale || 1);
+    const effectiveCardScale = activeCardScale || activeViewScale || 1;
+    const denom = BASE_CARD_HEIGHT * scale * effectiveCardScale;
     setDragBaseScale(denom > 0 ? maxDim / denom : 1);
-  }, [activeCardId, activeViewScale, scale]);
+  }, [activeCardId, activeCardScale, activeViewScale, scale]);
 
   return (
     <CardPreviewProvider>

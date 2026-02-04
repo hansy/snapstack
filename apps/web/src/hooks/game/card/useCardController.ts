@@ -61,6 +61,7 @@ export const useCardController = (props: CardProps): CardController => {
       zoneId: card.zoneId,
       ownerId: card.ownerId,
       tapped: card.tapped,
+      cardScale: scale,
     },
     disabled: disableDrag,
   });

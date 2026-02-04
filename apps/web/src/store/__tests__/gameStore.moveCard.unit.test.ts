@@ -36,6 +36,7 @@ describe('gameStore move/tap interactions', () => {
       zones: {},
       players: {},
       myPlayerId: 'me',
+      battlefieldGridSizing: {},
     });
   });
 
@@ -118,6 +119,79 @@ describe('gameStore move/tap interactions', () => {
     expect(moved.knownToAll).toBe(false);
     expect(moved.revealedToAll).toBe(false);
     expect(moved.revealedTo ?? []).toHaveLength(0);
+  });
+
+  it('uses battlefield sizing for collision steps when moving to the battlefield', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['c2']);
+    const hand = makeZone('hand-me', 'HAND', 'me', ['c1']);
+    const moving = makeCard('c1', hand.id, 'me', false);
+    const occupied = {
+      ...makeCard('c2', battlefield.id, 'me'),
+      position: { x: 0.5, y: 0.5 },
+    };
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [battlefield.id]: battlefield, [hand.id]: hand },
+      cards: { ...state.cards, [moving.id]: moving, [occupied.id]: occupied },
+      battlefieldGridSizing: {
+        me: {
+          zoneHeightPx: 600,
+          baseCardHeightPx: 160,
+          baseCardWidthPx: 106.6667,
+          viewScale: 1,
+        },
+      },
+    }));
+
+    useGameStore.getState().moveCard(moving.id, battlefield.id, { x: 0.5, y: 0.5 }, 'me');
+
+    const stepY = getNormalizedGridSteps({
+      zoneHeight: 600,
+      baseCardHeight: 160,
+      baseCardWidth: 106.6667,
+      viewScale: 1,
+    }).stepY;
+    const moved = useGameStore.getState().cards[moving.id];
+    expect(moved.position.y).toBeCloseTo(0.5 + stepY, 6);
+  });
+
+  it('uses battlefield sizing for group collision when stepYById is missing', () => {
+    const battlefield = makeZone('bf-me', 'BATTLEFIELD', 'me', ['c2']);
+    const hand = makeZone('hand-me', 'HAND', 'me', ['c1']);
+    const moving = makeCard('c1', hand.id, 'me', false);
+    const occupied = {
+      ...makeCard('c2', battlefield.id, 'me'),
+      position: { x: 0.5, y: 0.5 },
+    };
+
+    useGameStore.setState((state) => ({
+      zones: { ...state.zones, [battlefield.id]: battlefield, [hand.id]: hand },
+      cards: { ...state.cards, [moving.id]: moving, [occupied.id]: occupied },
+      battlefieldGridSizing: {
+        me: {
+          zoneHeightPx: 600,
+          baseCardHeightPx: 160,
+          baseCardWidthPx: 106.6667,
+          viewScale: 1,
+        },
+      },
+    }));
+
+    useGameStore.getState().moveCard(moving.id, battlefield.id, { x: 0.5, y: 0.5 }, 'me', undefined, {
+      groupCollision: {
+        movingCardIds: [moving.id],
+        targetPositions: { [moving.id]: { x: 0.5, y: 0.5 } },
+      },
+    });
+
+    const stepY = getNormalizedGridSteps({
+      zoneHeight: 600,
+      baseCardHeight: 160,
+      baseCardWidth: 106.6667,
+      viewScale: 1,
+    }).stepY;
+    const moved = useGameStore.getState().cards[moving.id];
+    expect(moved.position.y).toBeCloseTo(0.5 + stepY, 6);
   });
 
   it('clears faceDown when moving to bottom of a non-battlefield zone', () => {

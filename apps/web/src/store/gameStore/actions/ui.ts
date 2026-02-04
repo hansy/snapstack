@@ -1,6 +1,6 @@
 import type { StoreApi } from "zustand";
 
-import type { GameState } from "@/types";
+import type { BattlefieldGridSizing, GameState } from "@/types";
 import type { DispatchIntent } from "@/store/gameStore/dispatchIntent";
 
 
@@ -11,11 +11,20 @@ type Deps = {
   dispatchIntent: DispatchIntent;
 };
 
+const areSizingEqual = (a: BattlefieldGridSizing | undefined, b: BattlefieldGridSizing) =>
+  Boolean(
+    a &&
+      a.zoneHeightPx === b.zoneHeightPx &&
+      a.baseCardHeightPx === b.baseCardHeightPx &&
+      a.baseCardWidthPx === b.baseCardWidthPx &&
+      a.viewScale === b.viewScale
+  );
+
 export const createUiActions = (
   set: SetState,
   get: GetState,
   { dispatchIntent }: Deps
-): Pick<GameState, "setActiveModal" | "setBattlefieldViewScale"> => ({
+): Pick<GameState, "setActiveModal" | "setBattlefieldViewScale" | "setBattlefieldGridSizing"> => ({
   setActiveModal: (modal) => {
     set({ activeModal: modal });
   },
@@ -34,6 +43,26 @@ export const createUiActions = (
           [playerId]: clamped,
         },
       }),
+    });
+  },
+
+  setBattlefieldGridSizing: (playerId, sizing) => {
+    set((state) => {
+      if (!sizing) {
+        if (!state.battlefieldGridSizing[playerId]) return {};
+        const next = { ...state.battlefieldGridSizing };
+        Reflect.deleteProperty(next, playerId);
+        return { battlefieldGridSizing: next };
+      }
+      if (areSizingEqual(state.battlefieldGridSizing[playerId], sizing)) {
+        return {};
+      }
+      return {
+        battlefieldGridSizing: {
+          ...state.battlefieldGridSizing,
+          [playerId]: sizing,
+        },
+      };
     });
   },
 });

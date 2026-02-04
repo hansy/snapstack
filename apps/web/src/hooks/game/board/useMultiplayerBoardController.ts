@@ -75,6 +75,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
 
   const overCardScale = useDragStore((state) => state.overCardScale);
   const activeCardId = useDragStore((state) => state.activeCardId);
+  const activeCardScale = useDragStore((state) => state.activeCardScale);
   const isGroupDragging = useDragStore((state) => state.isGroupDragging);
   const ghostCards = useDragStore((state) => state.ghostCards);
   const selectedCardIds = useSelectionStore((state) => state.selectedCardIds);
@@ -430,6 +431,7 @@ const sendLogIntent = React.useCallback(
     setActiveModal,
     overCardScale,
     activeCardId,
+    activeCardScale,
     isGroupDragging,
     showGroupDragOverlay,
     groupDragCardIds,

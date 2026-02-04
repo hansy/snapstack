@@ -62,6 +62,7 @@ const SortableCard = React.memo(({
       zoneId: card.zoneId,
       ownerId: card.ownerId,
       tapped: card.tapped,
+      cardScale,
     },
     disabled: !isMe,
   });
