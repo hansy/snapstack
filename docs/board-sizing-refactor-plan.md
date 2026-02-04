@@ -162,17 +162,17 @@ Epic E-02: Sizing Foundation
 - T-014 (done): Finalize padding constants (zonePadPx, sideAreaPadPx, modalPadPx) and document them.
 
 Epic E-03: Board + Seat Layout Conversion
-- T-020 (not-started): Replace fixed sidebar width with `--sidebar-w`.
+- T-020 (done): Replace fixed sidebar width with `--sidebar-w`.
   - Files: `apps/web/src/components/game/seat/SeatView.tsx`
-- T-021 (not-started): Replace fixed side zone sizes with landscape vars.
+- T-021 (done): Replace fixed side zone sizes with landscape vars.
   - Files: `apps/web/src/components/game/seat/SideZone.tsx`
-- T-022 (not-started): Update commander zone sizing (portrait) with proportional offsets.
+- T-022 (done): Update commander zone sizing (portrait) with proportional offsets.
   - Files: `apps/web/src/components/game/seat/CommanderZoneView.tsx`
-- T-023 (not-started): Update hand container to use `--hand-h` and responsive min/max.
+- T-023 (done): Update hand container to use `--hand-h` and responsive min/max.
   - Files: `apps/web/src/components/game/seat/BottomBar.tsx`, `apps/web/src/components/game/seat/handSizing.ts`
-- T-024 (not-started): Adjust life box and HUD sizes to use card-based vars (avoid <14px text).
+- T-024 (done): Adjust life box and HUD sizes to use card-based vars (avoid <14px text).
   - Files: `apps/web/src/components/game/player/LifeBoxView.tsx`
-- T-025 (not-started): Update component tests/snapshots affected by seat sizing changes.
+- T-025 (done): Update component tests/snapshots affected by seat sizing changes.
   - Files: `apps/web/src/components/game/seat/__tests__/**`, `apps/web/src/components/game/player/__tests__/**`
 
 Epic E-04: Card Size + Battlefield Math
