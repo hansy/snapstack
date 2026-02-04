@@ -140,8 +140,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
     : undefined;
 
   React.useLayoutEffect(() => {
-    if (activeBaseCardHeight && Number.isFinite(activeBaseCardHeight)) {
-      setDragBaseScale(activeBaseCardHeight / BASE_CARD_HEIGHT);
+    if (hasActiveBaseSizing) {
+      if (dragBaseScale !== 1) setDragBaseScale(1);
       return;
     }
     if (!activeCardId || typeof document === "undefined") {
@@ -159,10 +159,11 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
     const denom = BASE_CARD_HEIGHT * scale * effectiveCardScale;
     setDragBaseScale(denom > 0 ? maxDim / denom : 1);
   }, [
-    activeBaseCardHeight,
+    dragBaseScale,
     activeCardId,
     activeCardScale,
     activeViewScale,
+    hasActiveBaseSizing,
     scale,
   ]);
 
