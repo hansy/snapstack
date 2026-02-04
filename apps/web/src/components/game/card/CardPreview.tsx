@@ -13,6 +13,11 @@ import { cn } from "@/lib/utils";
 import { ZONE } from "@/constants/zones";
 import { useGameStore } from "@/store/gameStore";
 import { getNextCardStatUpdate } from "@/lib/cardPT";
+import { CARD_ASPECT_RATIO } from "@/lib/constants";
+import {
+  PREVIEW_MAX_WIDTH_PX,
+  PREVIEW_MIN_WIDTH_PX,
+} from "@/hooks/game/seat/useSeatSizing";
 import {
   getDisplayPower,
   getDisplayToughness,
@@ -35,6 +40,11 @@ interface CardPreviewProps {
 
 const PREVIEW_WIDTH = 200; // Reduced size
 const GAP = 18;
+const MAX_EDGE_PADDING = 56;
+const EDGE_PADDING_RATIO = 0.06;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
 export const CardPreview: React.FC<CardPreviewProps> = ({
   card,
@@ -78,15 +88,34 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   // Local face override for previewing DFCs
   const [overrideFaceIndex, setOverrideFaceIndex] = useState<number | null>(null);
 
-  const fallbackPlacements: Placement[] = ["bottom", "left", "right"];
+  const [previewWidthFromAnchor, setPreviewWidthFromAnchor] = useState<number | null>(null);
+  const previewWidthPx = clamp(
+    previewWidthFromAnchor ?? width,
+    PREVIEW_MIN_WIDTH_PX,
+    PREVIEW_MAX_WIDTH_PX
+  );
+  const previewHeightPx = previewWidthPx / CARD_ASPECT_RATIO;
+  const edgePadding = Math.min(
+    MAX_EDGE_PADDING,
+    Math.max(GAP, Math.round(previewHeightPx * EDGE_PADDING_RATIO))
+  );
+
+  const fallbackPlacements = React.useMemo<Placement[]>(
+    () => ["bottom", "left", "right"],
+    []
+  );
+  const middleware = React.useMemo(
+    () => [
+      offset(GAP),
+      flip({ fallbackPlacements, padding: edgePadding }),
+      shift({ padding: edgePadding }),
+    ],
+    [edgePadding, fallbackPlacements]
+  );
   const { refs, floatingStyles, update, x, y } = useFloating({
     placement: "top",
     strategy: "fixed",
-    middleware: [
-      offset(GAP),
-      flip({ fallbackPlacements, padding: GAP }),
-      shift({ padding: GAP }),
-    ],
+    middleware,
     whileElementsMounted: autoUpdate,
   });
 
@@ -98,6 +127,23 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
     refs.setReference(resolvedAnchor);
     return resolvedAnchor;
   }, [anchorEl, card.id, refs]);
+
+  const updatePreviewWidth = React.useCallback(() => {
+    if (typeof window === "undefined" || typeof getComputedStyle === "undefined") {
+      setPreviewWidthFromAnchor(null);
+      return;
+    }
+    const resolvedAnchor = resolveAnchor();
+    if (!resolvedAnchor) {
+      setPreviewWidthFromAnchor(null);
+      return;
+    }
+    const rawValue = getComputedStyle(resolvedAnchor)
+      .getPropertyValue("--preview-w")
+      .trim();
+    const parsedValue = Number.parseFloat(rawValue);
+    setPreviewWidthFromAnchor(Number.isFinite(parsedValue) ? parsedValue : null);
+  }, [resolveAnchor]);
 
   useEffect(() => {
     // Reset override if the card ID changes (new card shown)
@@ -114,6 +160,19 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
     currentCard.position?.x,
     currentCard.position?.y,
   ]);
+
+  useEffect(() => {
+    updatePreviewWidth();
+  }, [updatePreviewWidth, card.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => {
+      updatePreviewWidth();
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [updatePreviewWidth]);
 
   useEffect(() => {
     if (!locked || !onClose) return;
@@ -141,7 +200,8 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   const isPositioned = x != null && y != null;
   const previewStyle: React.CSSProperties = {
     ...floatingStyles,
-    width,
+    width: previewWidthPx,
+    height: previewHeightPx,
     opacity: isPositioned ? 1 : 0,
     visibility: isPositioned ? "visible" : "hidden",
   };

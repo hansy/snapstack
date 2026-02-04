@@ -7,6 +7,10 @@ import { useGameStore } from "@/store/gameStore";
 import { useDragStore } from "@/store/dragStore";
 import { useSelectionStore } from "@/store/selectionStore";
 import { ZONE } from "@/constants/zones";
+import {
+  PREVIEW_MAX_WIDTH_PX,
+  PREVIEW_MIN_WIDTH_PX,
+} from "@/hooks/game/seat/useSeatSizing";
 import { Card } from "../Card";
 import { CardPreview } from "../CardPreview";
 import { CardPreviewProvider } from "../CardPreviewProvider";
@@ -139,6 +143,53 @@ describe("CardPreview", () => {
 
     expect(await screen.findByText("Test Card")).toBeTruthy();
     expect(screen.queryByText("Hello")).toBeNull();
+    anchorEl.remove();
+  });
+
+  it("uses seat preview width when available and clamps to min/max", async () => {
+    const zoneId = "me-battlefield";
+    const cardId = "c1";
+    const zone = buildZone(zoneId, "BATTLEFIELD", "me", [cardId]);
+    const card = buildCard(cardId, "Test Card", zoneId);
+
+    useGameStore.setState((state) => ({
+      ...state,
+      zones: { [zoneId]: zone },
+      cards: { [cardId]: card },
+      players: { me: buildPlayer("me", "Me") },
+      myPlayerId: "me",
+    }));
+
+    const anchorRect = {
+      left: 0,
+      top: 0,
+      right: 100,
+      bottom: 100,
+      width: 100,
+      height: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect;
+
+    const anchorEl = document.createElement("div");
+    anchorEl.style.setProperty("--preview-w", "900px");
+    vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue(anchorRect);
+    document.body.appendChild(anchorEl);
+
+    render(<CardPreview card={card} anchorEl={anchorEl} locked={false} />);
+
+    expect(await screen.findByText("Test Card")).toBeTruthy();
+    const previewEl = document.querySelector("[data-card-preview]") as HTMLElement | null;
+    expect(previewEl).not.toBeNull();
+    expect(previewEl?.style.width).toBe(`${PREVIEW_MAX_WIDTH_PX}px`);
+
+    anchorEl.style.setProperty("--preview-w", "120px");
+    act(() => {
+      fireEvent(window, new Event("resize"));
+    });
+    expect(previewEl?.style.width).toBe(`${PREVIEW_MIN_WIDTH_PX}px`);
+
     anchorEl.remove();
   });
 

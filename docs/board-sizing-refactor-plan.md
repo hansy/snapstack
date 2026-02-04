@@ -186,11 +186,11 @@ Epic E-04: Card Size + Battlefield Math
   - Files: `apps/web/src/lib/__tests__/positions.unit.test.ts`, `apps/web/src/lib/__tests__/battlefieldCollision.unit.test.ts`, `apps/web/src/lib/__tests__/dndBattlefield.unit.test.ts`
 
 Epic E-05: Previews, Overlays, and Hover
-- T-040 (not-started): Set hover/locked preview sizes based on base card size with clamps.
-  - Files: `apps/web/src/components/game/card/CardPreviewView.tsx`, `apps/web/src/components/game/card/CardPreview.tsx`
-- T-041 (not-started): Ensure preview positioning avoids clipping at lg sizes (edge-aware padding).
-  - Files: `apps/web/src/components/game/card/CardPreviewView.tsx`, `apps/web/src/components/game/card/CardPreviewProvider.tsx`
-- T-042 (not-started): Update preview-related tests to assert sizing/clamping behavior.
+- T-040 (done): Set hover/locked preview sizes based on base card size with clamps.
+  - Files: `apps/web/src/components/game/card/CardPreview.tsx`
+- T-041 (done): Ensure preview positioning avoids clipping at lg sizes (edge-aware padding).
+  - Files: `apps/web/src/components/game/card/CardPreview.tsx`
+- T-042 (done): Update preview-related tests to assert sizing/clamping behavior.
   - Files: `apps/web/src/components/game/card/__tests__/CardPreview.component.test.tsx`
 
 Epic E-06: Modals and Dialogs
