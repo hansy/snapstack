@@ -35,7 +35,7 @@ export const CommanderZoneView: React.FC<CommanderZoneViewProps> = ({
   return (
     <div
       className={cn(
-        "relative z-30 h-full shrink-0 flex items-center justify-center", // Increased z-index to sit above Hand
+        "relative z-30 h-full shrink-0 flex items-stretch justify-start aspect-[11/15]", // Increased z-index to sit above Hand
         isRight ? "border-r border-white/5" : "border-l border-white/5" // Separator
       )}
     >
@@ -46,7 +46,7 @@ export const CommanderZoneView: React.FC<CommanderZoneViewProps> = ({
         <Zone
           zone={zone}
           className={cn(
-            "h-full aspect-[11/15] lg:h-[var(--card-h)] lg:w-[var(--card-w)] lg:aspect-auto",
+            "h-full w-full",
             "flex items-start justify-center relative shadow-lg backdrop-blur-sm p-2 overflow-visible",
             // Base background
             "bg-zinc-900/40",
@@ -75,7 +75,10 @@ export const CommanderZoneView: React.FC<CommanderZoneViewProps> = ({
                       zIndex: index + 1,
                     }}
                   >
-                    <Card card={card} className="w-full h-full" />
+                    <Card
+                      card={card}
+                      className="w-full h-full lg:!w-full lg:!h-full"
+                    />
                     <div className="absolute right-0 top-2 translate-x-1/2 z-40 pointer-events-none group-hover/commander-card:pointer-events-auto">
                       <div className="relative flex items-center justify-center w-[112px] h-8">
                         {isOwner && (

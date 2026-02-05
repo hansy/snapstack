@@ -177,7 +177,7 @@ export const computeSeatSizing = (
   const sideZoneWidthPx = landscapeCardWidthPx + resolvedZonePadPx * 2;
   const sideZoneHeightPx = landscapeCardHeightPx + resolvedZonePadPx * 2;
   const sideAreaWidthPx = sideZoneWidthPx + sideAreaPadPx * 2;
-  const cmdrStackOffsetPx = baseCardHeightPx * 0.3;
+  const cmdrStackOffsetPx = Math.max(40, baseCardHeightPx * 0.35);
 
   const viewScale =
     BASE_CARD_HEIGHT > 0 ? baseCardHeightPx / BASE_CARD_HEIGHT : 1;
