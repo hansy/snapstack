@@ -15,11 +15,12 @@ import { Hand } from "./Hand";
 import { SideZone } from "./SideZone";
 import type { SeatModel } from "@/models/game/seat/seatModel";
 import {
-  HAND_BASE_CARD_SCALE,
+  HAND_CARD_HEIGHT_RATIO,
   HAND_DEFAULT_HEIGHT,
   HAND_MAX_HEIGHT,
   HAND_MIN_HEIGHT,
 } from "./handSizing";
+import { BASE_CARD_HEIGHT } from "@/lib/constants";
 import {
   SEAT_BOTTOM_BAR_PCT,
   SEAT_HAND_MAX_PCT,
@@ -111,10 +112,11 @@ export const SeatView: React.FC<SeatViewProps> = ({
   const effectiveHandHeight = isLg && sizing ? sizing.handHeightPx : handHeight;
   const baseCardHeightPx = sizing?.baseCardHeightPx;
   const baseCardWidthPx = sizing?.baseCardWidthPx;
-  const handCardScale = React.useMemo(
-    () => HAND_BASE_CARD_SCALE * (effectiveHandHeight / HAND_DEFAULT_HEIGHT),
-    [effectiveHandHeight]
-  );
+  const handCardScale = React.useMemo(() => {
+    const resolvedBaseHeight = baseCardHeightPx ?? BASE_CARD_HEIGHT;
+    if (!resolvedBaseHeight) return 1;
+    return (effectiveHandHeight * HAND_CARD_HEIGHT_RATIO) / resolvedBaseHeight;
+  }, [baseCardHeightPx, effectiveHandHeight]);
   const handleHandHeightChange = React.useCallback((height: number) => {
     setHasHandOverride(true);
     setHandHeight(height);

@@ -12,7 +12,6 @@ import { v4 as uuidv4 } from "uuid";
 import { sendIntent } from "@/partykit/intentTransport";
 import { markRoomAsHostPending, readRoomTokensFromStorage } from "@/lib/partyKitToken";
 import { createRoomId } from "@/lib/roomId";
-import { useBoardScale } from "./useBoardScale";
 import { useGameContextMenu } from "../context-menu/useGameContextMenu";
 import { useGameDnD } from "../dnd/useGameDnD";
 import { useSelectionSync } from "../selection/useSelectionSync";
@@ -389,7 +388,7 @@ const sendLogIntent = React.useCallback(
     [players, playerOrder]
   );
 
-  const scale = useBoardScale(layoutMode);
+  const scale = 1;
   useSelectionSync(myPlayerId);
 
   const groupDragCardIds = React.useMemo(() => {

@@ -6,7 +6,11 @@ import { Zone } from "../zone/Zone";
 import { ZONE_LABEL } from "@/constants/zones";
 import { shouldRenderFaceDown } from "@/lib/reveal";
 import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from "@/lib/constants";
-import { HAND_BASE_CARD_SCALE, HAND_CARD_OVERLAP_RATIO } from "./handSizing";
+import {
+  HAND_BASE_CARD_SCALE,
+  HAND_CARD_OVERLAP_RATIO,
+  HAND_CARD_TOP_GAP_PX,
+} from "./handSizing";
 import {
   SortableContext,
   useSortable,
@@ -96,10 +100,7 @@ const SortableCard = React.memo(({
     >
       <div
         className={cn(
-          "w-auto aspect-[11/15] transition-transform duration-200",
-          isTop
-            ? "-translate-y-[35%] group-hover:translate-y-0"
-            : "translate-y-[35%] group-hover:translate-y-0"
+          "w-auto aspect-[11/15] transition-transform duration-200"
         )}
       >
         <Card
@@ -174,9 +175,9 @@ const HandInner: React.FC<HandProps> = ({
         >
           <div
             className={cn(
-              "flex m-auto gap-0", // m-auto safely centers content
-              isTop ? "items-start pt-4" : "items-end pb-4"
+              "flex w-full h-full gap-0 items-start justify-center"
             )}
+            style={{ paddingTop: HAND_CARD_TOP_GAP_PX }}
           >
             {cards.map((card) => (
               <SortableCard
