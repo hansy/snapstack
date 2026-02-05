@@ -29,7 +29,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
       className={cn(
         "w-[120px] h-24 flex flex-col items-center justify-center p-2 bg-zinc-800/30 rounded-lg border-2 border-zinc-700 shadow-lg backdrop-blur-sm relative lg:w-[var(--sidezone-w)] lg:h-[calc(var(--card-h)*0.75)] lg:p-[calc(var(--card-h)*0.08)]",
         isMe && "border-indigo-500/50 ring-1 ring-indigo-500/20",
-        className
+        className,
       )}
     >
       {/* Player Name Label */}
@@ -40,15 +40,15 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
               type="button"
               onClick={onEditUsername}
               className={cn(
-                "bg-zinc-900 px-2 text-md font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full shadow-sm lg:text-[clamp(14px,calc(var(--card-h)*0.12),18px)]",
-                "cursor-pointer hover:text-zinc-200 hover:border-zinc-500 transition-colors"
+                "bg-zinc-900 px-2 text-md font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full shadow-sm lg:text-xs",
+                "cursor-pointer hover:text-zinc-200 hover:border-zinc-500 transition-colors",
               )}
             >
               {player.name || "Me"}
             </button>
           </Tooltip>
         ) : (
-          <div className="bg-zinc-900 px-2 text-md font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full shadow-sm lg:text-[clamp(14px,calc(var(--card-h)*0.12),18px)]">
+          <div className="bg-zinc-900 px-2 text-md font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full shadow-sm lg:text-xs">
             {player.name || (isMe ? "Me" : "")}
           </div>
         )}
@@ -67,7 +67,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
                 "w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 lg:w-[clamp(28px,calc(var(--card-h)*0.18),36px)] lg:h-[clamp(28px,calc(var(--card-h)*0.18),36px)]",
                 isAtMinLife
                   ? "cursor-not-allowed text-zinc-500 group-hover:opacity-50"
-                  : "hover:bg-red-900/50"
+                  : "hover:bg-red-900/50",
               )}
             >
               <Minus size={16} />
@@ -93,7 +93,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
                 "w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 lg:w-[clamp(28px,calc(var(--card-h)*0.18),36px)] lg:h-[clamp(28px,calc(var(--card-h)*0.18),36px)]",
                 isAtMaxLife
                   ? "cursor-not-allowed text-zinc-500 group-hover:opacity-50"
-                  : "hover:bg-green-900/50"
+                  : "hover:bg-green-900/50",
               )}
             >
               <Plus size={16} />
@@ -113,7 +113,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
               // Position based on seat side
               isRight
                 ? "right-full mr-4 origin-right"
-                : "left-full ml-4 origin-left"
+                : "left-full ml-4 origin-left",
             )}
           >
             {/* Label straddling top border */}
@@ -136,7 +136,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
                       "w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 transition-colors",
                       damage <= 0
                         ? "opacity-50 text-zinc-600"
-                        : "hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200"
+                        : "hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200",
                     )}
                   >
                     <Minus size={14} />
@@ -146,12 +146,12 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
                 )}
 
                 <span
-                    className={cn(
+                  className={cn(
                     "text-xl font-mono font-bold w-8 text-center lg:text-[clamp(16px,calc(var(--card-h)*0.2),24px)]",
                     color === "rose" && "text-rose-500/70",
                     color === "violet" && "text-violet-500/70",
                     color === "sky" && "text-sky-500/70",
-                    color === "amber" && "text-amber-500/70"
+                    color === "amber" && "text-amber-500/70",
                   )}
                 >
                   {damage}

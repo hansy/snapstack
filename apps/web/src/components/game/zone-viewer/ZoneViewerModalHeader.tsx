@@ -18,17 +18,21 @@ export const ZoneViewerModalHeader: React.FC<ZoneViewerModalHeaderProps> = ({
   filterText,
   onFilterTextChange,
 }) => {
+  const totalLabel = totalCards === 1 ? "card" : "cards";
+  const countLabel = count === 1 ? "card" : "cards";
   return (
     <>
       <DialogHeader>
         <DialogTitle className="text-xl capitalize flex items-center gap-2">
           <span>{zoneType} Viewer</span>
           <span className="text-zinc-500 text-sm font-normal">
-            ({totalCards} cards)
+            ({totalCards} {totalLabel})
           </span>
         </DialogTitle>
         <DialogDescription className="text-zinc-400">
-          Viewing {count ? `top ${count}` : "all"} cards in {zoneType}.
+          {count
+            ? `Viewing top ${count} ${countLabel} in ${zoneType}.`
+            : `Viewing all ${totalCards} ${totalLabel} in ${zoneType}.`}
         </DialogDescription>
       </DialogHeader>
 
@@ -44,4 +48,3 @@ export const ZoneViewerModalHeader: React.FC<ZoneViewerModalHeaderProps> = ({
     </>
   );
 };
-

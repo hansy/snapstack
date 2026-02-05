@@ -54,7 +54,7 @@ export const SideZone: React.FC<SideZoneProps> = ({
           "hover:bg-zinc-800/50 hover:border-zinc-500/80 hover:shadow-[0_0_0_1px_rgba(148,163,184,0.3)]",
           showContextMenuCursor
             ? "cursor-context-menu"
-            : onClick && "cursor-pointer"
+            : onClick && "cursor-pointer",
         )}
       >
         {rightIndicator && (
@@ -62,7 +62,7 @@ export const SideZone: React.FC<SideZoneProps> = ({
             className={cn(
               "absolute top-1/2 -translate-y-1/2 pointer-events-none z-[10] drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)]",
               // Keep the indicator "inland" by placing it inside the zone bounds.
-              indicatorSide === "left" ? "left-[-20px]" : "right-[-20px]"
+              indicatorSide === "left" ? "left-[-20px]" : "right-[-20px]",
             )}
           >
             {rightIndicator}
@@ -77,7 +77,7 @@ export const SideZone: React.FC<SideZoneProps> = ({
               disableHoverAnimation
               className={cn(
                 "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center",
-                cardClassName
+                cardClassName,
               )}
             />
           </div>
@@ -85,10 +85,10 @@ export const SideZone: React.FC<SideZoneProps> = ({
           (emptyContent ?? <span className="text-zinc-600 text-md">Empty</span>)
         )}
 
-        <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-md text-zinc-400 uppercase tracking-wider font-semibold whitespace-nowrap border border-zinc-800 rounded-full z-10 -top-3">
+        <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-xs text-zinc-400 uppercase tracking-wider font-semibold whitespace-nowrap border border-zinc-800 rounded-full z-10 -top-3">
           {label}
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-md text-zinc-300 font-mono border border-zinc-800 rounded-full z-10 -bottom-3">
+        <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 lg:text-xs text-zinc-300 font-mono border border-zinc-800 rounded-full z-10 -bottom-3">
           {count}
         </div>
       </Zone>

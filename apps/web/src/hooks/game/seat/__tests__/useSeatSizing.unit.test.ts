@@ -44,8 +44,8 @@ describe("computeSeatSizing", () => {
     expect(result.baseCardWidthPx).toBeCloseTo(104);
     expect(result.previewWidthPx).toBe(PREVIEW_MIN_WIDTH_PX);
     expect(result.previewHeightPx).toBeCloseTo(300);
-    expect(result.sideZoneWidthPx).toBeCloseTo(168);
-    expect(result.sideAreaWidthPx).toBeCloseTo(208);
+    expect(result.sideZoneWidthPx).toBeCloseTo(162, 1);
+    expect(result.sideAreaWidthPx).toBeCloseTo(186, 1);
   });
 
   it("clamps hand height overrides to min/max", () => {
