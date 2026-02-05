@@ -10,7 +10,7 @@ export function ResumeCard({ onReconnect, onLeave }: ResumeCardProps) {
         You're already in a game
       </h2>
       <p className="mt-1 text-sm text-zinc-300">
-        Reconnect to your last session or leave it to stop syncing.
+        Reconnect to your last session or leave to start a new game.
       </p>
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
         <button
