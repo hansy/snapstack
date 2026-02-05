@@ -304,18 +304,15 @@ export function useMultiplayerSync(sessionId: string, locationKey?: string) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const updatePauseState = () => {
-      const hidden = typeof document !== "undefined" && document.visibilityState === "hidden";
       const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-      setIsPaused(hidden || offline);
+      setIsPaused(offline);
     };
     updatePauseState();
     window.addEventListener("online", updatePauseState);
     window.addEventListener("offline", updatePauseState);
-    document.addEventListener("visibilitychange", updatePauseState);
     return () => {
       window.removeEventListener("online", updatePauseState);
       window.removeEventListener("offline", updatePauseState);
-      document.removeEventListener("visibilitychange", updatePauseState);
     };
   }, []);
 

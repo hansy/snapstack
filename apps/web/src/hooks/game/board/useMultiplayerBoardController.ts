@@ -10,7 +10,10 @@ import { ZONE } from "@/constants/zones";
 import { useScryfallCards } from "@/hooks/scryfall/useScryfallCard";
 import { v4 as uuidv4 } from "uuid";
 import { sendIntent } from "@/partykit/intentTransport";
-import { markRoomAsHostPending, readRoomTokensFromStorage } from "@/lib/partyKitToken";
+import {
+  markRoomAsHostPending,
+  readRoomTokensFromStorage,
+} from "@/lib/partyKitToken";
 import { createRoomId } from "@/lib/roomId";
 import { useBoardScale } from "./useBoardScale";
 import { useGameContextMenu } from "../context-menu/useGameContextMenu";
@@ -22,6 +25,10 @@ import { useMultiplayerSync } from "../multiplayer-sync/useMultiplayerSync";
 import { usePlayerLayout, type LayoutMode } from "../player/usePlayerLayout";
 import { resolveSelectedCardIds } from "@/models/game/selection/selectionModel";
 import { MAX_PLAYERS } from "@/lib/room";
+import { useIdleTimeout } from "@/hooks/shared/useIdleTimeout";
+
+const IDLE_TIMEOUT_MS = 10 * 60_000;
+const IDLE_POLL_MS = 30_000;
 
 const getGridClass = (layoutMode: LayoutMode) => {
   switch (layoutMode) {
@@ -46,14 +53,16 @@ export const useMultiplayerBoardController = (sessionId: string) => {
       Object.values(cards)
         .map((card) => card.scryfallId)
         .filter((id): id is string => Boolean(id)),
-    [cards]
+    [cards],
   );
   useScryfallCards(scryfallIds);
   const players = useGameStore((state) => state.players);
-  const libraryRevealsToAll = useGameStore((state) => state.libraryRevealsToAll);
+  const libraryRevealsToAll = useGameStore(
+    (state) => state.libraryRevealsToAll,
+  );
   const playerOrder = useGameStore((state) => state.playerOrder);
   const battlefieldViewScale = useGameStore(
-    (state) => state.battlefieldViewScale
+    (state) => state.battlefieldViewScale,
   );
   const viewerRole = useGameStore((state) => state.viewerRole);
   const setViewerRole = useGameStore((state) => state.setViewerRole);
@@ -63,14 +72,16 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const roomTokens = useGameStore((state) => state.roomTokens);
   const storedTokens = React.useMemo(
     () => readRoomTokensFromStorage(sessionId),
-    [sessionId, roomTokens?.playerToken, roomTokens?.spectatorToken]
+    [sessionId, roomTokens?.playerToken, roomTokens?.spectatorToken],
   );
   const shareTokenSource = roomTokens ?? storedTokens;
-  const setRoomLockedByHost = useGameStore((state) => state.setRoomLockedByHost);
+  const setRoomLockedByHost = useGameStore(
+    (state) => state.setRoomLockedByHost,
+  );
   const activeModal = useGameStore((state) => state.activeModal);
   const setActiveModal = useGameStore((state) => state.setActiveModal);
   const shareLinksReady = Boolean(
-    shareTokenSource?.playerToken || shareTokenSource?.spectatorToken
+    shareTokenSource?.playerToken || shareTokenSource?.spectatorToken,
   );
 
   const overCardScale = useDragStore((state) => state.overCardScale);
@@ -88,8 +99,12 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const locationSearch = useRouterState({
     select: (state) => state.location.search,
   }) as string;
-  const { status: syncStatus, peerCounts, joinBlocked, joinBlockedReason } =
-    useMultiplayerSync(sessionId, locationSearch);
+  const {
+    status: syncStatus,
+    peerCounts,
+    joinBlocked,
+    joinBlockedReason,
+  } = useMultiplayerSync(sessionId, locationSearch);
 
   const [zoneViewerState, setZoneViewerState] = React.useState<{
     isOpen: boolean;
@@ -97,33 +112,36 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     count?: number;
   }>({ isOpen: false, zoneId: null });
 
-const sendLogIntent = React.useCallback(
+  const sendLogIntent = React.useCallback(
     (type: string, payload: Record<string, unknown>) => {
       sendIntent({ id: uuidv4(), type, payload });
     },
-    []
+    [],
   );
 
-  const handleViewZone = React.useCallback((zoneId: string, count?: number) => {
-    setZoneViewerState({ isOpen: true, zoneId, count });
+  const handleViewZone = React.useCallback(
+    (zoneId: string, count?: number) => {
+      setZoneViewerState({ isOpen: true, zoneId, count });
 
-    const state = useGameStore.getState();
-    const zone = state.zones[zoneId];
-    if (!zone || zone.type !== ZONE.LIBRARY) return;
-    if (state.viewerRole === "spectator") return;
-    if (zone.ownerId !== state.myPlayerId) return;
+      const state = useGameStore.getState();
+      const zone = state.zones[zoneId];
+      if (!zone || zone.type !== ZONE.LIBRARY) return;
+      if (state.viewerRole === "spectator") return;
+      if (zone.ownerId !== state.myPlayerId) return;
 
-    const safeCount =
-      typeof count === "number" && Number.isFinite(count) && count > 0
-        ? Math.floor(count)
-        : undefined;
+      const safeCount =
+        typeof count === "number" && Number.isFinite(count) && count > 0
+          ? Math.floor(count)
+          : undefined;
 
-    sendLogIntent("library.view", {
-      actorId: state.myPlayerId,
-      playerId: state.myPlayerId,
-      count: safeCount,
-    });
-  }, [sendLogIntent]);
+      sendLogIntent("library.view", {
+        actorId: state.myPlayerId,
+        playerId: state.myPlayerId,
+        count: safeCount,
+      });
+    },
+    [sendLogIntent],
+  );
 
   const libraryViewPlayerIdRef = React.useRef<string | null>(null);
   React.useEffect(() => {
@@ -163,14 +181,27 @@ const sendLogIntent = React.useCallback(
     navigate({ to: "/" });
   }, [navigate]);
 
+  const isSpectator = viewerRole === "spectator";
+
+  const handleIdleTimeout = React.useCallback(() => {
+    navigate({ to: "/" });
+  }, [navigate]);
+
+  const idleEnabled =
+    syncStatus === "connected" && !joinBlocked && !isSpectator;
+  useIdleTimeout({
+    enabled: idleEnabled,
+    timeoutMs: IDLE_TIMEOUT_MS,
+    pollIntervalMs: IDLE_POLL_MS,
+    onTimeout: handleIdleTimeout,
+  });
+
   const handleCreateNewGame = React.useCallback(() => {
     useGameStore.getState().leaveGame();
     const sessionId = createRoomId();
     markRoomAsHostPending(sessionId);
     navigate({ to: "/game/$sessionId", params: { sessionId } });
   }, [navigate]);
-
-  const isSpectator = viewerRole === "spectator";
 
   const {
     contextMenu,
@@ -189,7 +220,7 @@ const sendLogIntent = React.useCallback(
     myPlayerId,
     handleViewZone,
     () => setIsCoinFlipperOpen(true),
-    () => setIsDiceRollerOpen(true)
+    () => setIsDiceRollerOpen(true),
   );
 
   const [isLoadDeckModalOpen, setIsLoadDeckModalOpen] = React.useState(false);
@@ -223,7 +254,7 @@ const sendLogIntent = React.useCallback(
       }
       return url.toString();
     },
-    []
+    [],
   );
 
   React.useEffect(() => {
@@ -250,7 +281,7 @@ const sendLogIntent = React.useCallback(
 
   const preferredUsername = useClientPrefsStore((state) => state.username);
   const setPreferredUsername = useClientPrefsStore(
-    (state) => state.setUsername
+    (state) => state.setUsername,
   );
 
   const handleUsernameSubmit = React.useCallback(
@@ -261,7 +292,7 @@ const sendLogIntent = React.useCallback(
         .updatePlayer(myPlayerId, { name: username }, myPlayerId);
       setIsEditUsernameOpen(false);
     },
-    [myPlayerId, setPreferredUsername]
+    [myPlayerId, setPreferredUsername],
   );
 
   const handleDrawCard = React.useCallback(
@@ -269,7 +300,7 @@ const sendLogIntent = React.useCallback(
       if (isSpectator) return;
       useGameStore.getState().drawCard(playerId, myPlayerId);
     },
-    [isSpectator, myPlayerId]
+    [isSpectator, myPlayerId],
   );
 
   const handleFlipCoin = React.useCallback(
@@ -278,7 +309,7 @@ const sendLogIntent = React.useCallback(
       const safeCount = Math.max(1, Math.floor(params.count));
       const results = Array.from(
         { length: safeCount },
-        () => (Math.random() < 0.5 ? "heads" : "tails") as "heads" | "tails"
+        () => (Math.random() < 0.5 ? "heads" : "tails") as "heads" | "tails",
       );
       sendLogIntent("coin.flip", {
         actorId: myPlayerId,
@@ -286,7 +317,7 @@ const sendLogIntent = React.useCallback(
         results,
       });
     },
-    [isSpectator, myPlayerId, sendLogIntent]
+    [isSpectator, myPlayerId, sendLogIntent],
   );
 
   const handleRollDice = React.useCallback(
@@ -296,7 +327,7 @@ const sendLogIntent = React.useCallback(
       const safeCount = Math.max(1, Math.floor(params.count));
       const results = Array.from(
         { length: safeCount },
-        () => 1 + Math.floor(Math.random() * safeSides)
+        () => 1 + Math.floor(Math.random() * safeSides),
       );
       sendLogIntent("dice.roll", {
         actorId: myPlayerId,
@@ -305,7 +336,7 @@ const sendLogIntent = React.useCallback(
         results,
       });
     },
-    [isSpectator, myPlayerId, sendLogIntent]
+    [isSpectator, myPlayerId, sendLogIntent],
   );
 
   const handleOpenCoinFlipper = React.useCallback(() => {
@@ -382,7 +413,7 @@ const sendLogIntent = React.useCallback(
 
   const playerColors = React.useMemo(
     () => resolvePlayerColors(players, playerOrder),
-    [players, playerOrder]
+    [players, playerOrder],
   );
 
   const scale = useBoardScale(layoutMode);
@@ -397,22 +428,16 @@ const sendLogIntent = React.useCallback(
       minCount: 2,
       fallbackToSeed: false,
     });
-  }, [
-    activeCardId,
-    cards,
-    isGroupDragging,
-    selectedCardIds,
-    selectionZoneId,
-  ]);
+  }, [activeCardId, cards, isGroupDragging, selectedCardIds, selectionZoneId]);
 
   const showGroupDragOverlay = React.useMemo(
     () =>
       Boolean(
         isGroupDragging &&
-          (!ghostCards || ghostCards.length < 2) &&
-          groupDragCardIds.length > 0
+        (!ghostCards || ghostCards.length < 2) &&
+        groupDragCardIds.length > 0,
       ),
-    [ghostCards, groupDragCardIds.length, isGroupDragging]
+    [ghostCards, groupDragCardIds.length, isGroupDragging],
   );
 
   return {
