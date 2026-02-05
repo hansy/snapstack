@@ -44,7 +44,7 @@ describe("computeSeatSizing", () => {
     expect(result.baseCardWidthPx).toBeCloseTo(104);
     expect(result.previewWidthPx).toBe(PREVIEW_MIN_WIDTH_PX);
     expect(result.previewHeightPx).toBeCloseTo(300);
-    expect(result.sideZoneWidthPx).toBeCloseTo(139.5, 1);
+    expect(result.sideZoneWidthPx).toBeCloseTo(146.4, 1);
     expect(result.sideAreaWidthPx).toBeCloseTo(163.5, 1);
   });
 

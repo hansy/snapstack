@@ -19,7 +19,7 @@ export const MIN_CARD_HEIGHT_PX = 80;
 // Padding around side zone cards (p-2).
 export const ZONE_PAD_PX = 12;
 export const ZONE_PAD_AREA_SCALE = 1.2;
-export const ZONE_AREA_SCALE = 1;
+export const ZONE_AREA_SCALE = 0.8;
 // DialogContent default p-6.
 export const MODAL_PAD_PX = 24;
 
