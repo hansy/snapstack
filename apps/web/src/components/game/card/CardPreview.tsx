@@ -40,6 +40,7 @@ interface CardPreviewProps {
 
 const PREVIEW_WIDTH = 200; // Reduced size
 const GAP = 18;
+const HAND_GAP = 8;
 const MAX_EDGE_PADDING = 56;
 const EDGE_PADDING_RATIO = 0.06;
 
@@ -95,9 +96,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
     PREVIEW_MAX_WIDTH_PX
   );
   const previewHeightPx = previewWidthPx / CARD_ASPECT_RATIO;
+  const gap = zoneType === ZONE.HAND ? HAND_GAP : GAP;
   const edgePadding = Math.min(
     MAX_EDGE_PADDING,
-    Math.max(GAP, Math.round(previewHeightPx * EDGE_PADDING_RATIO))
+    Math.max(gap, Math.round(previewHeightPx * EDGE_PADDING_RATIO))
   );
 
   const fallbackPlacements = React.useMemo<Placement[]>(
@@ -106,11 +108,11 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   );
   const middleware = React.useMemo(
     () => [
-      offset(GAP),
+      offset(gap),
       flip({ fallbackPlacements, padding: edgePadding }),
       shift({ padding: edgePadding }),
     ],
-    [edgePadding, fallbackPlacements]
+    [edgePadding, fallbackPlacements, gap]
   );
   const { refs, floatingStyles, update, x, y } = useFloating({
     placement: "top",

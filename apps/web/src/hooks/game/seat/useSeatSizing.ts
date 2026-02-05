@@ -15,10 +15,10 @@ export const PREVIEW_SCALE_K = 1.6;
 export const PREVIEW_MIN_WIDTH_PX = 200;
 export const PREVIEW_MAX_WIDTH_PX = 400;
 
-// Derived from current side zone scale-90 against 120px width.
-export const ZONE_PAD_PX = 6;
-// Derived from current sidebar width 160px - zone width 120px.
-export const SIDE_AREA_PAD_PX = 20;
+// Padding around side zone cards (p-2).
+export const ZONE_PAD_PX = 8;
+// Sidebar padding (p-2).
+export const SIDE_AREA_PAD_PX = 8;
 // DialogContent default p-6.
 export const MODAL_PAD_PX = 24;
 

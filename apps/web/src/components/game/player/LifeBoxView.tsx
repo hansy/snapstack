@@ -27,7 +27,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
   return (
     <div
       className={cn(
-        "w-32 h-24 flex flex-col items-center justify-center p-2 bg-zinc-800/30 rounded-lg border-2 border-zinc-700 shadow-lg backdrop-blur-sm relative lg:w-[calc(var(--card-w)*1.15)] lg:h-[calc(var(--card-h)*0.75)] lg:p-[calc(var(--card-h)*0.08)]",
+        "w-[120px] h-24 flex flex-col items-center justify-center p-2 bg-zinc-800/30 rounded-lg border-2 border-zinc-700 shadow-lg backdrop-blur-sm relative lg:w-[var(--sidezone-w)] lg:h-[calc(var(--card-h)*0.75)] lg:p-[calc(var(--card-h)*0.08)]",
         isMe && "border-indigo-500/50 ring-1 ring-indigo-500/20",
         className
       )}

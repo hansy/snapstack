@@ -50,7 +50,8 @@ export const SideZone: React.FC<SideZoneProps> = ({
         zone={zone}
         className={cn(
           ZONE_SIDEWAYS_CLASSES,
-          "bg-zinc-800/30 rounded-lg border-2 border-dashed border-zinc-700 flex items-center justify-center relative",
+          "bg-zinc-800/30 rounded-lg border-2 border-dashed border-zinc-700 flex items-center justify-center relative transition-colors duration-150",
+          "hover:bg-zinc-800/50 hover:border-zinc-500/80 hover:shadow-[0_0_0_1px_rgba(148,163,184,0.3)]",
           showContextMenuCursor
             ? "cursor-context-menu"
             : onClick && "cursor-pointer"
@@ -73,8 +74,9 @@ export const SideZone: React.FC<SideZoneProps> = ({
               card={card}
               faceDown={faceDown}
               disableDrag={disableCardDrag}
+              disableHoverAnimation
               className={cn(
-                "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 scale-90 origin-center",
+                "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center",
                 cardClassName
               )}
             />

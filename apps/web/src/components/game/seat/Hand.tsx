@@ -6,7 +6,7 @@ import { Zone } from "../zone/Zone";
 import { ZONE_LABEL } from "@/constants/zones";
 import { shouldRenderFaceDown } from "@/lib/reveal";
 import { BASE_CARD_HEIGHT, CARD_ASPECT_RATIO } from "@/lib/constants";
-import { HAND_CARD_OVERLAP_RATIO } from "./handSizing";
+import { HAND_BASE_CARD_SCALE, HAND_CARD_OVERLAP_RATIO } from "./handSizing";
 import {
   SortableContext,
   useSortable,
@@ -127,7 +127,7 @@ const HandInner: React.FC<HandProps> = ({
   onCardContextMenu,
   className,
   scale = 1,
-  cardScale = 1.5,
+  cardScale = HAND_BASE_CARD_SCALE,
   baseCardHeight,
 }) => {
   // Memoize card IDs array for SortableContext

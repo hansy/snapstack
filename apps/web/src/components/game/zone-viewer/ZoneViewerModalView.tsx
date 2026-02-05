@@ -50,8 +50,8 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[94vw] max-w-[94vw] h-[94vh] max-h-[94vh] bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col">
-        <div ref={containerRef} className="w-full h-full flex flex-col relative">
+      <DialogContent className="w-[94vw] max-w-[94vw] max-h-[94vh] bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col overflow-y-auto">
+        <div ref={containerRef} className="w-full flex flex-col relative">
           <div className="pb-4 border-b border-zinc-800">
             <ZoneViewerModalHeader
               zoneType={zone.type}

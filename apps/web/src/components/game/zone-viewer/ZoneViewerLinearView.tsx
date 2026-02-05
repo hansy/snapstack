@@ -3,7 +3,6 @@ import React from "react";
 import type { Card } from "@/types";
 
 import { cn } from "@/lib/utils";
-import { useElementSize } from "@/hooks/shared/useElementSize";
 import { CardView } from "../card/Card";
 
 export interface ZoneViewerLinearViewProps {
@@ -47,19 +46,14 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
     if (!hoveredId) return -1;
     return renderCards.findIndex((card) => card.id === hoveredId);
   }, [hoveredId, renderCards]);
-  const { ref: sizeRef, size } = useElementSize<HTMLDivElement>({ debounceMs: 0 });
   const setListRef = React.useCallback(
     (node: HTMLDivElement | null) => {
-      sizeRef(node);
       (listRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
     },
-    [listRef, sizeRef]
+    [listRef]
   );
-  const maxHeightPx = size.height > 0 ? Math.max(0, size.height - 48) : cardHeightPx;
-  const effectiveCardHeightPx =
-    cardHeightPx > 0 ? Math.min(cardHeightPx, maxHeightPx || cardHeightPx) : 1;
-  const scale = cardHeightPx > 0 ? effectiveCardHeightPx / cardHeightPx : 1;
-  const effectiveCardWidthPx = Math.max(1, Math.round(cardWidthPx * scale));
+  const effectiveCardHeightPx = Math.max(1, Math.round(cardHeightPx));
+  const effectiveCardWidthPx = Math.max(1, Math.round(cardWidthPx));
   const slotWidthPx = Math.max(50, Math.round(effectiveCardWidthPx * 0.28));
   const maxSpreadPx = Math.round(effectiveCardWidthPx * 0.5);
   const decayPx = Math.max(8, Math.round(effectiveCardWidthPx * 0.07));
@@ -67,7 +61,7 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
   return (
     <div
       ref={setListRef}
-      className="flex h-full items-center overflow-x-auto px-24 pb-4"
+      className="flex items-center overflow-x-auto px-24 py-8"
       style={{ pointerEvents: interactionsDisabled ? "none" : "auto" }}
     >
       {renderCards.map((card, index) => {
@@ -119,7 +113,7 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
               setHoveredId((prev) => (prev === card.id ? null : prev))
             }
             className={cn(
-              "shrink-0 h-full transition-transform duration-200 ease-out relative group flex items-center justify-center"
+              "shrink-0 transition-transform duration-200 ease-out relative group flex items-start justify-center"
             )}
             style={{
               width: slotWidthPx,
@@ -129,7 +123,7 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
             }}
           >
             <div
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 mt-4"
+              className="relative"
               style={{ width: effectiveCardWidthPx, height: effectiveCardHeightPx }}
             >
               {index === 0 && (
@@ -140,6 +134,7 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
               <CardView
                 card={card}
                 faceDown={false}
+                style={{ width: effectiveCardWidthPx, height: effectiveCardHeightPx }}
                 className="w-full h-full shadow-lg"
                 imageClassName="object-top"
                 preferArtCrop={false}

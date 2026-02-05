@@ -221,7 +221,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
         {/* Sidebar */}
         <div
           className={cn(
-            "w-40 bg-zinc-900/50 flex flex-col px-4 shrink-0 z-10 items-center border-zinc-800/50 h-full justify-between lg:w-[var(--sidebar-w)] lg:px-[var(--sidearea-pad)]",
+            "w-40 bg-zinc-900/50 flex flex-col px-2 shrink-0 z-10 items-center border-zinc-800/50 h-full justify-between lg:w-[var(--sidebar-w)] lg:px-[var(--sidearea-pad)]",
             isRight ? "border-l" : "border-r",
             isTop ? "pb-6" : "pt-6"
           )}

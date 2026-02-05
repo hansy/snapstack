@@ -67,6 +67,7 @@ export const ZoneViewerGroupedView: React.FC<ZoneViewerGroupedViewProps> = ({
                     <CardView
                       card={card}
                       faceDown={false}
+                      style={{ width: cardWidthPx, height: cardHeightPx }}
                       className="w-full shadow-lg h-full"
                       imageClassName="object-top"
                       preferArtCrop={false}
