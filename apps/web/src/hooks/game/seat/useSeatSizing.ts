@@ -7,7 +7,7 @@ export const LG_BREAKPOINT_VAR = "--breakpoint-lg";
 export const DEFAULT_LG_BREAKPOINT = "1024px";
 export const LG_MEDIA_QUERY = `(min-width: ${DEFAULT_LG_BREAKPOINT})`;
 
-export const SEAT_BOTTOM_BAR_PCT = 0.22;
+export const SEAT_BOTTOM_BAR_PCT = 0.12;
 export const SEAT_HAND_MIN_PCT = 0.15;
 export const SEAT_HAND_MAX_PCT = 0.4;
 
@@ -18,9 +18,8 @@ export const MIN_CARD_HEIGHT_PX = 80;
 
 // Padding around side zone cards (p-2).
 export const ZONE_PAD_PX = 12;
-export const ZONE_PAD_AREA_SCALE = 1.5;
-// Sidebar padding (p-2).
-export const SIDE_AREA_PAD_PX = 12;
+export const ZONE_PAD_AREA_SCALE = 1.2;
+export const ZONE_AREA_SCALE = 1;
 // DialogContent default p-6.
 export const MODAL_PAD_PX = 24;
 
@@ -35,6 +34,7 @@ export interface SeatSizingOptions {
   previewMaxWidthPx?: number;
   zonePadPx?: number;
   zonePadAreaScale?: number;
+  zoneAreaScale?: number;
   sideAreaPadPx?: number;
   modalPadPx?: number;
 }
@@ -50,13 +50,11 @@ export interface SeatSizing {
   landscapeCardHeightPx: number;
   sideZoneWidthPx: number;
   sideZoneHeightPx: number;
-  sideAreaWidthPx: number;
   previewWidthPx: number;
   previewHeightPx: number;
   cmdrStackOffsetPx: number;
   viewScale: number;
   zonePadPx: number;
-  sideAreaPadPx: number;
   modalPadPx: number;
 }
 
@@ -132,7 +130,7 @@ export const computeSeatSizing = (
     previewMaxWidthPx = PREVIEW_MAX_WIDTH_PX,
     zonePadPx,
     zonePadAreaScale = ZONE_PAD_AREA_SCALE,
-    sideAreaPadPx = SIDE_AREA_PAD_PX,
+    zoneAreaScale = ZONE_AREA_SCALE,
     modalPadPx = MODAL_PAD_PX,
   } = params;
 
@@ -167,16 +165,17 @@ export const computeSeatSizing = (
     },
   );
 
+  const scaledZoneCardWidthPx = landscapeCardWidthPx * zoneAreaScale;
+  const scaledZoneCardHeightPx = landscapeCardHeightPx * zoneAreaScale;
   const resolvedZonePadPx = Number.isFinite(zonePadPx)
     ? zonePadPx!
     : computeZonePadPx(
-        landscapeCardWidthPx,
-        landscapeCardHeightPx,
+        scaledZoneCardWidthPx,
+        scaledZoneCardHeightPx,
         zonePadAreaScale,
       );
-  const sideZoneWidthPx = landscapeCardWidthPx + resolvedZonePadPx * 2;
-  const sideZoneHeightPx = landscapeCardHeightPx + resolvedZonePadPx * 2;
-  const sideAreaWidthPx = sideZoneWidthPx + sideAreaPadPx * 2;
+  const sideZoneWidthPx = scaledZoneCardWidthPx + resolvedZonePadPx * 2;
+  const sideZoneHeightPx = scaledZoneCardHeightPx + resolvedZonePadPx * 2;
   const cmdrStackOffsetPx = Math.max(40, baseCardHeightPx * 0.35);
 
   const viewScale =
@@ -193,13 +192,11 @@ export const computeSeatSizing = (
     landscapeCardHeightPx,
     sideZoneWidthPx,
     sideZoneHeightPx,
-    sideAreaWidthPx,
     previewWidthPx,
     previewHeightPx,
     cmdrStackOffsetPx,
     viewScale,
     zonePadPx: resolvedZonePadPx,
-    sideAreaPadPx,
     modalPadPx,
   };
 };
@@ -270,7 +267,7 @@ export const useSeatSizing = (options: SeatSizingOptions = {}) => {
     previewMaxWidthPx = PREVIEW_MAX_WIDTH_PX,
     zonePadPx,
     zonePadAreaScale = ZONE_PAD_AREA_SCALE,
-    sideAreaPadPx = SIDE_AREA_PAD_PX,
+    zoneAreaScale = ZONE_AREA_SCALE,
     modalPadPx = MODAL_PAD_PX,
   } = options;
 
@@ -310,7 +307,7 @@ export const useSeatSizing = (options: SeatSizingOptions = {}) => {
       previewMaxWidthPx,
       zonePadPx,
       zonePadAreaScale,
-      sideAreaPadPx,
+      zoneAreaScale,
       modalPadPx,
     });
   }, [
@@ -328,7 +325,7 @@ export const useSeatSizing = (options: SeatSizingOptions = {}) => {
     previewMaxWidthPx,
     zonePadPx,
     zonePadAreaScale,
-    sideAreaPadPx,
+    zoneAreaScale,
     modalPadPx,
   ]);
 
@@ -343,11 +340,9 @@ export const useSeatSizing = (options: SeatSizingOptions = {}) => {
       "--card-w": `${sizing.baseCardWidthPx}px`,
       "--card-h-landscape": `${sizing.landscapeCardHeightPx}px`,
       "--card-w-landscape": `${sizing.landscapeCardWidthPx}px`,
-      "--sidebar-w": `${sizing.sideAreaWidthPx}px`,
       "--sidezone-w": `${sizing.sideZoneWidthPx}px`,
       "--sidezone-h": `${sizing.sideZoneHeightPx}px`,
       "--zone-pad": `${sizing.zonePadPx}px`,
-      "--sidearea-pad": `${sizing.sideAreaPadPx}px`,
       "--cmdr-offset": `${sizing.cmdrStackOffsetPx}px`,
       "--preview-h": `${sizing.previewHeightPx}px`,
       "--preview-w": `${sizing.previewWidthPx}px`,

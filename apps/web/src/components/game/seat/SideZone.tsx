@@ -50,7 +50,7 @@ export const SideZone: React.FC<SideZoneProps> = ({
         zone={zone}
         className={cn(
           ZONE_SIDEWAYS_CLASSES,
-          "bg-zinc-800/30 rounded-lg border-2 border-dashed border-zinc-700 flex items-center justify-center relative transition-colors duration-150",
+          "bg-zinc-800/30 rounded-lg border-2 border-dashed border-zinc-700 flex items-center justify-center relative transition-colors duration-150 lg:p-3",
           "hover:bg-zinc-800/50 hover:border-zinc-500/80 hover:shadow-[0_0_0_1px_rgba(148,163,184,0.3)]",
           showContextMenuCursor
             ? "cursor-context-menu"
