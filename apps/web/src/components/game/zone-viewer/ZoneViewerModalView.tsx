@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from "../../ui/dialog";
 import { ContextMenu } from "../context-menu/ContextMenu";
 
 import type { ZoneViewerController } from "@/hooks/game/zone-viewer/useZoneViewerController";
-import { getPreviewDimensions } from "@/hooks/game/seat/useSeatSizing";
+import { getPreviewDimensions, useIsLg } from "@/hooks/game/seat/useSeatSizing";
 import { useGameStore } from "@/store/gameStore";
 import { ZoneViewerModalHeader } from "./ZoneViewerModalHeader";
 import { ZoneViewerGroupedView } from "./ZoneViewerGroupedView";
@@ -41,6 +41,8 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
   const baseCardWidthPx = useGameStore((state) =>
     zone ? state.battlefieldGridSizing[zone.ownerId]?.baseCardWidthPx : undefined
   );
+  const isLg = useIsLg();
+  const isPreviewReady = !isLg || Boolean(baseCardWidthPx);
   const { previewWidthPx, previewHeightPx } = React.useMemo(
     () => getPreviewDimensions(baseCardWidthPx),
     [baseCardWidthPx]
@@ -65,7 +67,11 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
           </div>
 
           <div className="flex-1 overflow-x-auto overflow-y-hidden pt-4 bg-zinc-950/50">
-            {displayCards.length === 0 ? (
+            {!isPreviewReady ? (
+              <div className="h-full flex items-center justify-center text-zinc-500">
+                Preparing card previews...
+              </div>
+            ) : displayCards.length === 0 ? (
               <div className="h-full flex items-center justify-center text-zinc-500">
                 {isLoading ? "Loading cards..." : "No cards found matching your filter."}
               </div>

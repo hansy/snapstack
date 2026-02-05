@@ -6,7 +6,7 @@ import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 
 import type { TokenCreationController } from "@/hooks/game/token-creation/useTokenCreationController";
-import { getPreviewDimensions } from "@/hooks/game/seat/useSeatSizing";
+import { getPreviewDimensions, useIsLg } from "@/hooks/game/seat/useSeatSizing";
 import { useGameStore } from "@/store/gameStore";
 
 export const TokenCreationModalView: React.FC<TokenCreationController> = ({
@@ -29,6 +29,8 @@ export const TokenCreationModalView: React.FC<TokenCreationController> = ({
     if (!myPlayerId) return undefined;
     return state.battlefieldGridSizing[myPlayerId]?.baseCardWidthPx;
   });
+  const isLg = useIsLg();
+  const isPreviewReady = !isLg || Boolean(baseCardWidthPx);
   const { previewWidthPx, previewHeightPx } = React.useMemo(
     () => getPreviewDimensions(baseCardWidthPx),
     [baseCardWidthPx]
@@ -66,7 +68,12 @@ export const TokenCreationModalView: React.FC<TokenCreationController> = ({
           </div>
 
           <div className="min-h-[300px]">
-            {isLoading ? (
+            {!isPreviewReady ? (
+              <div className="flex flex-col items-center justify-center h-full gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
+                <div className="text-zinc-400">Preparing card previews...</div>
+              </div>
+            ) : isLoading ? (
               <div className="flex flex-col items-center justify-center h-full gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
                 <div className="text-zinc-400">Searching tokens...</div>

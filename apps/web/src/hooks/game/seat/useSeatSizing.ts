@@ -205,6 +205,11 @@ const useMediaQuery = (query: string) => {
   return matches;
 };
 
+export const useIsLg = () => {
+  const lgQuery = React.useMemo(getLgMediaQuery, []);
+  return useMediaQuery(lgQuery);
+};
+
 export const useSeatSizing = (options: SeatSizingOptions = {}) => {
   const {
     handHeightOverridePx,

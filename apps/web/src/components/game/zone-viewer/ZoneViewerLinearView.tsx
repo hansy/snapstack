@@ -3,6 +3,7 @@ import React from "react";
 import type { Card } from "@/types";
 
 import { cn } from "@/lib/utils";
+import { useElementSize } from "@/hooks/shared/useElementSize";
 import { CardView } from "../card/Card";
 
 export interface ZoneViewerLinearViewProps {
@@ -46,13 +47,26 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
     if (!hoveredId) return -1;
     return renderCards.findIndex((card) => card.id === hoveredId);
   }, [hoveredId, renderCards]);
-  const slotWidthPx = Math.max(50, Math.round(cardWidthPx * 0.28));
-  const maxSpreadPx = Math.round(cardWidthPx * 0.5);
-  const decayPx = Math.max(8, Math.round(cardWidthPx * 0.07));
+  const { ref: sizeRef, size } = useElementSize<HTMLDivElement>({ debounceMs: 0 });
+  const setListRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      sizeRef(node);
+      (listRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    },
+    [listRef, sizeRef]
+  );
+  const maxHeightPx = size.height > 0 ? Math.max(0, size.height - 48) : cardHeightPx;
+  const effectiveCardHeightPx =
+    cardHeightPx > 0 ? Math.min(cardHeightPx, maxHeightPx || cardHeightPx) : 1;
+  const scale = cardHeightPx > 0 ? effectiveCardHeightPx / cardHeightPx : 1;
+  const effectiveCardWidthPx = Math.max(1, Math.round(cardWidthPx * scale));
+  const slotWidthPx = Math.max(50, Math.round(effectiveCardWidthPx * 0.28));
+  const maxSpreadPx = Math.round(effectiveCardWidthPx * 0.5);
+  const decayPx = Math.max(8, Math.round(effectiveCardWidthPx * 0.07));
 
   return (
     <div
-      ref={listRef}
+      ref={setListRef}
       className="flex h-full items-center overflow-x-auto px-24 pb-4"
       style={{ pointerEvents: interactionsDisabled ? "none" : "auto" }}
     >
@@ -116,7 +130,7 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
           >
             <div
               className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 mt-4"
-              style={{ width: cardWidthPx, height: cardHeightPx }}
+              style={{ width: effectiveCardWidthPx, height: effectiveCardHeightPx }}
             >
               {index === 0 && (
                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-[101]">

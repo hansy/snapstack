@@ -3,7 +3,7 @@ import React from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../ui/dialog";
 import { Card } from "../card/Card";
 import { cn } from "@/lib/utils";
-import { getPreviewDimensions } from "@/hooks/game/seat/useSeatSizing";
+import { getPreviewDimensions, useIsLg } from "@/hooks/game/seat/useSeatSizing";
 import { useGameStore } from "@/store/gameStore";
 
 import type { OpponentLibraryRevealsController } from "@/hooks/game/opponent-library-reveals/useOpponentLibraryRevealsController";
@@ -19,6 +19,8 @@ export const OpponentLibraryRevealsModalView: React.FC<OpponentLibraryRevealsCon
   const baseCardWidthPx = useGameStore((state) =>
     ownerId ? state.battlefieldGridSizing[ownerId]?.baseCardWidthPx : undefined
   );
+  const isLg = useIsLg();
+  const isPreviewReady = !isLg || Boolean(baseCardWidthPx);
   const { previewWidthPx, previewHeightPx } = React.useMemo(
     () => getPreviewDimensions(baseCardWidthPx),
     [baseCardWidthPx]
@@ -38,26 +40,32 @@ export const OpponentLibraryRevealsModalView: React.FC<OpponentLibraryRevealsCon
         </DialogHeader>
 
         <div className="flex-1 overflow-x-auto overflow-y-hidden py-4">
-          <div className="flex items-center gap-3 h-full">
-            {revealedCards.map((card, index) => {
-              const isActualTop = Boolean(actualTopCardId && card.id === actualTopCardId);
-              return (
-                <div key={card.id} className="relative shrink-0">
-                  {index === 0 && (
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-10">
-                      {isActualTop ? "Top" : "Topmost revealed"}
+          {!isPreviewReady ? (
+            <div className="h-full flex items-center justify-center text-zinc-500">
+              Preparing card previews...
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 h-full">
+              {revealedCards.map((card, index) => {
+                const isActualTop = Boolean(actualTopCardId && card.id === actualTopCardId);
+                return (
+                  <div key={card.id} className="relative shrink-0">
+                    {index === 0 && (
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-10">
+                        {isActualTop ? "Top" : "Topmost revealed"}
+                      </div>
+                    )}
+                    <div
+                      className={cn("rounded-lg shadow-lg")}
+                      style={{ width: previewWidthPx, height: previewHeightPx }}
+                    >
+                      <Card card={card} faceDown={false} className="w-full h-full" disableDrag />
                     </div>
-                  )}
-                  <div
-                    className={cn("rounded-lg shadow-lg")}
-                    style={{ width: previewWidthPx, height: previewHeightPx }}
-                  >
-                    <Card card={card} faceDown={false} className="w-full h-full" disableDrag />
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

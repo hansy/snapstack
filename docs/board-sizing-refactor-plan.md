@@ -80,7 +80,6 @@ Sizing Refactor Plan (lg+ Only)
   - --cmdr-offset
   - --preview-h
   - --modal-pad
-  - --card-modal-max-w, --card-modal-max-h
   - --sidenav-w (clamp), --log-w (clamp)
 
 7. Frontend Feature Inventory (Preserve)
