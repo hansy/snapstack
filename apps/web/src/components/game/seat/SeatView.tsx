@@ -227,7 +227,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
         {/* Sidebar */}
         <div
           className={cn(
-            "bg-zinc-900/50 flex flex-col px-4 shrink-0 z-10 items-center border-zinc-800/50 h-full justify-between",
+            "bg-zinc-900/50 flex flex-col px-4 shrink-0 z-10 items-center border-zinc-800/50 h-full justify-between w-[max(var(--seat-sidebar-min),var(--seat-sidebar-pct))]",
             isRight ? "border-l" : "border-r",
             isTop ? "pb-6" : "pt-6",
           )}

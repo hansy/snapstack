@@ -27,7 +27,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
   return (
     <div
       className={cn(
-        "w-[120px] h-24 flex flex-col items-center justify-center p-2 bg-zinc-800/30 rounded-lg border-2 border-zinc-700 shadow-lg backdrop-blur-sm relative lg:w-[var(--sidezone-w)] lg:h-[calc(var(--card-h)*0.75)] lg:p-[calc(var(--card-h)*0.08)]",
+        "w-full h-24 flex flex-col items-center justify-center p-2 bg-zinc-800/30 rounded-lg border-2 border-zinc-700 shadow-lg backdrop-blur-sm relative lg:h-[calc(var(--card-h)*0.75)] lg:p-[calc(var(--card-h)*0.08)]",
         isMe && "border-indigo-500/50 ring-1 ring-indigo-500/20",
         className,
       )}
@@ -40,7 +40,7 @@ export const LifeBoxView: React.FC<LifeBoxController> = ({
               type="button"
               onClick={onEditUsername}
               className={cn(
-                "bg-zinc-900 px-2 text-md font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full shadow-sm lg:text-md",
+                "bg-zinc-900 px-2 text-xs font-bold text-zinc-400 uppercase tracking-wider whitespace-nowrap border border-zinc-700 rounded-full shadow-sm lg:text-md",
                 "cursor-pointer hover:text-zinc-200 hover:border-zinc-500 transition-colors",
               )}
             >
