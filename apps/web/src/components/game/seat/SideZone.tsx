@@ -41,7 +41,7 @@ export const SideZone: React.FC<SideZoneProps> = ({
 }) => {
   return (
     <div
-      className="relative group"
+      className="relative group w-full"
       onContextMenu={(e) => onContextMenu?.(e, zone.id)}
       onClick={(e) => onClick?.(e, zone.id)}
       onDoubleClick={(e) => onDoubleClick?.(e, zone.id)}
@@ -50,10 +50,11 @@ export const SideZone: React.FC<SideZoneProps> = ({
         zone={zone}
         className={cn(
           ZONE_SIDEWAYS_CLASSES,
-          "bg-zinc-800/30 rounded-lg border-2 border-dashed border-zinc-700 flex items-center justify-center relative",
+          "bg-zinc-800/30 rounded-lg border-2 border-dotted border-zinc-700 flex items-center justify-center relative transition-colors duration-150 p-[var(--sidezone-pad)]",
+          "hover:bg-zinc-800/50 hover:border-zinc-500/80 hover:shadow-[0_0_0_1px_rgba(148,163,184,0.3)]",
           showContextMenuCursor
             ? "cursor-context-menu"
-            : onClick && "cursor-pointer"
+            : onClick && "cursor-pointer",
         )}
       >
         {rightIndicator && (
@@ -61,7 +62,7 @@ export const SideZone: React.FC<SideZoneProps> = ({
             className={cn(
               "absolute top-1/2 -translate-y-1/2 pointer-events-none z-[10] drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)]",
               // Keep the indicator "inland" by placing it inside the zone bounds.
-              indicatorSide === "left" ? "left-[-20px]" : "right-[-20px]"
+              indicatorSide === "left" ? "left-[-20px]" : "right-[-20px]",
             )}
           >
             {rightIndicator}
@@ -69,24 +70,27 @@ export const SideZone: React.FC<SideZoneProps> = ({
         )}
         {card ? (
           <div className="w-full h-full relative overflow-hidden rounded-lg">
-            <Card
-              card={card}
-              faceDown={faceDown}
-              disableDrag={disableCardDrag}
-              className={cn(
-                "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 scale-90 origin-center",
-                cardClassName
-              )}
-            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-full aspect-[2/3] rotate-90 scale-[var(--sidezone-card-scale)] origin-center">
+                <Card
+                  card={card}
+                  style={{ width: "100%", height: "100%" }}
+                  faceDown={faceDown}
+                  disableDrag={disableCardDrag}
+                  disableHoverAnimation
+                  className={cn("w-full h-full", cardClassName)}
+                />
+              </div>
+            </div>
           </div>
         ) : (
-          (emptyContent ?? <span className="text-zinc-600 text-md">Empty</span>)
+          (emptyContent ?? <span className="text-zinc-600 text-xs">Empty</span>)
         )}
 
-        <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-md text-zinc-400 uppercase tracking-wider font-semibold whitespace-nowrap border border-zinc-800 rounded-full z-10 -top-3">
+        <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-xs text-zinc-400 uppercase tracking-wider font-semibold whitespace-nowrap border border-zinc-800 rounded-full z-10 -top-3">
           {label}
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-md text-zinc-300 font-mono border border-zinc-800 rounded-full z-10 -bottom-3">
+        <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 lg:text-xs text-zinc-300 font-mono border border-zinc-800 rounded-full z-10 -bottom-3">
           {count}
         </div>
       </Zone>

@@ -26,7 +26,7 @@ export const LoadDeckModalView: React.FC<LoadDeckController> = ({
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-zinc-800 text-zinc-100">
+      <DialogContent className="lg:min-w-lg bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader>
           <DialogTitle>Load Deck</DialogTitle>
           <DialogDescription className="text-zinc-400">
@@ -42,7 +42,8 @@ export const LoadDeckModalView: React.FC<LoadDeckController> = ({
             placeholder={"4 Lightning Bolt\n20 Mountain..."}
             className={cn(
               "w-full h-64 bg-zinc-900 border border-zinc-800 rounded-md p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none placeholder:text-zinc-600",
-              prefilledFromLastImport && "ring-2 ring-amber-500/30 border-amber-500/50"
+              prefilledFromLastImport &&
+                "ring-2 ring-amber-500/30 border-amber-500/50",
             )}
           />
 
@@ -80,4 +81,3 @@ export const LoadDeckModalView: React.FC<LoadDeckController> = ({
     </Dialog>
   );
 };
-

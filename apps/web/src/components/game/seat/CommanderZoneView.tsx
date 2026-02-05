@@ -30,11 +30,12 @@ export const CommanderZoneView: React.FC<CommanderZoneViewProps> = ({
   const MAX_STACK_CARDS = 4;
   const STACK_OFFSET_PX = 36;
   const stackCards = cards.slice(-MAX_STACK_CARDS);
+  const stackOffset = `var(--cmdr-offset, ${STACK_OFFSET_PX}px)`;
 
   return (
     <div
       className={cn(
-        "relative z-30 h-full shrink-0", // Increased z-index to sit above Hand
+        "relative z-30 h-full shrink-0 flex items-stretch justify-start aspect-[11/15]", // Increased z-index to sit above Hand
         isRight ? "border-r border-white/5" : "border-l border-white/5" // Separator
       )}
     >
@@ -45,7 +46,7 @@ export const CommanderZoneView: React.FC<CommanderZoneViewProps> = ({
         <Zone
           zone={zone}
           className={cn(
-            "h-full aspect-[11/15]",
+            "h-full w-full",
             "flex items-start justify-center relative shadow-lg backdrop-blur-sm p-2 overflow-visible",
             // Base background
             "bg-zinc-900/40",
@@ -65,14 +66,19 @@ export const CommanderZoneView: React.FC<CommanderZoneViewProps> = ({
               {stackCards.map((card, index) => {
                 const taxValue = card.commanderTax ?? 0;
                 const canDecrement = taxValue > 0;
-                const yOffset = index * STACK_OFFSET_PX;
                 return (
                   <div
                     key={card.id}
                     className="absolute left-0 w-full h-full group/commander-card"
-                    style={{ top: yOffset, zIndex: index + 1 }}
+                    style={{
+                      top: `calc(${index} * ${stackOffset})`,
+                      zIndex: index + 1,
+                    }}
                   >
-                    <Card card={card} className="w-full h-full" />
+                    <Card
+                      card={card}
+                      className="w-full h-full lg:!w-full lg:!h-full"
+                    />
                     <div className="absolute right-0 top-2 translate-x-1/2 z-40 pointer-events-none group-hover/commander-card:pointer-events-auto">
                       <div className="relative flex items-center justify-center w-[112px] h-8">
                         {isOwner && (

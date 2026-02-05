@@ -3,16 +3,13 @@ import React from "react";
 import type { Card } from "@/types";
 
 import { cn } from "@/lib/utils";
-import {
-  ZONE_VIEWER_CARD_HEIGHT,
-  ZONE_VIEWER_CARD_OVERLAP,
-  ZONE_VIEWER_CARD_WIDTH,
-} from "@/lib/constants";
 import { CardView } from "../card/Card";
 
 export interface ZoneViewerGroupedViewProps {
   sortedKeys: string[];
   groupedCards: Record<string, Card[]>;
+  cardWidthPx: number;
+  cardHeightPx: number;
   interactionsDisabled: boolean;
   pinnedCardId?: string;
   onCardContextMenu: (e: React.MouseEvent, card: Card) => void;
@@ -21,25 +18,32 @@ export interface ZoneViewerGroupedViewProps {
 export const ZoneViewerGroupedView: React.FC<ZoneViewerGroupedViewProps> = ({
   sortedKeys,
   groupedCards,
+  cardWidthPx,
+  cardHeightPx,
   interactionsDisabled,
   pinnedCardId,
   onCardContextMenu,
 }) => {
+  const stackOffsetPx = Math.max(24, Math.round(cardHeightPx * 0.2));
+  const overlapPx = cardHeightPx - stackOffsetPx;
+  const columnWidthPx = Math.round(cardWidthPx + 24);
+  const paddingBottomPx = Math.round(cardHeightPx);
   return (
     <div className="flex gap-8 h-full">
       {sortedKeys.map((key) => {
         const cardsInGroup = groupedCards[key] ?? [];
-        const CARD_HEIGHT = ZONE_VIEWER_CARD_HEIGHT;
-        const OVERLAP = ZONE_VIEWER_CARD_OVERLAP;
 
         return (
-          <div key={key} className="shrink-0 w-[200px] flex flex-col">
+          <div key={key} className="shrink-0 flex flex-col" style={{ width: columnWidthPx }}>
             <h3 className="text-sm font-medium text-zinc-400 border-b border-zinc-800/50 pb-2 mb-4 text-center sticky top-0 bg-zinc-950/50 backdrop-blur-sm z-10">
               {key} ({cardsInGroup.length})
             </h3>
             <div
-              className="relative flex-1 overflow-y-auto overflow-x-hidden flex flex-col pb-[250px]"
-              style={{ pointerEvents: interactionsDisabled ? "none" : "auto" }}
+              className="relative flex-1 overflow-y-auto overflow-x-hidden flex flex-col"
+              style={{
+                pointerEvents: interactionsDisabled ? "none" : "auto",
+                paddingBottom: paddingBottomPx,
+              }}
             >
               {cardsInGroup.map((card, index) => {
                 const isPinned = pinnedCardId === card.id;
@@ -52,15 +56,18 @@ export const ZoneViewerGroupedView: React.FC<ZoneViewerGroupedViewProps> = ({
                       isPinned && "scale-110 shadow-xl"
                     )}
                     style={{
-                      width: `${ZONE_VIEWER_CARD_WIDTH}px`,
-                      height: `${CARD_HEIGHT}px`,
-                      marginBottom: isPinned ? "16px" : `-${OVERLAP}px`,
+                      width: `${cardWidthPx}px`,
+                      height: `${cardHeightPx}px`,
+                      marginBottom: isPinned
+                        ? `${Math.round(cardHeightPx * 0.06)}px`
+                        : `-${overlapPx}px`,
                       zIndex: isPinned ? 200 : index,
                     }}
                   >
                     <CardView
                       card={card}
                       faceDown={false}
+                      style={{ width: cardWidthPx, height: cardHeightPx }}
                       className="w-full shadow-lg h-full"
                       imageClassName="object-top"
                       preferArtCrop={false}

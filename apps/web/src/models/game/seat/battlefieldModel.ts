@@ -18,6 +18,8 @@ export const computeBattlefieldCardLayout = (params: {
   zoneHeight: number;
   mirrorBattlefieldY: boolean;
   playerColors: Record<string, string>;
+  baseCardHeight?: number;
+  baseCardWidth?: number;
 }): BattlefieldCardLayout => {
   const { card, zoneOwnerId, viewerPlayerId, mirrorBattlefieldY, playerColors } = params;
 
@@ -28,8 +30,8 @@ export const computeBattlefieldCardLayout = (params: {
     params.zoneHeight || 1
   );
 
-  const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
-  const baseHeight = BASE_CARD_HEIGHT;
+  const baseHeight = params.baseCardHeight ?? BASE_CARD_HEIGHT;
+  const baseWidth = params.baseCardWidth ?? baseHeight * CARD_ASPECT_RATIO;
   const left = x - baseWidth / 2;
   const top = y - baseHeight / 2;
 

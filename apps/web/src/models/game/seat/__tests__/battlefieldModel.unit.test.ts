@@ -33,6 +33,22 @@ describe('battlefieldModel', () => {
     expect(layout.top).toBe(40);
   });
 
+  it('uses a custom base card height when provided', () => {
+    const layout = computeBattlefieldCardLayout({
+      card: createCard(),
+      zoneOwnerId: 'p1',
+      viewerPlayerId: 'p1',
+      zoneWidth: 100,
+      zoneHeight: 200,
+      mirrorBattlefieldY: false,
+      playerColors: {},
+      baseCardHeight: 160,
+    });
+
+    expect(layout.left).toBeCloseTo(-3.3333, 3);
+    expect(layout.top).toBeCloseTo(20, 6);
+  });
+
   it('mirrors Y when rendering for a mirrored seat', () => {
     const layout = computeBattlefieldCardLayout({
       card: createCard({ position: { x: 0.5, y: 0.25 } }),

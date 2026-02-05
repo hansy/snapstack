@@ -28,7 +28,7 @@ export const LogDrawerView: React.FC<LogDrawerController> = ({
       className={cn(
         "h-full bg-zinc-950/70 transition-[width,opacity,transform] duration-300 ease-in-out flex flex-col shadow-2xl backdrop-blur-md overflow-hidden shrink-0",
         isOpen
-          ? "w-50 opacity-100 translate-x-0 pointer-events-auto border-l border-zinc-800"
+          ? "w-50 lg:w-[var(--log-w)] opacity-100 translate-x-0 pointer-events-auto border-l border-zinc-800"
           : "w-0 opacity-0 translate-x-2 pointer-events-none"
       )}
     >

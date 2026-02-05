@@ -15,6 +15,9 @@ interface BottomBarProps {
   className?: string;
   height?: number;
   onHeightChange?: (height: number) => void;
+  minHeight?: number;
+  maxHeight?: number;
+  defaultHeight?: number;
 }
 
 export const BottomBar: React.FC<BottomBarProps> = ({
@@ -24,8 +27,14 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   className,
   height = HAND_DEFAULT_HEIGHT,
   onHeightChange,
+  minHeight: minHeightProp,
+  maxHeight: maxHeightProp,
+  defaultHeight: defaultHeightProp,
 }) => {
   const canResize = Boolean(onHeightChange);
+  const minHeight = minHeightProp ?? HAND_MIN_HEIGHT;
+  const maxHeight = maxHeightProp ?? HAND_MAX_HEIGHT;
+  const defaultHeight = defaultHeightProp ?? HAND_DEFAULT_HEIGHT;
   const [isDragging, setIsDragging] = React.useState(false);
   const [isHovering, setIsHovering] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -69,19 +78,19 @@ export const BottomBar: React.FC<BottomBarProps> = ({
       let newHeight = dragStartHeightRef.current + delta;
 
       // Clamp height between min and max
-      newHeight = Math.max(HAND_MIN_HEIGHT, Math.min(HAND_MAX_HEIGHT, newHeight));
+      newHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
 
       // Sticky snap to default height to signal the reset point.
-      const snapDistance = Math.abs(newHeight - HAND_DEFAULT_HEIGHT);
+      const snapDistance = Math.abs(newHeight - defaultHeight);
       if (snapToDefaultRef.current) {
         if (snapDistance > HAND_SNAP_RELEASE_PX) {
           snapToDefaultRef.current = false;
         } else {
-          newHeight = HAND_DEFAULT_HEIGHT;
+          newHeight = defaultHeight;
         }
       } else if (snapDistance <= HAND_SNAP_THRESHOLD_PX) {
         snapToDefaultRef.current = true;
-        newHeight = HAND_DEFAULT_HEIGHT;
+        newHeight = defaultHeight;
       }
       onHeightChange(newHeight);
     };
@@ -103,7 +112,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
       dragStartYRef.current = null;
       dragStartHeightRef.current = null;
     };
-  }, [isDragging, isTop, onHeightChange]);
+  }, [defaultHeight, isDragging, isTop, maxHeight, minHeight, onHeightChange]);
 
   const indicatorActive = isDragging || isHovering;
 
@@ -115,7 +124,11 @@ export const BottomBar: React.FC<BottomBarProps> = ({
         isRight ? "flex-row-reverse" : "flex-row",
         className
       )}
-      style={{ height: `${height}px` }}
+      style={{
+        height: `var(--hand-h, ${height}px)`,
+        minHeight: `${minHeight}px`,
+        maxHeight: `${maxHeight}px`,
+      }}
     >
       {canResize && (
         <>

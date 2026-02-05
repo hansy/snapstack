@@ -57,6 +57,7 @@ export const useGameStore = create<GameStore>()(
                 libraryRevealsToAll: {},
                 faceDownRevealsToAll: {},
                 battlefieldViewScale: {},
+                battlefieldGridSizing: {},
                 roomHostId: null,
                 roomLockedByHost: false,
                 roomOverCapacity: false,

@@ -19,6 +19,8 @@ export interface ZoneViewerLinearViewProps {
   pinnedCardId?: string;
   onCardContextMenu: (e: React.MouseEvent, card: Card) => void;
   listRef: React.RefObject<HTMLDivElement | null>;
+  cardWidthPx: number;
+  cardHeightPx: number;
 }
 
 export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
@@ -35,6 +37,8 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
   pinnedCardId,
   onCardContextMenu,
   listRef,
+  cardWidthPx,
+  cardHeightPx,
 }) => {
   const renderCards = React.useMemo(() => [...orderedCards].reverse(), [orderedCards]);
   const [hoveredId, setHoveredId] = React.useState<string | null>(null);
@@ -42,11 +46,22 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
     if (!hoveredId) return -1;
     return renderCards.findIndex((card) => card.id === hoveredId);
   }, [hoveredId, renderCards]);
+  const setListRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      (listRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    },
+    [listRef]
+  );
+  const effectiveCardHeightPx = Math.max(1, Math.round(cardHeightPx));
+  const effectiveCardWidthPx = Math.max(1, Math.round(cardWidthPx));
+  const slotWidthPx = Math.max(50, Math.round(effectiveCardWidthPx * 0.28));
+  const maxSpreadPx = Math.round(effectiveCardWidthPx * 0.5);
+  const decayPx = Math.max(8, Math.round(effectiveCardWidthPx * 0.07));
 
   return (
     <div
-      ref={listRef}
-      className="flex h-full items-center overflow-x-auto px-24 pb-4"
+      ref={setListRef}
+      className="flex items-center overflow-x-auto px-24 py-8"
       style={{ pointerEvents: interactionsDisabled ? "none" : "auto" }}
     >
       {renderCards.map((card, index) => {
@@ -57,10 +72,8 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
         const offset = (() => {
           if (hoveredIndex < 0) return 0;
           if (distance === 0) return 0;
-          const MAX_SPREAD = 92;
-          const DECAY = 12;
           const direction = index < hoveredIndex ? -1 : 1;
-          const magnitude = Math.max(0, MAX_SPREAD - (distance - 1) * DECAY);
+          const magnitude = Math.max(0, maxSpreadPx - (distance - 1) * decayPx);
           return direction * magnitude;
         })();
         const scale = isPinned ? 1.1 : isHovered ? 1.08 : 1;
@@ -100,15 +113,19 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
               setHoveredId((prev) => (prev === card.id ? null : prev))
             }
             className={cn(
-              "shrink-0 w-[50px] h-full transition-transform duration-200 ease-out relative group flex items-center justify-center"
+              "shrink-0 transition-transform duration-200 ease-out relative group flex items-start justify-center"
             )}
             style={{
+              width: slotWidthPx,
               transform: `translateX(${offset}px) scale(${scale})`,
               zIndex,
               opacity: isDragging ? 0.5 : 1,
             }}
           >
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 mt-4 h-[calc(100%-2rem)] max-h-[280px] w-auto aspect-[2.5/3.5]">
+            <div
+              className="relative"
+              style={{ width: effectiveCardWidthPx, height: effectiveCardHeightPx }}
+            >
               {index === 0 && (
                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-[101]">
                   Top card
@@ -117,6 +134,7 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
               <CardView
                 card={card}
                 faceDown={false}
+                style={{ width: effectiveCardWidthPx, height: effectiveCardHeightPx }}
                 className="w-full h-full shadow-lg"
                 imageClassName="object-top"
                 preferArtCrop={false}

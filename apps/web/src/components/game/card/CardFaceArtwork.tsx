@@ -11,7 +11,7 @@ export const CardFaceArtwork: React.FC<{
 }> = ({ faceDown, displayImageUrl, displayName, imageClassName, imageTransform }) => {
   if (faceDown) {
     return (
-      <div className="w-full h-full bg-indigo-900/50 rounded border-2 border-indigo-500/30 flex items-center justify-center bg-[url('/mtg_card_back.jpeg')] bg-cover bg-center" />
+      <div className="w-full h-full bg-indigo-900/50 rounded flex items-center justify-center bg-[url('/mtg_card_back.jpeg')] bg-cover bg-center" />
     );
   }
 

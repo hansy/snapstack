@@ -185,7 +185,7 @@ export const SidenavView: React.FC<SidenavController> = ({
 
   return (
     <>
-      <div className="fixed left-0 top-0 h-full w-12 flex flex-col items-center py-4 bg-zinc-950 border-r border-zinc-800 z-[60]">
+      <div className="sticky top-0 h-[100dvh] w-12 lg:w-[var(--sidenav-w)] flex flex-col items-center py-4 bg-zinc-950 border-r border-zinc-800 z-[60]">
         {isSpectator ? (
           <>
             <NavIcon

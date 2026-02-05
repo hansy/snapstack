@@ -12,10 +12,16 @@ export type RectLike = Pick<
   'left' | 'top' | 'right' | 'bottom' | 'width' | 'height'
 >;
 
-export const getEffectiveCardSize = (params: { viewScale: number; isTapped: boolean }) => {
-  const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
-  const cardWidth = (params.isTapped ? BASE_CARD_HEIGHT : baseWidth) * params.viewScale;
-  const cardHeight = (params.isTapped ? baseWidth : BASE_CARD_HEIGHT) * params.viewScale;
+export const getEffectiveCardSize = (params: {
+  viewScale: number;
+  isTapped: boolean;
+  baseCardHeight?: number;
+  baseCardWidth?: number;
+}) => {
+  const baseCardHeight = params.baseCardHeight ?? BASE_CARD_HEIGHT;
+  const baseCardWidth = params.baseCardWidth ?? baseCardHeight * CARD_ASPECT_RATIO;
+  const cardWidth = (params.isTapped ? baseCardHeight : baseCardWidth) * params.viewScale;
+  const cardHeight = (params.isTapped ? baseCardWidth : baseCardHeight) * params.viewScale;
   return { cardWidth, cardHeight };
 };
 
@@ -26,6 +32,8 @@ export const computeBattlefieldPlacement = (params: {
   viewScale: number;
   mirrorY: boolean;
   isTapped: boolean;
+  baseCardHeight?: number;
+  baseCardWidth?: number;
 }) => {
   const safeScale = params.zoneScale || 1;
   const zoneWidth = (params.overRect.width || 0) / safeScale;
@@ -39,11 +47,15 @@ export const computeBattlefieldPlacement = (params: {
   const { cardWidth, cardHeight } = getEffectiveCardSize({
     isTapped: params.isTapped,
     viewScale: params.viewScale || 1,
+    baseCardHeight: params.baseCardHeight,
+    baseCardWidth: params.baseCardWidth,
   });
   const { cardWidth: baseCardWidth, cardHeight: baseCardHeight } =
     getEffectiveCardSize({
       isTapped: params.isTapped,
       viewScale: 1,
+      baseCardHeight: params.baseCardHeight,
+      baseCardWidth: params.baseCardWidth,
     });
 
   const clampedPos = clampToZoneBounds(

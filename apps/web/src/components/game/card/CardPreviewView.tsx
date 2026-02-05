@@ -64,7 +64,7 @@ export const CardPreviewView = React.forwardRef<HTMLDivElement, CardPreviewViewP
         ref={ref}
         data-card-preview
         className={cn(
-          "fixed z-[9999] rounded-xl shadow-2xl border-2 border-indigo-500/50 bg-zinc-900 transition-opacity duration-200 ease-out",
+          "fixed z-[9999] rounded-xl shadow-2xl bg-zinc-900 transition-opacity duration-200 ease-out",
           locked ? "pointer-events-auto" : "pointer-events-none",
           CARD_ASPECT_CLASS
         )}

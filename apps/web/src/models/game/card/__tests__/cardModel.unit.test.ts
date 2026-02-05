@@ -23,7 +23,7 @@ describe("cardModel", () => {
       expect(style.transform).toBe(
         "translate(10px, 20px) scale(2) rotate(90deg)"
       );
-      expect(style.transformOrigin).toBe("center center");
+      expect(style.transformOrigin).toBeUndefined();
       expect(style.opacity).toBe(1);
     });
 
@@ -48,6 +48,17 @@ describe("cardModel", () => {
       });
 
       expect(style.opacity).toBe(0);
+    });
+
+    it("respects a custom transform origin when provided", () => {
+      const style = computeCardContainerStyle({
+        propStyle: { transformOrigin: "top center" },
+        scale: 1,
+        tapped: false,
+        isDragging: false,
+      });
+
+      expect(style.transformOrigin).toBe("top center");
     });
   });
 

@@ -42,6 +42,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   players,
   libraryRevealsToAll,
   battlefieldViewScale,
+  battlefieldGridSizing,
   playerColors,
   gridClass,
   scale,
@@ -52,6 +53,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   setActiveModal,
   overCardScale,
   activeCardId,
+  activeCardScale,
   isGroupDragging,
   showGroupDragOverlay,
   groupDragCardIds,
@@ -110,6 +112,60 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
 }) => {
   const suppressSingleOverlay = isGroupDragging && !showGroupDragOverlay;
   const showConnectingOverlay = syncStatus === "connecting";
+  const activeCard = activeCardId ? cards[activeCardId] : null;
+  const activeZone = activeCard ? zones[activeCard.zoneId] : undefined;
+  const activeOwnerId =
+    activeZone?.ownerId ?? activeCard?.ownerId ?? undefined;
+  const activeSizing = activeOwnerId
+    ? battlefieldGridSizing[activeOwnerId]
+    : undefined;
+  const activeBaseCardHeight = activeSizing?.baseCardHeightPx;
+  const activeBaseCardWidth = activeSizing?.baseCardWidthPx;
+  const activeViewScale =
+    activeZone?.type === ZONE.BATTLEFIELD
+      ? (battlefieldViewScale[activeZone.ownerId] ?? 1)
+      : 1;
+  const [dragBaseScale, setDragBaseScale] = React.useState(1);
+  const hasActiveBaseSizing = Boolean(activeBaseCardHeight || activeBaseCardWidth);
+  const overlayBaseHeight =
+    activeBaseCardHeight ??
+    (activeBaseCardWidth ? activeBaseCardWidth / CARD_ASPECT_RATIO : BASE_CARD_HEIGHT);
+  const overlayBaseWidth =
+    activeBaseCardWidth ?? overlayBaseHeight * CARD_ASPECT_RATIO;
+  const overlayCardVars = hasActiveBaseSizing
+    ? ({
+        ["--card-h" as string]: `${overlayBaseHeight}px`,
+        ["--card-w" as string]: `${overlayBaseWidth}px`,
+      } as React.CSSProperties)
+    : undefined;
+
+  React.useLayoutEffect(() => {
+    if (hasActiveBaseSizing) {
+      if (dragBaseScale !== 1) setDragBaseScale(1);
+      return;
+    }
+    if (!activeCardId || typeof document === "undefined") {
+      setDragBaseScale(1);
+      return;
+    }
+    const node = document.querySelector(`[data-card-id="${activeCardId}"]`);
+    if (!(node instanceof HTMLElement)) {
+      setDragBaseScale(1);
+      return;
+    }
+    const rect = node.getBoundingClientRect();
+    const maxDim = Math.max(rect.width, rect.height);
+    const effectiveCardScale = activeCardScale || activeViewScale || 1;
+    const denom = BASE_CARD_HEIGHT * scale * effectiveCardScale;
+    setDragBaseScale(denom > 0 ? maxDim / denom : 1);
+  }, [
+    dragBaseScale,
+    activeCardId,
+    activeCardScale,
+    activeViewScale,
+    hasActiveBaseSizing,
+    scale,
+  ]);
 
   return (
     <CardPreviewProvider>
@@ -125,24 +181,10 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
         collisionDetection={pointerWithin}
       >
         <div
-          className="relative h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex font-sans selection:bg-indigo-500/30"
+          className="relative h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans selection:bg-indigo-500/30"
           onContextMenu={(e) => e.preventDefault()}
+          style={{ height: "100dvh", width: "100dvw" }}
         >
-          <Sidenav
-            onCreateToken={() => setIsTokenModalOpen(true)}
-            onOpenCoinFlipper={handleOpenCoinFlipper}
-            onOpenDiceRoller={handleOpenDiceRoller}
-            onToggleLog={() => setIsLogOpen(!isLogOpen)}
-            isLogOpen={isLogOpen}
-            onOpenShareDialog={() => setIsShareDialogOpen(true)}
-            onLeaveGame={handleLeave}
-            onOpenShortcuts={() => setIsShortcutsOpen(true)}
-            syncStatus={syncStatus}
-            peerCounts={peerCounts}
-            isSpectator={viewerRole === "spectator"}
-            shareLinksReady={shareLinksReady}
-          />
-
           {showConnectingOverlay && (
             <div
               role="status"
@@ -154,8 +196,22 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
             </div>
           )}
 
-          <div className="flex h-full w-full">
-            <div className={`flex-1 min-w-0 h-full grid ${gridClass} pl-12`}>
+          <div className="grid h-full w-full grid-cols-[var(--sidenav-w)_minmax(0,1fr)_auto]">
+            <Sidenav
+              onCreateToken={() => setIsTokenModalOpen(true)}
+              onOpenCoinFlipper={handleOpenCoinFlipper}
+              onOpenDiceRoller={handleOpenDiceRoller}
+              onToggleLog={() => setIsLogOpen(!isLogOpen)}
+              isLogOpen={isLogOpen}
+              onOpenShareDialog={() => setIsShareDialogOpen(true)}
+              onLeaveGame={handleLeave}
+              onOpenShortcuts={() => setIsShortcutsOpen(true)}
+              syncStatus={syncStatus}
+              peerCounts={peerCounts}
+              isSpectator={viewerRole === "spectator"}
+              shareLinksReady={shareLinksReady}
+            />
+            <div className={`min-w-0 h-full grid ${gridClass}`}>
               {slots.map((slot, index) => {
                 const seatPlayer = slot.player;
                 return (
@@ -315,6 +371,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                     ? (battlefieldViewScale[overlayZone.ownerId] ?? 1)
                     : 1;
                 const targetScale = overCardScale || viewScale;
+                const overlayScale =
+                  scale * targetScale * (hasActiveBaseSizing ? 1 : dragBaseScale);
                 const offset = 10;
                 const overlayCards = groupDragCardIds
                   .map((id) => cards[id])
@@ -327,8 +385,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                   0,
                   groupDragCardIds.length - overlayCards.length
                 );
-                const baseWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO;
-                const baseHeight = BASE_CARD_HEIGHT;
+                const baseWidth = overlayBaseWidth;
+                const baseHeight = overlayBaseHeight;
                 const stackWidth =
                   baseWidth + offset * Math.max(0, overlayCards.length - 1);
                 const stackHeight =
@@ -337,7 +395,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                 return (
                   <div
                     style={{
-                      transform: `scale(${scale * targetScale})`,
+                      ...(overlayCardVars ?? {}),
+                      transform: `scale(${overlayScale})`,
                       transformOrigin: "top left",
                     }}
                   >
@@ -394,6 +453,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                       ? (battlefieldViewScale[overlayZone.ownerId] ?? 1)
                       : 1;
                   const targetScale = overCardScale || viewScale;
+                  const overlayScale =
+                    scale * targetScale * (hasActiveBaseSizing ? 1 : dragBaseScale);
                   const overlayFaceDown =
                     overlayZone?.type === ZONE.LIBRARY
                       ? true
@@ -406,7 +467,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                   return (
                     <div
                       style={{
-                        transform: `scale(${scale * targetScale})`,
+                        ...(overlayCardVars ?? {}),
+                        transform: `scale(${overlayScale})`,
                         transformOrigin: "top left",
                       }}
                     >

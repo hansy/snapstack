@@ -28,6 +28,31 @@ describe('dndBattlefield', () => {
       expect(result.snappedCanonical.y).toBeCloseTo(90 / 400);
     });
 
+    it('respects custom base card dimensions for snapping', () => {
+      const result = computeBattlefieldPlacement({
+        centerScreen: { x: 100, y: 100 },
+        overRect: {
+          left: 0,
+          top: 0,
+          right: 600,
+          bottom: 400,
+          width: 600,
+          height: 400,
+        },
+        zoneScale: 1,
+        viewScale: 1,
+        mirrorY: false,
+        isTapped: false,
+        baseCardHeight: 160,
+        baseCardWidth: 120,
+      });
+
+      expect(result.ghostPosition.x).toBeCloseTo(120, 3);
+      expect(result.ghostPosition.y).toBeCloseTo(120, 3);
+      expect(result.snappedCanonical.x).toBeCloseTo(120 / 600, 3);
+      expect(result.snappedCanonical.y).toBeCloseTo(120 / 400, 3);
+    });
+
     it('clamps near the edges so the card stays within bounds', () => {
       const result = computeBattlefieldPlacement({
         centerScreen: { x: 5, y: 5 },
@@ -49,7 +74,7 @@ describe('dndBattlefield', () => {
       expect(result.ghostPosition.y).toBeGreaterThanOrEqual(result.cardHeight / 2);
     });
 
-    it('keeps canonical snapping independent of view scale', () => {
+    it('keeps canonical snapping independent of view scale with custom base size', () => {
       const result = computeBattlefieldPlacement({
         centerScreen: { x: 100, y: 100 },
         overRect: {
@@ -64,12 +89,14 @@ describe('dndBattlefield', () => {
         viewScale: 0.5,
         mirrorY: false,
         isTapped: false,
+        baseCardHeight: 160,
+        baseCardWidth: 120,
       });
 
       expect(result.snappedCanonical.x).toBeCloseTo(120 / 600);
-      expect(result.snappedCanonical.y).toBeCloseTo(90 / 400);
-      expect(result.ghostPosition.x).toBeCloseTo(100);
-      expect(result.ghostPosition.y).toBeCloseTo(105);
+      expect(result.snappedCanonical.y).toBeCloseTo(120 / 400);
+      expect(result.ghostPosition.x).toBeCloseTo(90);
+      expect(result.ghostPosition.y).toBeCloseTo(100);
     });
 
     it('returns a canonical snapped position while mirroring ghost rendering for the viewer', () => {

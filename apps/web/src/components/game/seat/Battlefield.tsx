@@ -25,6 +25,8 @@ interface BattlefieldProps {
     mirrorBattlefieldY: boolean;
     scale?: number;
     viewScale?: number;
+    baseCardHeight?: number;
+    baseCardWidth?: number;
     onCardContextMenu?: (e: React.MouseEvent, card: CardType) => void;
     onContextMenu?: (e: React.MouseEvent) => void;
     showContextMenuCursor?: boolean;
@@ -41,6 +43,8 @@ const BattlefieldCard = React.memo<{
     viewerRole?: ViewerRole;
     mirrorBattlefieldY: boolean;
     viewScale: number;
+    baseCardHeight?: number;
+    baseCardWidth?: number;
     onCardContextMenu?: (e: React.MouseEvent, card: CardType) => void;
     playerColors: Record<string, string>;
     zoneOwnerId: string;
@@ -55,6 +59,8 @@ const BattlefieldCard = React.memo<{
         viewerRole,
         mirrorBattlefieldY,
         viewScale,
+        baseCardHeight,
+        baseCardWidth,
         onCardContextMenu,
         playerColors,
         zoneOwnerId,
@@ -69,6 +75,8 @@ const BattlefieldCard = React.memo<{
             zoneHeight,
             mirrorBattlefieldY,
             playerColors,
+            baseCardHeight,
+            baseCardWidth,
         });
         const spectatorDragDisabled = viewerRole === "spectator";
         const isSelected = useSelectionStore((state) =>
@@ -116,6 +124,8 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
     mirrorBattlefieldY,
     scale = 1,
     viewScale = 1,
+    baseCardHeight,
+    baseCardWidth,
     onCardContextMenu,
     onContextMenu,
     showContextMenuCursor,
@@ -131,12 +141,17 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
     const { cardWidth, cardHeight } = getCardPixelSize({
         viewScale,
         isTapped: Boolean(activeCard?.tapped),
+        baseCardHeight,
+        baseCardWidth,
     });
     const gridStepX = cardWidth / 2;
     const gridStepY = cardHeight / 4;
     const { ref: zoneSizeRef, size: zoneSize } = useElementSize<HTMLDivElement>();
     const zoneNodeRef = React.useRef<HTMLDivElement | null>(null);
     const [zoneNode, setZoneNode] = React.useState<HTMLDivElement | null>(null);
+    const setBattlefieldGridSizing = useGameStore(
+        (state) => state.setBattlefieldGridSizing
+    );
     const setZoneRef = React.useCallback((node: HTMLDivElement | null) => {
         zoneSizeRef(node);
         zoneNodeRef.current = node;
@@ -145,6 +160,35 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
     const isSelectionEnabled = Boolean(isMe && zone.ownerId === viewerPlayerId);
     const selectedCardIds = useSelectionStore((state) => state.selectedCardIds);
     const selectionZoneId = useSelectionStore((state) => state.selectionZoneId);
+    const { cardWidth: baseCardWidthPx, cardHeight: baseCardHeightPx } = getCardPixelSize({
+        viewScale: 1,
+        isTapped: false,
+        baseCardHeight,
+        baseCardWidth,
+    });
+
+    React.useEffect(() => {
+        if (!zoneSize.height) {
+            setBattlefieldGridSizing(zone.ownerId, null);
+            return;
+        }
+        setBattlefieldGridSizing(zone.ownerId, {
+            zoneHeightPx: zoneSize.height,
+            baseCardHeightPx,
+            baseCardWidthPx,
+            viewScale,
+        });
+        return () => {
+            setBattlefieldGridSizing(zone.ownerId, null);
+        };
+    }, [
+        baseCardHeightPx,
+        baseCardWidthPx,
+        setBattlefieldGridSizing,
+        viewScale,
+        zone.ownerId,
+        zoneSize.height,
+    ]);
 
     useBattlefieldZoomControls({
         playerId: viewerPlayerId,
@@ -165,6 +209,8 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
         zoneSize,
         scale,
         viewScale,
+        baseCardHeight,
+        baseCardWidth,
         mirrorBattlefieldY,
         zoneNodeRef,
         isSelectionEnabled,
@@ -204,6 +250,8 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
                 layout="free-form"
                 scale={scale}
                 cardScale={viewScale}
+                cardBaseHeight={baseCardHeight}
+                cardBaseWidth={baseCardWidth}
                 mirrorY={mirrorBattlefieldY}
                 onContextMenu={onContextMenu}
                 innerRef={setZoneRef}
@@ -234,6 +282,8 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
                         viewerRole={viewerRole}
                         mirrorBattlefieldY={mirrorBattlefieldY}
                         viewScale={viewScale}
+                        baseCardHeight={baseCardHeight}
+                        baseCardWidth={baseCardWidth}
                         onCardContextMenu={onCardContextMenu}
                         playerColors={playerColors}
                         zoneOwnerId={zone.ownerId}
@@ -249,13 +299,15 @@ const BattlefieldInner: React.FC<BattlefieldProps> = ({
                         }
                     />
                 ))}
-                <BattlefieldGhostOverlay
-                    ghostCards={ghostCardsForZone}
-                    viewScale={viewScale}
-                    zoneOwnerId={zone.ownerId}
-                    playerColors={playerColors}
-                    selectedCardIds={selectedCardIds}
-                />
+                    <BattlefieldGhostOverlay
+                        ghostCards={ghostCardsForZone}
+                        viewScale={viewScale}
+                        baseCardHeight={baseCardHeight}
+                        baseCardWidth={baseCardWidth}
+                        zoneOwnerId={zone.ownerId}
+                        playerColors={playerColors}
+                        selectedCardIds={selectedCardIds}
+                    />
             </Zone>
 
             {/* Placeholder Text */}

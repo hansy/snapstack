@@ -93,14 +93,16 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
       .sort((a, b) => {
         const aKey = (a.name || a.id || "").toLowerCase();
         const bKey = (b.name || b.id || "").toLowerCase();
-      return aKey.localeCompare(bKey);
+        return aKey.localeCompare(bKey);
       });
   }, [players]);
 
   const resolvedPlayerLink = linksReady
     ? playerLink || (typeof window !== "undefined" ? window.location.href : "")
     : "";
-  const resolvedSpectatorLink = linksReady ? spectatorLink || resolvedPlayerLink : "";
+  const resolvedSpectatorLink = linksReady
+    ? spectatorLink || resolvedPlayerLink
+    : "";
 
   const roomIsLocked = roomLockedByHost || roomIsFull;
 
@@ -123,7 +125,7 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-[520px] bg-zinc-950 border-zinc-800 text-zinc-100">
+      <DialogContent className="sm:max-w-[520px] bg-zinc-950 border-zinc-800 text-zinc-100 lg:min-w-lg">
         <DialogHeader>
           <DialogTitle>Share room</DialogTitle>
           <DialogDescription className="text-zinc-400">
@@ -171,10 +173,7 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
                 <ul className="mt-2 space-y-1">
                   {sortedPlayers.length > 0 ? (
                     sortedPlayers.map((player, index) => (
-                      <li
-                        key={player.id}
-                        className="text-sm text-zinc-200"
-                      >
+                      <li key={player.id} className="text-sm text-zinc-200">
                         {formatPlayerName(player, index)}
                       </li>
                     ))
@@ -207,7 +206,6 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
               )}
             </div>
           </section>
-
         </div>
 
         <DialogFooter>

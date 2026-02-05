@@ -15,6 +15,8 @@ interface ZoneProps {
     layout?: 'stack' | 'fan' | 'grid' | 'free-form';
     scale?: number;
     cardScale?: number;
+    cardBaseHeight?: number;
+    cardBaseWidth?: number;
     mirrorY?: boolean;
     onContextMenu?: (e: React.MouseEvent) => void;
     onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
@@ -24,7 +26,7 @@ interface ZoneProps {
     innerRef?: (node: HTMLDivElement | null) => void;
 }
 
-const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 'stack', scale = 1, cardScale = 1, mirrorY = false, onContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, innerRef }) => {
+const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 'stack', scale = 1, cardScale = 1, cardBaseHeight, cardBaseWidth, mirrorY = false, onContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, innerRef }) => {
     const myPlayerId = useGameStore((state) => state.myPlayerId);
     const viewerRole = useGameStore((state) => state.viewerRole);
 
@@ -45,6 +47,8 @@ const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 's
             layout,
             scale,
             cardScale,
+            cardBaseHeight,
+            cardBaseWidth,
             mirrorY,
         },
     });
@@ -98,8 +102,10 @@ const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 's
         >
             {children}
             {ghostPosition && (() => {
-                const ghostWidth = BASE_CARD_HEIGHT * CARD_ASPECT_RATIO * cardScale;
-                const ghostHeight = BASE_CARD_HEIGHT * cardScale;
+                const resolvedBaseHeight = cardBaseHeight ?? BASE_CARD_HEIGHT;
+                const resolvedBaseWidth = cardBaseWidth ?? resolvedBaseHeight * CARD_ASPECT_RATIO;
+                const ghostWidth = resolvedBaseWidth * cardScale;
+                const ghostHeight = resolvedBaseHeight * cardScale;
                 return (
                     <div
                         className="absolute bg-indigo-500/40 rounded-lg pointer-events-none z-0"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GRID_STEP_Y, clampNormalizedPosition } from '../positions';
+import { GRID_STEP_Y, clampNormalizedPosition, getNormalizedGridSteps } from '../positions';
 import {
   resolveBattlefieldCollisionPosition,
   resolveBattlefieldGroupCollisionPositions,
@@ -27,6 +27,27 @@ describe('resolveBattlefieldCollisionPosition', () => {
 
     expect(position).toEqual(
       clampNormalizedPosition({ x: 0.5, y: 0.5 + GRID_STEP_Y })
+    );
+  });
+
+  it('accepts a custom grid step size', () => {
+    const viewScale = 0.75;
+    const stepY = getNormalizedGridSteps({
+      baseCardHeight: 160,
+      baseCardWidth: 120,
+      zoneHeight: 640,
+      viewScale,
+    }).stepY;
+    const position = resolveBattlefieldCollisionPosition({
+      movingCardId: 'c1',
+      targetPosition: { x: 0.5, y: 0.5 },
+      orderedCardIds: ['c1', 'c2'],
+      getPosition: (id) => (id === 'c2' ? { x: 0.5, y: 0.5 } : null),
+      stepY,
+    });
+
+    expect(position).toEqual(
+      clampNormalizedPosition({ x: 0.5, y: 0.5 + stepY })
     );
   });
 

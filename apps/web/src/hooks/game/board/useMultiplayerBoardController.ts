@@ -15,7 +15,6 @@ import {
   readRoomTokensFromStorage,
 } from "@/lib/partyKitToken";
 import { createRoomId } from "@/lib/roomId";
-import { useBoardScale } from "./useBoardScale";
 import { useGameContextMenu } from "../context-menu/useGameContextMenu";
 import { useGameDnD } from "../dnd/useGameDnD";
 import { useSelectionSync } from "../selection/useSelectionSync";
@@ -64,6 +63,9 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const battlefieldViewScale = useGameStore(
     (state) => state.battlefieldViewScale,
   );
+  const battlefieldGridSizing = useGameStore(
+    (state) => state.battlefieldGridSizing
+  );
   const viewerRole = useGameStore((state) => state.viewerRole);
   const setViewerRole = useGameStore((state) => state.setViewerRole);
   const roomHostId = useGameStore((state) => state.roomHostId);
@@ -86,6 +88,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
 
   const overCardScale = useDragStore((state) => state.overCardScale);
   const activeCardId = useDragStore((state) => state.activeCardId);
+  const activeCardScale = useDragStore((state) => state.activeCardScale);
   const isGroupDragging = useDragStore((state) => state.isGroupDragging);
   const ghostCards = useDragStore((state) => state.ghostCards);
   const selectedCardIds = useSelectionStore((state) => state.selectedCardIds);
@@ -416,7 +419,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     [players, playerOrder],
   );
 
-  const scale = useBoardScale(layoutMode);
+  const scale = 1;
   useSelectionSync(myPlayerId);
 
   const groupDragCardIds = React.useMemo(() => {
@@ -446,6 +449,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     players,
     libraryRevealsToAll,
     battlefieldViewScale,
+    battlefieldGridSizing,
     playerColors,
     gridClass,
     scale,
@@ -455,6 +459,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
     setActiveModal,
     overCardScale,
     activeCardId,
+    activeCardScale,
     isGroupDragging,
     showGroupDragOverlay,
     groupDragCardIds,

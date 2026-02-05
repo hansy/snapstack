@@ -48,6 +48,7 @@ describe("ShareRoomDialog", () => {
   let clipboardWriteText: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.useRealTimers();
     vi.mocked(toast.success).mockClear();
     vi.mocked(toast.error).mockClear();
     clipboardWriteText = vi.fn().mockResolvedValue(undefined);

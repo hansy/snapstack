@@ -27,12 +27,14 @@ export const computeDragMoveUiState = (params: {
     | null
     | {
         id: ZoneId;
-        type?: ZoneType;
-        rect: RectLike;
-        scale?: number;
-        cardScale?: number;
-        mirrorY?: boolean;
-      };
+      type?: ZoneType;
+      rect: RectLike;
+      scale?: number;
+      cardScale?: number;
+      cardBaseHeight?: number;
+      cardBaseWidth?: number;
+      mirrorY?: boolean;
+    };
 }): DragMoveUiState => {
   if (!params.over) return { ghostCard: null, overCardScale: 1 };
 
@@ -84,6 +86,8 @@ export const computeDragMoveUiState = (params: {
     overRect: params.over.rect,
     viewScale,
     zoneScale,
+    baseCardHeight: params.over.cardBaseHeight,
+    baseCardWidth: params.over.cardBaseWidth,
   });
 
   return {
@@ -118,6 +122,8 @@ export const computeDragEndPlan = (params: {
   overRect?: RectLike | null;
   overScale?: number;
   overCardScale?: number;
+  overCardBaseHeight?: number;
+  overCardBaseWidth?: number;
   mirrorY?: boolean;
   activeTapped?: boolean;
 }): DragEndPlan => {
@@ -175,6 +181,8 @@ export const computeDragEndPlan = (params: {
     overRect: params.overRect,
     viewScale,
     zoneScale,
+    baseCardHeight: params.overCardBaseHeight,
+    baseCardWidth: params.overCardBaseWidth,
   });
 
   return {

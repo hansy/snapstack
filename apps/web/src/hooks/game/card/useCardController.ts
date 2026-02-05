@@ -44,6 +44,7 @@ export const useCardController = (props: CardProps): CardController => {
     disableDrag,
     isDragging: propIsDragging,
     disableInteractions,
+    disableHoverAnimation: propDisableHoverAnimation,
     highlightColor,
     isSelected: propIsSelected,
   } = props;
@@ -61,6 +62,7 @@ export const useCardController = (props: CardProps): CardController => {
       zoneId: card.zoneId,
       ownerId: card.ownerId,
       tapped: card.tapped,
+      cardScale: scale,
     },
     disabled: disableDrag,
   });
@@ -327,11 +329,13 @@ export const useCardController = (props: CardProps): CardController => {
   }, [hidePreview, clearLockPress, card.id]);
 
   const disableHoverAnimation =
+    Boolean(propDisableHoverAnimation) ||
     shouldDisableHoverAnimation({
       zoneType,
       ownerId: card.ownerId,
       viewerId: myPlayerId,
-    }) || interactionsDisabled;
+    }) ||
+    interactionsDisabled;
 
   return {
     ref: setNodeRef,

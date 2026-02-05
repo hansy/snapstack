@@ -32,6 +32,7 @@ describe('gameStore session actions', () => {
       cards: {},
       zones: {},
       battlefieldViewScale: {},
+      battlefieldGridSizing: {},
       globalCounters: {},
       activeModal: null,
       sessionId: 's0',

@@ -33,6 +33,7 @@ const mockGameState = vi.hoisted(() => ({
   playerOrder: [],
   zones: {},
   cards: {},
+  battlefieldGridSizing: {},
   roomLockedByHost: false,
   roomOverCapacity: false,
   roomTokens: null as any,

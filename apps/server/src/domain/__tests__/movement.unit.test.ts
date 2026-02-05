@@ -6,7 +6,7 @@ import type { Zone } from "@mtg/shared/types/zones";
 import { ZONE } from "../constants";
 import { createEmptyHiddenState } from "../hiddenState";
 import { applyCardMove } from "../movement";
-import { getMaps, readZone, writeCard, writeZone } from "../yjsStore";
+import { getMaps, readCard, readZone, writeCard, writeZone } from "../yjsStore";
 
 const createDoc = () => new Y.Doc();
 
@@ -115,5 +115,45 @@ describe("applyCardMove", () => {
     expect(hidden.cards.c1.zoneId).toBe(hand.id);
     expect(readZone(maps, hand.id)?.cardIds).toEqual(["c1"]);
     expect(hiddenChanged).toBe(true);
+  });
+
+  it("uses gridStepY overrides for battlefield collision resolution", () => {
+    const doc = createDoc();
+    const maps = getMaps(doc);
+    const hidden = createEmptyHiddenState();
+
+    const battlefield = makeZone("bf", ZONE.BATTLEFIELD, "p1", ["c2"]);
+    const hand = makeZone("hand", ZONE.HAND, "p1", ["c1"]);
+    writeZone(maps, battlefield);
+    writeZone(maps, hand);
+
+    writeCard(maps, makeCard("c1", "p1", hand.id));
+    writeCard(maps, makeCard("c2", "p1", battlefield.id, { position: { x: 0.5, y: 0.5 } }));
+
+    const logEvents: { eventId: string; payload: Record<string, unknown> }[] = [];
+    let hiddenChanged = false;
+
+    const result = applyCardMove(
+      maps,
+      hidden,
+      {
+        actorId: "p1",
+        cardId: "c1",
+        toZoneId: battlefield.id,
+        position: { x: 0.5, y: 0.5 },
+        opts: { gridStepY: 0.2 },
+      },
+      "top",
+      (eventId, payload) => logEvents.push({ eventId, payload }),
+      () => {
+        hiddenChanged = true;
+      }
+    );
+
+    expect(result.ok).toBe(true);
+    const moved = readCard(maps, "c1");
+    expect(moved?.position.y).toBeCloseTo(0.7, 6);
+    expect(hiddenChanged).toBe(true);
+    expect(logEvents[0]?.eventId).toBe("card.move");
   });
 });

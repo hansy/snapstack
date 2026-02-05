@@ -13,6 +13,7 @@ export interface CardProps {
   disableDrag?: boolean;
   isDragging?: boolean;
   disableInteractions?: boolean;
+  disableHoverAnimation?: boolean;
   highlightColor?: string;
   isSelected?: boolean;
 }

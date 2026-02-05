@@ -42,7 +42,7 @@ describe("BottomBar", () => {
       const bottomBar = container.querySelector(".flex.w-full.shrink-0");
       expect(bottomBar).toBeTruthy();
       expect((bottomBar as HTMLElement).style.height).toBe(
-        `${HAND_DEFAULT_HEIGHT}px`
+        `var(--hand-h, ${HAND_DEFAULT_HEIGHT}px)`
       );
     });
 
@@ -55,7 +55,9 @@ describe("BottomBar", () => {
 
       const bottomBar = container.querySelector(".flex.w-full.shrink-0");
       expect(bottomBar).toBeTruthy();
-      expect((bottomBar as HTMLElement).style.height).toBe("250px");
+      expect((bottomBar as HTMLElement).style.height).toBe(
+        "var(--hand-h, 250px)"
+      );
     });
 
     it("applies flex-row-reverse when isRight is true", () => {

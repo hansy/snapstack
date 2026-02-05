@@ -49,8 +49,15 @@ export const computeLocalPlayerInitPlan = ({
   const orderedIdsWithLocal = orderedIds.includes(playerId) ? orderedIds : [...orderedIds, playerId];
   const desiredColors = computePlayerColors(orderedIdsWithLocal);
 
+  const currentColor = players[playerId]?.color;
+  const desiredColor = desiredColors[playerId];
+  const shouldPatchLocalColor = Boolean(
+    playerExists && desiredColor && currentColor !== desiredColor
+  );
+
   const patchColors: Array<{ playerId: string; color: string }> = [];
   Object.entries(desiredColors).forEach(([id, color]) => {
+    if (id === playerId && shouldPatchLocalColor) return;
     if (!players[id]?.color) {
       patchColors.push({ playerId: id, color });
     }
@@ -61,7 +68,12 @@ export const computeLocalPlayerInitPlan = ({
     desiredName && desiredName !== currentName && (!currentName || currentName === defaultName)
   );
 
-  const patchLocalPlayer: Partial<Player> | undefined = needsNameUpdate ? { name: desiredName } : undefined;
+  let patchLocalPlayer: Partial<Player> | undefined = needsNameUpdate
+    ? { name: desiredName }
+    : undefined;
+  if (shouldPatchLocalColor) {
+    patchLocalPlayer = { ...patchLocalPlayer, color: desiredColor };
+  }
 
   if (playerExists && zonesToCreate.length === 0 && patchColors.length === 0 && !patchLocalPlayer) {
     return null;

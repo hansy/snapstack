@@ -3,6 +3,8 @@ import { Dialog, DialogContent } from "../../ui/dialog";
 import { ContextMenu } from "../context-menu/ContextMenu";
 
 import type { ZoneViewerController } from "@/hooks/game/zone-viewer/useZoneViewerController";
+import { getPreviewDimensions, useIsLg } from "@/hooks/game/seat/useSeatSizing";
+import { useGameStore } from "@/store/gameStore";
 import { ZoneViewerModalHeader } from "./ZoneViewerModalHeader";
 import { ZoneViewerGroupedView } from "./ZoneViewerGroupedView";
 import { ZoneViewerLinearView } from "./ZoneViewerLinearView";
@@ -36,11 +38,21 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
   interactionsDisabled,
   pinnedCardId,
 }) => {
+  const baseCardWidthPx = useGameStore((state) =>
+    zone ? state.battlefieldGridSizing[zone.ownerId]?.baseCardWidthPx : undefined
+  );
+  const isLg = useIsLg();
+  const isPreviewReady = !isLg || Boolean(baseCardWidthPx);
+  const { previewWidthPx, previewHeightPx } = React.useMemo(
+    () => getPreviewDimensions(baseCardWidthPx),
+    [baseCardWidthPx]
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[90vw] h-[80vh] bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col p-0 gap-0">
-        <div ref={containerRef} className="w-full h-full flex flex-col relative pr-6">
-          <div className="p-6 border-b border-zinc-800">
+      <DialogContent className="w-[94vw] max-w-[94vw] max-h-[94vh] bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col overflow-y-auto">
+        <div ref={containerRef} className="w-full flex flex-col relative">
+          <div className="pb-4 border-b border-zinc-800">
             <ZoneViewerModalHeader
               zoneType={zone.type}
               totalCards={
@@ -54,8 +66,12 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
             />
           </div>
 
-          <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 py-6 bg-zinc-950/50">
-            {displayCards.length === 0 ? (
+          <div className="flex-1 overflow-x-auto overflow-y-hidden pt-4 bg-zinc-950/50">
+            {!isPreviewReady ? (
+              <div className="h-full flex items-center justify-center text-zinc-500">
+                Preparing card previews...
+              </div>
+            ) : displayCards.length === 0 ? (
               <div className="h-full flex items-center justify-center text-zinc-500">
                 {isLoading ? "Loading cards..." : "No cards found matching your filter."}
               </div>
@@ -63,6 +79,8 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
               <ZoneViewerGroupedView
                 sortedKeys={sortedKeys}
                 groupedCards={groupedCards}
+                cardWidthPx={previewWidthPx}
+                cardHeightPx={previewHeightPx}
                 interactionsDisabled={interactionsDisabled}
                 pinnedCardId={pinnedCardId}
                 onCardContextMenu={handleContextMenu}
@@ -83,6 +101,8 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
                 pinnedCardId={pinnedCardId}
                 onCardContextMenu={handleContextMenu}
                 listRef={listRef}
+                cardWidthPx={previewWidthPx}
+                cardHeightPx={previewHeightPx}
               />
             )}
           </div>

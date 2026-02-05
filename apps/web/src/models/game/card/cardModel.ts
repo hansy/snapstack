@@ -17,7 +17,11 @@ export const computeCardContainerStyle = (params: {
   rotation?: number;
   isDragging?: boolean;
 }): React.CSSProperties => {
-  const { transform: propTransform, ...restPropStyle } = params.propStyle || {};
+  const {
+    transform: propTransform,
+    transformOrigin: propTransformOrigin,
+    ...restPropStyle
+  } = params.propStyle || {};
   const transformParts: string[] = [];
   if (typeof propTransform === "string") transformParts.push(propTransform);
   if (params.scale && params.scale !== 1)
@@ -28,7 +32,7 @@ export const computeCardContainerStyle = (params: {
   return {
     ...restPropStyle,
     transform: transformParts.length ? transformParts.join(" ") : undefined,
-    transformOrigin: "center center",
+    ...(propTransformOrigin ? { transformOrigin: propTransformOrigin } : {}),
     transition: params.isDragging ? "none" : "transform 200ms ease-out",
     opacity: params.isDragging ? 0 : 1,
   };
