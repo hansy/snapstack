@@ -231,52 +231,54 @@ describe("ZoneViewer touch gestures", () => {
       value: vi.fn(() => overNode as Element),
     });
 
-    act(() => {
-      fireEvent(
-        dragNode,
-        createPointerEvent("pointerdown", {
-          bubbles: true,
-          button: 0,
-          pointerType: "touch",
-          pointerId: 1,
-          clientX: 20,
-          clientY: 20,
-        })
-      );
-      fireEvent(
-        dragNode,
-        createPointerEvent("pointermove", {
-          bubbles: true,
-          cancelable: true,
-          pointerType: "touch",
-          pointerId: 1,
-          clientX: 44,
-          clientY: 40,
-        })
-      );
-      fireEvent(
-        dragNode,
-        createPointerEvent("pointerup", {
-          bubbles: true,
-          pointerType: "touch",
-          pointerId: 1,
-          clientX: 44,
-          clientY: 40,
-        })
-      );
-    });
+    try {
+      act(() => {
+        fireEvent(
+          dragNode,
+          createPointerEvent("pointerdown", {
+            bubbles: true,
+            button: 0,
+            pointerType: "touch",
+            pointerId: 1,
+            clientX: 20,
+            clientY: 20,
+          })
+        );
+        fireEvent(
+          dragNode,
+          createPointerEvent("pointermove", {
+            bubbles: true,
+            cancelable: true,
+            pointerType: "touch",
+            pointerId: 1,
+            clientX: 44,
+            clientY: 40,
+          })
+        );
+        fireEvent(
+          dragNode,
+          createPointerEvent("pointerup", {
+            bubbles: true,
+            pointerType: "touch",
+            pointerId: 1,
+            clientX: 44,
+            clientY: 40,
+          })
+        );
+      });
 
-    expect(onCardContextMenu).not.toHaveBeenCalled();
-    expect(commitReorder).toHaveBeenCalledTimes(1);
-    expect(commitReorder).toHaveBeenCalledWith(["c3", "c1", "c2"]);
-
-    if (originalDescriptor) {
-      Object.defineProperty(document, "elementFromPoint", originalDescriptor);
-    } else {
-      Reflect.deleteProperty(
-        document as Document & Record<string, unknown>,
-        "elementFromPoint"
-      );
+      expect(onCardContextMenu).not.toHaveBeenCalled();
+      expect(commitReorder).toHaveBeenCalledTimes(1);
+      expect(commitReorder).toHaveBeenCalledWith(["c3", "c1", "c2"]);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(document, "elementFromPoint", originalDescriptor);
+      } else {
+        Reflect.deleteProperty(
+          document as Document & Record<string, unknown>,
+          "elementFromPoint"
+        );
+      }
     }
   });
 });

@@ -2,7 +2,8 @@ import React from "react";
 import {
   useSensor,
   useSensors,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   DragEndEvent,
   DragMoveEvent,
   DragStartEvent,
@@ -43,7 +44,12 @@ export const useGameDnD = (params: { viewerRole?: ViewerRole } = {}) => {
   const isSpectator = params.viewerRole === "spectator";
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
       activationConstraint: {
         distance: 1,
       },
