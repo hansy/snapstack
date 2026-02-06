@@ -87,10 +87,6 @@ export const SideZone: React.FC<SideZoneProps> = ({
     []
   );
 
-  const isCardTarget = React.useCallback((target: EventTarget | null) => {
-    return target instanceof HTMLElement && Boolean(target.closest("[data-card-id]"));
-  }, []);
-
   const handleContextMenu = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       onContextMenu?.(event, zone.id);
@@ -101,26 +97,23 @@ export const SideZone: React.FC<SideZoneProps> = ({
   const handleClick = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (shouldSuppressNativeMouseEvents()) return;
-      if (isCardTarget(event.target)) return;
       onClick?.(event, zone.id);
     },
-    [isCardTarget, onClick, shouldSuppressNativeMouseEvents, zone.id]
+    [onClick, shouldSuppressNativeMouseEvents, zone.id]
   );
 
   const handleDoubleClick = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (shouldSuppressNativeMouseEvents()) return;
-      if (isCardTarget(event.target)) return;
       onDoubleClick?.(event, zone.id);
     },
-    [isCardTarget, onDoubleClick, shouldSuppressNativeMouseEvents, zone.id]
+    [onDoubleClick, shouldSuppressNativeMouseEvents, zone.id]
   );
 
   const handleTouchPressStart = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (event.pointerType !== "touch") return;
       if (event.button !== 0) return;
-      if (isCardTarget(event.target)) return;
 
       if (
         touchPressRef.current &&
@@ -166,7 +159,6 @@ export const SideZone: React.FC<SideZoneProps> = ({
     [
       clearTouchPress,
       clearTouchPressTimeout,
-      isCardTarget,
       onContextMenu,
       suppressNativeMouseEvents,
       zone.id,
@@ -304,10 +296,10 @@ export const SideZone: React.FC<SideZoneProps> = ({
           (emptyContent ?? <span className="text-zinc-600 text-xs">Empty</span>)
         )}
 
-        <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 text-xs text-zinc-400 uppercase tracking-wider font-medium whitespace-nowrap border border-zinc-800 rounded-full z-10 top-1">
+        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-zinc-900 px-2 text-xs text-zinc-400 uppercase tracking-wider font-medium whitespace-nowrap border border-zinc-800 rounded-full z-10 top-0">
           {label}
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 bg-zinc-900 px-2 lg:text-xs text-zinc-300 font-mono border border-zinc-800 rounded-full z-10 bottom-1">
+        <div className="absolute left-1/2 -translate-x-1/2 translate-y-1/2 bg-zinc-900 px-2 lg:text-xs text-zinc-300 font-mono border border-zinc-800 rounded-full z-10 bottom-0">
           {count}
         </div>
       </Zone>
