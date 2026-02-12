@@ -36,6 +36,120 @@ type MultiplayerBoardViewProps = Omit<
   "joinBlocked" | "roomOverCapacity"
 >;
 
+type SeatSlot = MultiplayerBoardViewProps["slots"][number];
+type SeatPosition = SeatSlot["position"];
+type OccupiedSeatSlot = SeatSlot & { player: NonNullable<SeatSlot["player"]> };
+
+const MOBILE_SWIPE_MIN_DISTANCE_PX = 56;
+const MOBILE_SWIPE_MAX_DURATION_MS = 450;
+
+const SEAT_COORDS: Record<SeatPosition, { x: number; y: number }> = {
+  "top-left": { x: 0, y: 0 },
+  "top-right": { x: 1, y: 0 },
+  "bottom-left": { x: 0, y: 1 },
+  "bottom-right": { x: 1, y: 1 },
+};
+const DEFAULT_SEAT_PRIORITY: SeatPosition[] = [
+  "bottom-left",
+  "bottom-right",
+  "top-left",
+  "top-right",
+];
+
+const SEAT_COLOR_CLASS: Record<string, string> = {
+  rose: "bg-rose-400",
+  violet: "bg-violet-400",
+  sky: "bg-sky-400",
+  amber: "bg-amber-400",
+};
+
+const isOccupiedSeat = (slot: SeatSlot): slot is OccupiedSeatSlot =>
+  Boolean(slot.player);
+
+const resolveSwipeTargetSeat = (
+  activeSeat: OccupiedSeatSlot,
+  seats: OccupiedSeatSlot[],
+  dx: number,
+  dy: number,
+): OccupiedSeatSlot | null => {
+  const current = SEAT_COORDS[activeSeat.position];
+  const absX = Math.abs(dx);
+  const absY = Math.abs(dy);
+
+  if (absX < MOBILE_SWIPE_MIN_DISTANCE_PX && absY < MOBILE_SWIPE_MIN_DISTANCE_PX) {
+    return null;
+  }
+
+  let stepX = absX >= MOBILE_SWIPE_MIN_DISTANCE_PX ? -Math.sign(dx) : 0;
+  let stepY = absY >= MOBILE_SWIPE_MIN_DISTANCE_PX ? -Math.sign(dy) : 0;
+
+  if (stepX === 0 && stepY === 0) {
+    if (absX >= absY) stepX = -Math.sign(dx);
+    else stepY = -Math.sign(dy);
+  }
+  if (stepX === 0 && stepY === 0) return null;
+
+  const nextTarget = {
+    x: Math.max(0, Math.min(1, current.x + stepX)),
+    y: Math.max(0, Math.min(1, current.y + stepY)),
+  };
+
+  const exactMatch = seats.find((seat) => {
+    if (seat.player.id === activeSeat.player.id) return false;
+    const coords = SEAT_COORDS[seat.position];
+    return coords.x === nextTarget.x && coords.y === nextTarget.y;
+  });
+  if (exactMatch) return exactMatch;
+
+  const directionalCandidates = seats.filter((seat) => {
+    if (seat.player.id === activeSeat.player.id) return false;
+    const coords = SEAT_COORDS[seat.position];
+    if (stepX !== 0 && (coords.x - current.x) * stepX <= 0) return false;
+    if (stepY !== 0 && (coords.y - current.y) * stepY <= 0) return false;
+    return true;
+  });
+
+  if (directionalCandidates.length === 0) return null;
+
+  return directionalCandidates.sort((a, b) => {
+    const aCoords = SEAT_COORDS[a.position];
+    const bCoords = SEAT_COORDS[b.position];
+    const aDist = Math.hypot(nextTarget.x - aCoords.x, nextTarget.y - aCoords.y);
+    const bDist = Math.hypot(nextTarget.x - bCoords.x, nextTarget.y - bCoords.y);
+    return aDist - bDist;
+  })[0];
+};
+
+const usePortraitViewport = () => {
+  const getMatches = React.useCallback(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return false;
+    return (
+      window.matchMedia("(orientation: portrait)").matches &&
+      window.matchMedia("(pointer: coarse)").matches
+    );
+  }, []);
+
+  const [matches, setMatches] = React.useState(getMatches);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const orientationMedia = window.matchMedia("(orientation: portrait)");
+    const pointerMedia = window.matchMedia("(pointer: coarse)");
+    const sync = () => setMatches(orientationMedia.matches && pointerMedia.matches);
+
+    sync();
+    orientationMedia.addEventListener?.("change", sync);
+    pointerMedia.addEventListener?.("change", sync);
+
+    return () => {
+      orientationMedia.removeEventListener?.("change", sync);
+      pointerMedia.removeEventListener?.("change", sync);
+    };
+  }, []);
+
+  return matches;
+};
+
 export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   zones,
   cards,
@@ -167,6 +281,175 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
     scale,
   ]);
 
+  const isPortraitViewport = usePortraitViewport();
+  const occupiedSlots = React.useMemo(() => slots.filter(isOccupiedSeat), [slots]);
+  const defaultSeat = React.useMemo(
+    () => {
+      const mySeat = occupiedSlots.find((slot) => slot.player.id === myPlayerId);
+      if (mySeat) return mySeat;
+      for (const position of DEFAULT_SEAT_PRIORITY) {
+        const match = occupiedSlots.find((slot) => slot.position === position);
+        if (match) return match;
+      }
+      return occupiedSlots[0] ?? null;
+    },
+    [myPlayerId, occupiedSlots],
+  );
+  const [activeSeatPlayerId, setActiveSeatPlayerId] = React.useState<string | null>(
+    defaultSeat?.player.id ?? null,
+  );
+  const [isPortraitCommanderDrawerOpen, setIsPortraitCommanderDrawerOpen] =
+    React.useState(false);
+
+  React.useEffect(() => {
+    if (!defaultSeat) {
+      if (activeSeatPlayerId !== null) setActiveSeatPlayerId(null);
+      return;
+    }
+    if (!activeSeatPlayerId) {
+      setActiveSeatPlayerId(defaultSeat.player.id);
+      return;
+    }
+    const exists = occupiedSlots.some((slot) => slot.player.id === activeSeatPlayerId);
+    if (!exists) {
+      setActiveSeatPlayerId(defaultSeat.player.id);
+    }
+  }, [activeSeatPlayerId, defaultSeat, occupiedSlots]);
+
+  const activeSeat = React.useMemo(
+    () =>
+      occupiedSlots.find((slot) => slot.player.id === activeSeatPlayerId) ??
+      defaultSeat,
+    [activeSeatPlayerId, defaultSeat, occupiedSlots],
+  );
+  React.useEffect(() => {
+    setIsPortraitCommanderDrawerOpen(false);
+  }, [activeSeat?.player.id]);
+
+  const swipeRef = React.useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    startedAt: number;
+  } | null>(null);
+
+  const handleViewportPointerDownCapture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!isPortraitViewport) return;
+      if (event.pointerType !== "touch" || event.button !== 0) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest(
+          "[data-card-id],button,a,input,textarea,select,[role='dialog'],[data-no-seat-swipe='true']",
+        )
+      ) {
+        return;
+      }
+      swipeRef.current = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        startedAt: Date.now(),
+      };
+    },
+    [isPortraitViewport],
+  );
+
+  const handleViewportPointerEndCapture = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!isPortraitViewport) return;
+      if (event.pointerType !== "touch") return;
+      const swipeStart = swipeRef.current;
+      if (!swipeStart || swipeStart.pointerId !== event.pointerId) return;
+      swipeRef.current = null;
+      if (!activeSeat) return;
+
+      const elapsed = Date.now() - swipeStart.startedAt;
+      if (elapsed > MOBILE_SWIPE_MAX_DURATION_MS) return;
+
+      const nextSeat = resolveSwipeTargetSeat(
+        activeSeat,
+        occupiedSlots,
+        event.clientX - swipeStart.x,
+        event.clientY - swipeStart.y,
+      );
+      if (!nextSeat) return;
+      if (nextSeat.player.id === activeSeat.player.id) return;
+      setActiveSeatPlayerId(nextSeat.player.id);
+    },
+    [activeSeat, isPortraitViewport, occupiedSlots],
+  );
+
+  const renderSeat = (
+    slot: SeatSlot,
+    key: React.Key,
+    layoutVariant: "default" | "portrait-viewport" = "default",
+    onPortraitCommanderDrawerOpenChange?: (open: boolean) => void,
+  ) => {
+    const seatPlayer = slot.player;
+    if (!seatPlayer) {
+      return (
+        <div key={key} className="relative h-full w-full border-zinc-800/50">
+          <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
+            Empty Seat
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div key={key} className="relative h-full w-full border-zinc-800/50">
+        <Seat
+          player={seatPlayer}
+          position={slot.position}
+          color={slot.color}
+          zones={zones}
+          cards={cards}
+          libraryRevealsToAll={libraryRevealsToAll}
+          isMe={seatPlayer.id === myPlayerId}
+          viewerPlayerId={myPlayerId}
+          viewerRole={viewerRole}
+          onCardContextMenu={handleCardContextMenu}
+          onZoneContextMenu={handleZoneContextMenu}
+          onBattlefieldContextMenu={(e) =>
+            handleBattlefieldContextMenu(e, {
+              onCreateToken: () => setIsTokenModalOpen(true),
+              onOpenDiceRoller: handleOpenDiceRoller,
+            })
+          }
+          onLoadDeck={() => setIsLoadDeckModalOpen(true)}
+          onEditUsername={
+            seatPlayer.id === myPlayerId
+              ? () => setIsEditUsernameOpen(true)
+              : undefined
+          }
+          opponentColors={playerColors}
+          scale={scale}
+          battlefieldScale={battlefieldViewScale[seatPlayer.id] ?? 1}
+          onViewZone={handleViewZone}
+          onDrawCard={handleDrawCard}
+          onOpponentLibraryReveals={(zoneId) => setRevealedLibraryZoneId(zoneId)}
+          zoomControlsDisabled={zoomControlsBlocked}
+          onLifeContextMenu={(e) => handleLifeContextMenu?.(e, seatPlayer)}
+          layoutVariant={layoutVariant}
+          onPortraitCommanderDrawerOpenChange={onPortraitCommanderDrawerOpenChange}
+        />
+      </div>
+    );
+  };
+
+  const indicatorSeats = React.useMemo(() => {
+    return [...occupiedSlots].sort((a, b) => {
+      const aPos = SEAT_COORDS[a.position];
+      const bPos = SEAT_COORDS[b.position];
+      if (aPos.y !== bPos.y) return aPos.y - bPos.y;
+      return aPos.x - bPos.x;
+    });
+  }, [occupiedSlots]);
+
+  const isTwoSeatIndicator = indicatorSeats.length === 2;
+
   return (
     <CardPreviewProvider>
       <DndContext
@@ -196,79 +479,121 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
             </div>
           )}
 
-          <div className="grid h-full w-full grid-cols-[var(--sidenav-w)_minmax(0,1fr)_auto]">
-            <Sidenav
-              onCreateToken={() => setIsTokenModalOpen(true)}
-              onOpenCoinFlipper={handleOpenCoinFlipper}
-              onOpenDiceRoller={handleOpenDiceRoller}
-              onToggleLog={() => setIsLogOpen(!isLogOpen)}
-              isLogOpen={isLogOpen}
-              onOpenShareDialog={() => setIsShareDialogOpen(true)}
-              onLeaveGame={handleLeave}
-              onOpenShortcuts={() => setIsShortcutsOpen(true)}
-              syncStatus={syncStatus}
-              peerCounts={peerCounts}
-              isSpectator={viewerRole === "spectator"}
-              shareLinksReady={shareLinksReady}
-            />
-            <div className={`min-w-0 h-full grid ${gridClass}`}>
-              {slots.map((slot, index) => {
-                const seatPlayer = slot.player;
-                return (
-                  <div key={index} className="relative border-zinc-800/50">
-                    {seatPlayer ? (
-                      <Seat
-                        player={seatPlayer}
-                        position={slot.position}
-                        color={slot.color}
-                        zones={zones}
-                        cards={cards}
-                        libraryRevealsToAll={libraryRevealsToAll}
-                        isMe={seatPlayer.id === myPlayerId}
-                        viewerPlayerId={myPlayerId}
-                        viewerRole={viewerRole}
-                        onCardContextMenu={handleCardContextMenu}
-                        onZoneContextMenu={handleZoneContextMenu}
-                        onBattlefieldContextMenu={(e) =>
-                          handleBattlefieldContextMenu(e, {
-                            onCreateToken: () => setIsTokenModalOpen(true),
-                            onOpenDiceRoller: handleOpenDiceRoller,
-                          })
-                        }
-                        onLoadDeck={() => setIsLoadDeckModalOpen(true)}
-                        onEditUsername={
-                          seatPlayer.id === myPlayerId
-                            ? () => setIsEditUsernameOpen(true)
-                            : undefined
-                        }
-                        opponentColors={playerColors}
-                        scale={scale}
-                        battlefieldScale={battlefieldViewScale[seatPlayer.id] ?? 1}
-                        onViewZone={handleViewZone}
-                        onDrawCard={handleDrawCard}
-                        onOpponentLibraryReveals={(zoneId) =>
-                          setRevealedLibraryZoneId(zoneId)
-                        }
-                        zoomControlsDisabled={zoomControlsBlocked}
-                        onLifeContextMenu={(e) =>
-                          handleLifeContextMenu?.(e, seatPlayer)
-                        }
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
-                        Empty Seat
-                      </div>
-                    )}
+          {isPortraitViewport ? (
+            <div
+              className="relative h-full w-full overflow-hidden overscroll-none"
+              style={{ ["--mobile-sidenav-h" as string]: "3.75rem" }}
+            >
+              <div className="grid h-full w-full grid-rows-[minmax(0,1fr)_var(--mobile-sidenav-h)]">
+                <div
+                  className="relative min-h-0 overflow-hidden overscroll-none"
+                  onPointerDownCapture={handleViewportPointerDownCapture}
+                  onPointerUpCapture={handleViewportPointerEndCapture}
+                  onPointerCancelCapture={handleViewportPointerEndCapture}
+                >
+                  {activeSeat ? (
+                    renderSeat(
+                      activeSeat,
+                      activeSeat.player.id,
+                      "portrait-viewport",
+                      setIsPortraitCommanderDrawerOpen,
+                    )
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
+                      Empty Seat
+                    </div>
+                  )}
+                </div>
+                <Sidenav
+                  orientation="horizontal"
+                  onCreateToken={() => setIsTokenModalOpen(true)}
+                  onOpenCoinFlipper={handleOpenCoinFlipper}
+                  onOpenDiceRoller={handleOpenDiceRoller}
+                  onToggleLog={() => setIsLogOpen(!isLogOpen)}
+                  isLogOpen={isLogOpen}
+                  onOpenShareDialog={() => setIsShareDialogOpen(true)}
+                  onLeaveGame={handleLeave}
+                  onOpenShortcuts={() => setIsShortcutsOpen(true)}
+                  syncStatus={syncStatus}
+                  peerCounts={peerCounts}
+                  isSpectator={viewerRole === "spectator"}
+                  shareLinksReady={shareLinksReady}
+                />
+              </div>
+              {indicatorSeats.length > 0 && (
+                <div
+                  className={`pointer-events-none absolute inset-x-0 z-[62] flex justify-center ${
+                    isPortraitCommanderDrawerOpen
+                      ? "bottom-[0.4rem]"
+                      : "bottom-[calc(var(--mobile-sidenav-h)+0.5rem)]"
+                  }`}
+                >
+                  <div
+                    className={
+                      isTwoSeatIndicator
+                        ? "flex flex-col items-center gap-1.5 rounded-full border border-zinc-700/70 bg-zinc-950/80 px-2 py-2"
+                        : "flex flex-row items-center gap-2 rounded-full border border-zinc-700/70 bg-zinc-950/80 px-3 py-2"
+                    }
+                  >
+                    {indicatorSeats.map((slot) => {
+                      const isActive = slot.player.id === activeSeat?.player.id;
+                      const seatColorClass = SEAT_COLOR_CLASS[slot.color];
+                      return (
+                        <span
+                          key={slot.player.id}
+                          className={[
+                            "block h-2.5 w-2.5 rounded-full border border-white/30",
+                            isActive ? seatColorClass ?? "bg-white" : "bg-white",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                          style={
+                            isActive && !seatColorClass
+                              ? { backgroundColor: slot.color }
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              )}
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-[65] flex">
+                <div className="pointer-events-auto h-full">
+                  <LogDrawer
+                    isOpen={isLogOpen}
+                    onClose={() => setIsLogOpen(false)}
+                    playerColors={playerColors}
+                  />
+                </div>
+              </div>
             </div>
-            <LogDrawer
-              isOpen={isLogOpen}
-              onClose={() => setIsLogOpen(false)}
-              playerColors={playerColors}
-            />
-          </div>
+          ) : (
+            <div className="grid h-full w-full grid-cols-[var(--sidenav-w)_minmax(0,1fr)_auto]">
+              <Sidenav
+                onCreateToken={() => setIsTokenModalOpen(true)}
+                onOpenCoinFlipper={handleOpenCoinFlipper}
+                onOpenDiceRoller={handleOpenDiceRoller}
+                onToggleLog={() => setIsLogOpen(!isLogOpen)}
+                isLogOpen={isLogOpen}
+                onOpenShareDialog={() => setIsShareDialogOpen(true)}
+                onLeaveGame={handleLeave}
+                onOpenShortcuts={() => setIsShortcutsOpen(true)}
+                syncStatus={syncStatus}
+                peerCounts={peerCounts}
+                isSpectator={viewerRole === "spectator"}
+                shareLinksReady={shareLinksReady}
+              />
+              <div className={`min-w-0 h-full grid ${gridClass}`}>
+                {slots.map((slot, index) => renderSeat(slot, index))}
+              </div>
+              <LogDrawer
+                isOpen={isLogOpen}
+                onClose={() => setIsLogOpen(false)}
+                playerColors={playerColors}
+              />
+            </div>
+          )}
         </div>
         {contextMenu && (
           <ContextMenu

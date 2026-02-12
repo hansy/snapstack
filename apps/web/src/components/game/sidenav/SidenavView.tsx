@@ -24,6 +24,7 @@ interface NavIconProps {
   onClick?: () => void;
   className?: string;
   disabled?: boolean;
+  hideTooltip?: boolean;
 }
 
 const NavIcon: React.FC<NavIconProps> = ({
@@ -33,6 +34,7 @@ const NavIcon: React.FC<NavIconProps> = ({
   onClick,
   className,
   disabled = false,
+  hideTooltip = false,
 }) => (
   <button
     type="button"
@@ -45,9 +47,11 @@ const NavIcon: React.FC<NavIconProps> = ({
     )}
   >
     {icon}
-    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-zinc-900 text-xs text-zinc-300 rounded border border-zinc-800 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
-      {tooltip ?? label}
-    </div>
+    {!hideTooltip && (
+      <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-zinc-900 text-xs text-zinc-300 rounded border border-zinc-800 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
+        {tooltip ?? label}
+      </div>
+    )}
   </button>
 );
 
@@ -68,7 +72,9 @@ export const SidenavView: React.FC<SidenavController> = ({
   handleUntapAll,
   handleOpenShortcuts,
   isSpectator,
+  orientation,
 }) => {
+  const isHorizontal = orientation === "horizontal";
   const peerCountLabel = React.useMemo(() => {
     const parts: string[] = [];
     if (peerCounts.players > 0) {
@@ -94,9 +100,21 @@ export const SidenavView: React.FC<SidenavController> = ({
     : syncStatus !== "connected"
       ? "Connecting to room"
       : "Loading auth tokens for sharing";
+  const handleMenuToggle = React.useCallback(() => {
+    if (isMenuOpen) {
+      closeMenu();
+      return;
+    }
+    openMenu();
+  }, [closeMenu, isMenuOpen, openMenu]);
 
   const menu = (
-    <div className="flex flex-col items-center gap-2">
+    <div
+      className={cn(
+        "items-center",
+        isHorizontal ? "flex flex-row-reverse gap-1" : "flex flex-col gap-2",
+      )}
+    >
       {!isSpectator && (
         <NavIcon
           icon={<Share2 size={20} />}
@@ -105,17 +123,19 @@ export const SidenavView: React.FC<SidenavController> = ({
           onClick={onOpenShareDialog}
           className="hover:text-indigo-400"
           disabled={shareDisabled}
+          hideTooltip={isHorizontal}
         />
       )}
 
       <div
         className="relative"
-        onMouseEnter={openMenu}
-        onMouseLeave={closeMenu}
+        onMouseEnter={isHorizontal ? undefined : openMenu}
+        onMouseLeave={isHorizontal ? undefined : closeMenu}
       >
         <button
           type="button"
           aria-label="Open menu"
+          onClick={handleMenuToggle}
           className="w-8 h-8 flex items-center justify-center transition-transform duration-200 hover:scale-105"
         >
           <img
@@ -127,8 +147,18 @@ export const SidenavView: React.FC<SidenavController> = ({
         </button>
 
         {isMenuOpen && (
-          <div className="absolute left-full bottom-0 w-64 pl-2 z-50">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-2 flex flex-col gap-1 animate-in fade-in slide-in-from-left-2">
+          <div
+            className={cn(
+              "absolute w-64 z-50",
+              isHorizontal ? "right-0 bottom-full mb-2" : "left-full bottom-0 pl-2",
+            )}
+          >
+            <div
+              className={cn(
+                "bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-2 flex flex-col gap-1 animate-in fade-in",
+                isHorizontal ? "slide-in-from-bottom-2" : "slide-in-from-left-2",
+              )}
+            >
               <div className="px-2 py-1 text-xs font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 mb-1">
                 Drawspell Menu
               </div>
@@ -185,7 +215,14 @@ export const SidenavView: React.FC<SidenavController> = ({
 
   return (
     <>
-      <div className="sticky top-0 h-[100dvh] w-12 lg:w-[var(--sidenav-w)] flex flex-col items-center py-4 bg-zinc-950 border-r border-zinc-800 z-[60]">
+      <div
+        className={cn(
+          "bg-zinc-950 z-[60]",
+          isHorizontal
+            ? "h-[var(--mobile-sidenav-h,3.75rem)] w-full border-t border-zinc-800 px-2 flex flex-row-reverse items-center gap-1"
+            : "sticky top-0 h-[100dvh] w-12 lg:w-[var(--sidenav-w)] border-r border-zinc-800 py-4 flex flex-col items-center",
+        )}
+      >
         {isSpectator ? (
           <>
             <NavIcon
@@ -196,6 +233,7 @@ export const SidenavView: React.FC<SidenavController> = ({
                 "hover:text-amber-400",
                 isLogOpen && "text-amber-400 bg-amber-500/10",
               )}
+              hideTooltip={isHorizontal}
             />
 
             <div className="flex-1" />
@@ -210,6 +248,7 @@ export const SidenavView: React.FC<SidenavController> = ({
               onClick={handleUntapAll}
               className="hover:text-blue-400"
               disabled={isSpectator}
+              hideTooltip={isHorizontal}
             />
 
             <NavIcon
@@ -218,6 +257,7 @@ export const SidenavView: React.FC<SidenavController> = ({
               onClick={onCreateToken}
               className="hover:text-emerald-400"
               disabled={isSpectator}
+              hideTooltip={isHorizontal}
             />
 
             <NavIcon
@@ -226,6 +266,7 @@ export const SidenavView: React.FC<SidenavController> = ({
               onClick={onOpenCoinFlipper}
               className="hover:text-yellow-400"
               disabled={isSpectator}
+              hideTooltip={isHorizontal}
             />
 
             <NavIcon
@@ -234,6 +275,7 @@ export const SidenavView: React.FC<SidenavController> = ({
               onClick={onOpenDiceRoller}
               className="hover:text-indigo-400"
               disabled={isSpectator}
+              hideTooltip={isHorizontal}
             />
 
             <NavIcon
@@ -244,6 +286,7 @@ export const SidenavView: React.FC<SidenavController> = ({
                 "hover:text-amber-400",
                 isLogOpen && "text-amber-400 bg-amber-500/10",
               )}
+              hideTooltip={isHorizontal}
             />
 
             <div className="flex-1" />

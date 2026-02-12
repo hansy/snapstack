@@ -32,6 +32,7 @@ interface HandProps {
   scale?: number;
   cardScale?: number;
   baseCardHeight?: number;
+  showLabel?: boolean;
 }
 
 const SortableCard = React.memo(
@@ -139,6 +140,7 @@ const HandInner: React.FC<HandProps> = ({
   scale = 1,
   cardScale = HAND_BASE_CARD_SCALE,
   baseCardHeight,
+  showLabel = true,
 }) => {
   // Memoize card IDs array for SortableContext
   const cardIds = React.useMemo(() => cards.map((c) => c.id), [cards]);
@@ -158,20 +160,21 @@ const HandInner: React.FC<HandProps> = ({
         className,
       )}
     >
-      {/* Hand Label */}
-      <div
-        className={cn(
-          "absolute px-3 py-1 lg:text-xs font-bold uppercase tracking-widest text-zinc-400 bg-zinc-900 border border-zinc-700/70 rounded-full z-40 pointer-events-none select-none shadow-[0_2px_10px_rgba(0,0,0,0.45)]",
-          // Vertical positioning: straddle the border
-          isTop ? "-bottom-3" : "-top-3",
-          // Horizontal positioning: opposite to sidebar
-          // If sidebar is Right (isRight), label is Left
-          // If sidebar is Left (!isRight), label is Right
-          isRight ? "left-8" : "right-8",
-        )}
-      >
-        {ZONE_LABEL.hand} - {cards.length}
-      </div>
+      {showLabel && (
+        <div
+          className={cn(
+            "absolute px-3 py-1 lg:text-xs font-bold uppercase tracking-widest text-zinc-400 bg-zinc-900 border border-zinc-700/70 rounded-full z-40 pointer-events-none select-none shadow-[0_2px_10px_rgba(0,0,0,0.45)]",
+            // Vertical positioning: straddle the border
+            isTop ? "-bottom-3" : "-top-3",
+            // Horizontal positioning: opposite to sidebar
+            // If sidebar is Right (isRight), label is Left
+            // If sidebar is Left (!isRight), label is Right
+            isRight ? "left-8" : "right-8",
+          )}
+        >
+          {ZONE_LABEL.hand} - {cards.length}
+        </div>
+      )}
 
       <Zone
         zone={zone}

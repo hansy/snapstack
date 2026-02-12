@@ -42,6 +42,14 @@ const getGridClass = (layoutMode: LayoutMode) => {
   }
 };
 
+const getDefaultLogOpen = () => {
+  if (typeof window === "undefined" || !window.matchMedia) return true;
+  const isPortraitTouch =
+    window.matchMedia("(pointer: coarse)").matches &&
+    window.matchMedia("(orientation: portrait)").matches;
+  return !isPortraitTouch;
+};
+
 export const useMultiplayerBoardController = (sessionId: string) => {
   const navigate = useNavigate();
 
@@ -230,7 +238,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const [isTokenModalOpen, setIsTokenModalOpen] = React.useState(false);
   const [isCoinFlipperOpen, setIsCoinFlipperOpen] = React.useState(false);
   const [isDiceRollerOpen, setIsDiceRollerOpen] = React.useState(false);
-  const [isLogOpen, setIsLogOpen] = React.useState(true);
+  const [isLogOpen, setIsLogOpen] = React.useState(getDefaultLogOpen);
   const [isShortcutsOpen, setIsShortcutsOpen] = React.useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
   const [isEditUsernameOpen, setIsEditUsernameOpen] = React.useState(false);

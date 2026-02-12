@@ -18,6 +18,7 @@ export type SidenavControllerInput = {
   syncStatus?: SyncStatus;
   peerCounts?: PeerCounts;
   isSpectator?: boolean;
+  orientation?: "vertical" | "horizontal";
 };
 
 export const useSidenavController = ({
@@ -33,6 +34,7 @@ export const useSidenavController = ({
   syncStatus = "connecting",
   peerCounts = { total: 1, players: 1, spectators: 0 },
   isSpectator = false,
+  orientation = "vertical",
 }: SidenavControllerInput) => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
@@ -64,6 +66,7 @@ export const useSidenavController = ({
     syncStatus,
     peerCounts,
     isSpectator,
+    orientation,
     isMenuOpen,
     openMenu,
     closeMenu,

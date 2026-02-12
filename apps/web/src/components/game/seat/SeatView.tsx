@@ -15,6 +15,8 @@ import { Battlefield } from "./Battlefield";
 import { BottomBar } from "./BottomBar";
 import { CommanderZone } from "./CommanderZone";
 import { Hand } from "./Hand";
+import { PortraitCommanderDrawer } from "./PortraitCommanderDrawer";
+import { PortraitSeatToolbar } from "./PortraitSeatToolbar";
 import { SideZone } from "./SideZone";
 import type { SeatModel } from "@/models/game/seat/seatModel";
 import {
@@ -52,6 +54,8 @@ interface SeatViewProps {
   onOpponentLibraryReveals?: (zoneId: ZoneId) => void;
   zoomControlsDisabled?: boolean;
   onLifeContextMenu?: (e: React.MouseEvent, player: Player) => void;
+  layoutVariant?: "default" | "portrait-viewport";
+  onPortraitCommanderDrawerOpenChange?: (open: boolean) => void;
 }
 
 export const SeatView: React.FC<SeatViewProps> = ({
@@ -75,6 +79,8 @@ export const SeatView: React.FC<SeatViewProps> = ({
   model,
   zoomControlsDisabled,
   onLifeContextMenu,
+  layoutVariant = "default",
+  onPortraitCommanderDrawerOpenChange,
 }) => {
   const [handHeight, setHandHeight] = React.useState(HAND_DEFAULT_HEIGHT);
   const [hasHandOverride, setHasHandOverride] = React.useState(false);
@@ -187,6 +193,119 @@ export const SeatView: React.FC<SeatViewProps> = ({
         })
       : false;
   const libraryFaceDown = libraryTopCard ? !canSeeLibraryTop : true;
+  const [isCommanderDrawerOpen, setIsCommanderDrawerOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (layoutVariant !== "portrait-viewport") return;
+    onPortraitCommanderDrawerOpenChange?.(isCommanderDrawerOpen);
+  }, [
+    isCommanderDrawerOpen,
+    layoutVariant,
+    onPortraitCommanderDrawerOpenChange,
+  ]);
+
+  if (layoutVariant === "portrait-viewport") {
+    return (
+      <div
+        ref={seatRef}
+        className={cn("relative w-full h-full", className)}
+        style={cssVars}
+      >
+        <div className="flex h-full w-full flex-col">
+          <div className="relative h-1/2 min-h-0 shrink-0 border-b border-white/5 flex">
+            {battlefield && (
+              <Battlefield
+                zone={battlefield}
+                cards={battlefieldCards}
+                player={player}
+                isTop={isTop}
+                isMe={isMe}
+                viewerPlayerId={viewerPlayerId}
+                viewerRole={viewerRole}
+                mirrorBattlefieldY={mirrorBattlefieldY}
+                scale={scale}
+                viewScale={battlefieldScale}
+                baseCardHeight={baseCardHeightPx}
+                baseCardWidth={baseCardWidthPx}
+                onCardContextMenu={onCardContextMenu}
+                onContextMenu={isMe ? onBattlefieldContextMenu : undefined}
+                showContextMenuCursor={Boolean(player.deckLoaded && isMe)}
+                playerColors={{ [player.id]: color, ...opponentColors }}
+                disableZoomControls={zoomControlsDisabled}
+              />
+            )}
+          </div>
+          <PortraitSeatToolbar
+            player={player}
+            isMe={isMe}
+            opponentColors={opponentColors}
+            library={library}
+            graveyard={graveyard}
+            exile={exile}
+            libraryCount={libraryCount}
+            graveyardCount={graveyard?.cardIds.length ?? 0}
+            exileCount={exile?.cardIds.length ?? 0}
+            opponentLibraryRevealCount={opponentLibraryRevealCount}
+            onViewZone={onViewZone}
+            onDrawCard={onDrawCard}
+            onOpponentLibraryReveals={onOpponentLibraryReveals}
+            onLoadDeck={onLoadDeck}
+          />
+          <div className="relative min-h-0 flex-1 flex flex-col bg-zinc-900/55 backdrop-blur-sm border-t border-white/10 overflow-hidden">
+            <div className="h-8 shrink-0 px-2 flex items-center justify-between border-b border-zinc-800/70 bg-zinc-900/70">
+              <button
+                type="button"
+                className={cn(
+                  "h-6 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+                  isCommanderDrawerOpen && "border-indigo-400/70 bg-indigo-500/15 text-indigo-100",
+                )}
+                onClick={() => {
+                  if (!commander) return;
+                  setIsCommanderDrawerOpen((prev) => !prev);
+                }}
+                disabled={!commander}
+                data-no-seat-swipe="true"
+                aria-label="Toggle commander drawer"
+              >
+                CMDR
+              </button>
+              <span
+                className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-600/80 select-none"
+                style={{ textShadow: "0 1px 0 rgba(0,0,0,0.55)" }}
+              >
+                HAND - {handCards.length}
+              </span>
+            </div>
+            <div className="min-h-0 flex-1 flex">
+              {hand && (
+                <Hand
+                  zone={hand}
+                  cards={handCards}
+                  isTop={isTop}
+                  isRight={isRight}
+                  isMe={isMe}
+                  viewerPlayerId={viewerPlayerId}
+                  viewerRole={viewerRole}
+                  onCardContextMenu={onCardContextMenu}
+                  scale={scale}
+                  cardScale={handCardScale}
+                  baseCardHeight={baseCardHeightPx}
+                  showLabel={false}
+                  className="!w-full !flex-none !border-0 !bg-transparent"
+                />
+              )}
+            </div>
+            <PortraitCommanderDrawer
+              open={isCommanderDrawerOpen}
+              zone={commander}
+              cards={commandCards}
+              onZoneContextMenu={onZoneContextMenu}
+              onCardContextMenu={onCardContextMenu}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

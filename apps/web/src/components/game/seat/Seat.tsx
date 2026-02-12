@@ -39,6 +39,8 @@ export interface SeatProps {
   onOpponentLibraryReveals?: (zoneId: ZoneId) => void;
   zoomControlsDisabled?: boolean;
   onLifeContextMenu?: (e: React.MouseEvent, player: Player) => void;
+  layoutVariant?: "default" | "portrait-viewport";
+  onPortraitCommanderDrawerOpenChange?: (open: boolean) => void;
 }
 
 const SeatInner: React.FC<SeatProps> = ({
@@ -65,6 +67,8 @@ const SeatInner: React.FC<SeatProps> = ({
   onOpponentLibraryReveals,
   zoomControlsDisabled,
   onLifeContextMenu,
+  layoutVariant = "default",
+  onPortraitCommanderDrawerOpenChange,
 }) => {
   const model = React.useMemo(
     () =>
@@ -116,6 +120,8 @@ const SeatInner: React.FC<SeatProps> = ({
       onLifeContextMenu={onLifeContextMenu}
       model={model}
       zoomControlsDisabled={zoomControlsDisabled}
+      layoutVariant={layoutVariant}
+      onPortraitCommanderDrawerOpenChange={onPortraitCommanderDrawerOpenChange}
     />
   );
 };
