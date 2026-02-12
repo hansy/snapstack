@@ -117,4 +117,22 @@ describe("loadDeckModel", () => {
       })
     ).rejects.toThrow("Too many cards");
   });
+
+  it("planDeckImport errors when commander zone capacity would be exceeded", async () => {
+    await expect(
+      planDeckImport({
+        importText: "ignored",
+        playerId: "p1",
+        zones: {
+          cmd: { id: "cmd", type: ZONE.COMMANDER, ownerId: "p1", cardIds: ["c1", "c2"] },
+        },
+        parseDeckList: () => [
+          { quantity: 1, name: "A", set: "set", collectorNumber: "1", section: "commander" },
+        ],
+        validateDeckListLimits: () => ({ ok: true }),
+        fetchScryfallCards: async () => ({ cards: [], missing: [], warnings: [], errors: [] }),
+        validateImportResult: () => ({ ok: true, warnings: [] }),
+      })
+    ).rejects.toThrow(/Commander zone would exceed the 2-card limit/);
+  });
 });

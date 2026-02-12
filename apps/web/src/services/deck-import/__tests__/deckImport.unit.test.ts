@@ -121,6 +121,20 @@ describe('validateDeckListLimits', () => {
     const result = validateDeckListLimits(parsed, { maxLibraryCards: 300 });
     expect(result.ok).toBe(true);
   });
+
+  it('rejects imports with more than two commanders', () => {
+    const parsed: ParsedCard[] = [
+      { quantity: 3, name: "Atraxa, Praetors' Voice", set: '', collectorNumber: '', section: 'commander' },
+    ];
+
+    const result = validateDeckListLimits(parsed, { maxLibraryCards: 300 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/Commander section too large/);
+      expect(result.error).toMatch(/3/);
+      expect(result.error).toMatch(/2/);
+    }
+  });
 });
 
 describe('fetchScryfallCards', () => {

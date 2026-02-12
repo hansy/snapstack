@@ -6,8 +6,9 @@ export const validateDeckListLimits = (
   parsedDeck: ParsedCard[],
   opts?: { maxLibraryCards?: number }
 ): { ok: true } | { ok: false; error: string } => {
-  const { library } = getRequestedCounts(parsedDeck);
+  const { library, commander } = getRequestedCounts(parsedDeck);
   const maxLibraryCards = opts?.maxLibraryCards ?? MAX_CARDS_PER_ZONE;
+  const maxCommanderCards = 2;
 
   if (library > maxLibraryCards) {
     return {
@@ -16,6 +17,12 @@ export const validateDeckListLimits = (
     };
   }
 
+  if (commander > maxCommanderCards) {
+    return {
+      ok: false,
+      error: `Commander section too large: ${commander} cards found, but the current limit is ${maxCommanderCards}.`,
+    };
+  }
+
   return { ok: true };
 };
-

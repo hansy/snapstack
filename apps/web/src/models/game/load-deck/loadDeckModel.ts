@@ -2,7 +2,9 @@ import type { Card, PlayerId, Zone, ZoneId } from "@/types";
 
 import { ZONE } from "@/constants/zones";
 import { getZoneByType } from "@/lib/gameSelectors";
-import type { FetchScryfallResult, ParsedCard } from "@/services/deck-import/deckImport";
+import { getRequestedCounts, type FetchScryfallResult, type ParsedCard } from "@/services/deck-import/deckImport";
+
+const MAX_COMMANDER_ZONE_CARDS = 2;
 
 export interface ProviderLike {
   wsconnected?: boolean;
@@ -75,6 +77,18 @@ export const planDeckImport = async (params: {
   const sizeValidation = params.validateDeckListLimits(parsedDeck);
   if (!sizeValidation.ok) {
     throw new Error(sizeValidation.error);
+  }
+
+  const { commander: commanderToImport } = getRequestedCounts(parsedDeck);
+  const { commanderZoneId: importCommanderZoneId } = resolveDeckZoneIds({
+    zones: params.zones,
+    playerId: params.playerId,
+  });
+  const commanderInZone = params.zones[importCommanderZoneId]?.cardIds.length ?? 0;
+  if (commanderInZone + commanderToImport > MAX_COMMANDER_ZONE_CARDS) {
+    throw new Error(
+      `Commander zone would exceed the 2-card limit (${commanderInZone} existing + ${commanderToImport} importing). Unload your current deck or remove commanders first.`
+    );
   }
 
   const fetchResult = await params.fetchScryfallCards(parsedDeck);
