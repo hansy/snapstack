@@ -449,6 +449,23 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
   }, [occupiedSlots]);
 
   const isTwoSeatIndicator = indicatorSeats.length === 2;
+  const hasActiveOverlayUi = Boolean(
+    contextMenu ||
+      activeModal ||
+      countPrompt ||
+      textPrompt ||
+      isLoadDeckModalOpen ||
+      isTokenModalOpen ||
+      isCoinFlipperOpen ||
+      isDiceRollerOpen ||
+      isLogOpen ||
+      isShortcutsOpen ||
+      isShareDialogOpen ||
+      isEditUsernameOpen ||
+      zoneViewerState.isOpen ||
+      revealedLibraryZoneId ||
+      isPortraitCommanderDrawerOpen,
+  );
 
   return (
     <CardPreviewProvider>
@@ -519,7 +536,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                   shareLinksReady={shareLinksReady}
                 />
               </div>
-              {indicatorSeats.length > 0 && (
+              {indicatorSeats.length > 0 && !hasActiveOverlayUi && (
                 <div
                   className={`pointer-events-none absolute inset-x-0 z-[62] flex justify-center ${
                     isPortraitCommanderDrawerOpen
