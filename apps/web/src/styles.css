@@ -125,7 +125,11 @@ code {
   }
 
   .ds-dialog-inset {
-    @apply inset-2 h-auto w-auto max-h-none max-w-none rounded-xl border p-0;
+    @apply h-auto w-auto max-h-none max-w-none rounded-xl border p-0;
+    top: max(0.5rem, env(safe-area-inset-top));
+    right: max(0.5rem, env(safe-area-inset-right));
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    left: max(0.5rem, env(safe-area-inset-left));
     @apply lg:inset-3 lg:top-3 lg:right-3 lg:bottom-3 lg:left-3 lg:w-auto lg:max-w-none lg:max-h-none lg:translate-x-0 lg:translate-y-0;
   }
 

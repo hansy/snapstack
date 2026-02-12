@@ -41,7 +41,7 @@ export const LoadDeckModalView: React.FC<LoadDeckController> = ({
             onChange={(e) => handleImportTextChange(e.target.value)}
             placeholder={"4 Lightning Bolt\n20 Mountain..."}
             className={cn(
-              "w-full h-[min(18rem,42dvh)] sm:h-64 bg-zinc-900 border border-zinc-800 rounded-md p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none placeholder:text-zinc-600",
+              "w-full h-[min(18rem,42dvh)] sm:h-64 bg-zinc-900 border border-zinc-800 rounded-md p-3 text-base lg:text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none placeholder:text-zinc-600",
               prefilledFromLastImport &&
                 "ring-2 ring-amber-500/30 border-amber-500/50",
             )}

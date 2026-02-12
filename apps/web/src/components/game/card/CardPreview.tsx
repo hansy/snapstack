@@ -337,7 +337,7 @@ const CustomTextEditor: React.FC<{ card: CardType; locked?: boolean }> = ({
     return (
       <textarea
         autoFocus
-        className="w-full bg-transparent text-zinc-100 text-sm resize-none outline-none min-h-[60px]"
+        className="w-full bg-transparent text-zinc-100 text-base lg:text-sm resize-none outline-none min-h-[60px]"
         value={text}
         onChange={(e) => setText(e.target.value)}
         onBlur={handleSave}
