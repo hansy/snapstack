@@ -464,9 +464,8 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
         collisionDetection={pointerWithin}
       >
         <div
-          className="relative h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans selection:bg-indigo-500/30"
+          className="ds-app-shell bg-zinc-950 text-zinc-100 font-sans selection:bg-indigo-500/30"
           onContextMenu={(e) => e.preventDefault()}
-          style={{ height: "100dvh", width: "100dvw" }}
         >
           {showConnectingOverlay && (
             <div

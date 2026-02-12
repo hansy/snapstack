@@ -51,7 +51,7 @@ export const DiceRollDialog: React.FC<DiceRollDialogProps> = ({ open, onClose, o
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-[420px] bg-zinc-950 border-zinc-800 text-zinc-100">
+      <DialogContent className="ds-dialog-size-xs bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader>
           <DialogTitle>Roll Dice</DialogTitle>
           <DialogDescription className="text-zinc-400">
@@ -59,8 +59,8 @@ export const DiceRollDialog: React.FC<DiceRollDialogProps> = ({ open, onClose, o
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-[1fr_auto] gap-4 items-end">
+        <div className="grid gap-4 py-1 sm:py-4">
+          <div className="grid grid-cols-1 gap-4 items-end sm:grid-cols-[1fr_auto]">
             <div className="space-y-2">
               <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
                 Number of sides
@@ -83,7 +83,7 @@ export const DiceRollDialog: React.FC<DiceRollDialogProps> = ({ open, onClose, o
               />
             </div>
 
-            <div className="space-y-2 w-32">
+            <div className="space-y-2 w-full sm:w-32">
               <label className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
                 Dice count
               </label>

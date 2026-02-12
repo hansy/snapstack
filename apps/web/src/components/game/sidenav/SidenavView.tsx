@@ -11,8 +11,10 @@ import {
   Share2,
   Wifi,
 } from "lucide-react";
+import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react";
 
 import drawspellLogo from "@/assets/drawspell-logo.png";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import type { SidenavController } from "@/hooks/game/sidenav/useSidenavController";
@@ -35,25 +37,30 @@ const NavIcon: React.FC<NavIconProps> = ({
   className,
   disabled = false,
   hideTooltip = false,
-}) => (
-  <button
-    type="button"
-    aria-label={label}
-    onClick={onClick}
-    disabled={disabled}
-    className={cn(
-      "relative group p-3 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-400",
-      className,
-    )}
-  >
-    {icon}
-    {!hideTooltip && (
-      <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-zinc-900 text-xs text-zinc-300 rounded border border-zinc-800 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
-        {tooltip ?? label}
-      </div>
-    )}
-  </button>
-);
+}) => {
+  const button = (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "p-3 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-400",
+        className,
+      )}
+    >
+      {icon}
+    </button>
+  );
+
+  if (hideTooltip) return button;
+
+  return (
+    <Tooltip content={tooltip ?? label} placement="right">
+      {button}
+    </Tooltip>
+  );
+};
 
 export const SidenavView: React.FC<SidenavController> = ({
   onCreateToken,
@@ -100,6 +107,20 @@ export const SidenavView: React.FC<SidenavController> = ({
     : syncStatus !== "connected"
       ? "Connecting to room"
       : "Loading auth tokens for sharing";
+  const { refs: menuRefs, floatingStyles: menuFloatingStyles } = useFloating({
+    open: isMenuOpen,
+    onOpenChange: (next) => {
+      if (!next) closeMenu();
+    },
+    placement: isHorizontal ? "top-end" : "right-end",
+    strategy: "fixed",
+    middleware: [
+      offset(8),
+      flip({ padding: 8, fallbackAxisSideDirection: "start" }),
+      shift({ padding: 8 }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
   const handleMenuToggle = React.useCallback(() => {
     if (isMenuOpen) {
       closeMenu();
@@ -135,7 +156,9 @@ export const SidenavView: React.FC<SidenavController> = ({
         <button
           type="button"
           aria-label="Open menu"
+          aria-expanded={isMenuOpen}
           onClick={handleMenuToggle}
+          ref={menuRefs.setReference}
           className="w-8 h-8 flex items-center justify-center transition-transform duration-200 hover:scale-105"
         >
           <img
@@ -148,10 +171,9 @@ export const SidenavView: React.FC<SidenavController> = ({
 
         {isMenuOpen && (
           <div
-            className={cn(
-              "absolute w-64 z-50",
-              isHorizontal ? "right-0 bottom-full mb-2" : "left-full bottom-0 pl-2",
-            )}
+            ref={menuRefs.setFloating}
+            style={menuFloatingStyles}
+            className="z-50 w-[min(16rem,calc(100dvw-1rem))] max-h-[min(22rem,calc(100dvh-1rem))] overflow-y-auto"
           >
             <div
               className={cn(

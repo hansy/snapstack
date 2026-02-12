@@ -77,7 +77,7 @@ export const useContextMenuController = ({
   }, [referenceElement, anchorVirtualElement, refs]);
 
   React.useEffect(() => {
-    const handlePointerOutside = (event: PointerEvent) => {
+    const closeIfOutside = (event: Event) => {
       const target = event.target as Node | null;
       if (!target) return;
 
@@ -92,9 +92,24 @@ export const useContextMenuController = ({
       }
     };
 
-    document.addEventListener("pointerdown", handlePointerOutside);
+    let lastPointerDownStamp = -1;
+    const handlePointerDown = (event: Event) => {
+      lastPointerDownStamp = event.timeStamp;
+      closeIfOutside(event);
+    };
+    const handleMouseDown = (event: Event) => {
+      // Most browsers dispatch both pointerdown and mousedown for mouse clicks.
+      if (lastPointerDownStamp >= 0 && event.timeStamp - lastPointerDownStamp < 50) {
+        return;
+      }
+      closeIfOutside(event);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("mousedown", handleMouseDown);
     return () => {
-      document.removeEventListener("pointerdown", handlePointerOutside);
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("mousedown", handleMouseDown);
     };
   }, [onClose, isSubmenu]);
 

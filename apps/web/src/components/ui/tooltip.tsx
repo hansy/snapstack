@@ -4,6 +4,7 @@ import {
   autoUpdate,
   flip,
   offset,
+  size,
   shift,
   useDismiss,
   useFocus,
@@ -35,7 +36,20 @@ export const Tooltip: React.FC<TooltipProps> = ({
     placement,
     open,
     onOpenChange: setOpen,
-    middleware: [offset(8), flip(), shift({ padding: 8 })],
+    middleware: [
+      offset(8),
+      flip({ padding: 8, fallbackAxisSideDirection: "start" }),
+      shift({ padding: 8 }),
+      size({
+        padding: 8,
+        apply({ availableHeight, availableWidth, elements }) {
+          Object.assign(elements.floating.style, {
+            maxWidth: `${Math.max(120, Math.floor(availableWidth))}px`,
+            maxHeight: `${Math.max(40, Math.floor(availableHeight))}px`,
+          });
+        },
+      }),
+    ],
     whileElementsMounted: autoUpdate,
     strategy: "fixed",
   });
@@ -72,7 +86,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
             style={floatingStyles}
             {...getFloatingProps()}
             className={cn(
-              "z-[10000] bg-zinc-900 text-xs text-zinc-100 px-3 py-2 rounded border border-zinc-700 shadow-xl whitespace-nowrap",
+              "z-[10000] overflow-auto bg-zinc-900 text-xs text-zinc-100 px-3 py-2 rounded border border-zinc-700 shadow-xl whitespace-normal break-words",
               "transition-opacity duration-150",
               className
             )}

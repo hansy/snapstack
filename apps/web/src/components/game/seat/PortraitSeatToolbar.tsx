@@ -114,7 +114,7 @@ const MobileLifeDialog: React.FC<{
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[min(92vw,26rem)] border-zinc-700 bg-zinc-950 text-zinc-100 p-4"
+        className="ds-dialog-size-xs border-zinc-700 bg-zinc-950 text-zinc-100 p-4"
         showCloseButton
       >
         <DialogHeader className="gap-1">

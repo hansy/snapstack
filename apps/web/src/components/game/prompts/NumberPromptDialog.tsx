@@ -52,7 +52,7 @@ export const NumberPromptDialog: React.FC<NumberPromptDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-[380px] bg-zinc-950 border-zinc-800 text-zinc-100">
+      <DialogContent className="ds-dialog-size-xs bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {message && <DialogDescription className="text-zinc-400">{message}</DialogDescription>}

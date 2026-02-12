@@ -46,7 +46,7 @@ const ShareLinkField: React.FC<ShareLinkFieldProps> = ({
           {label}
         </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Input
           value={value}
           readOnly
@@ -125,7 +125,7 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-[520px] bg-zinc-950 border-zinc-800 text-zinc-100 lg:min-w-lg">
+      <DialogContent className="ds-dialog-size-lg bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader>
           <DialogTitle>Share room</DialogTitle>
           <DialogDescription className="text-zinc-400">
@@ -133,7 +133,7 @@ export const ShareRoomDialog: React.FC<ShareRoomDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="ds-dialog-scroll space-y-4">
           <section className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>

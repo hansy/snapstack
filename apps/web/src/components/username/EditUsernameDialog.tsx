@@ -11,7 +11,7 @@ type EditUsernameDialogProps = {
 export function EditUsernameDialog({ open, onClose, initialValue, onSubmit }: EditUsernameDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-zinc-800 text-zinc-100">
+      <DialogContent className="ds-dialog-size-xs bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader>
           <DialogTitle>Edit username</DialogTitle>
           <DialogDescription className="text-zinc-400">

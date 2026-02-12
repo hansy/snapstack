@@ -3,7 +3,7 @@ import { Dialog, DialogContent } from "../../ui/dialog";
 import { ContextMenu } from "../context-menu/ContextMenu";
 
 import type { ZoneViewerController } from "@/hooks/game/zone-viewer/useZoneViewerController";
-import { getPreviewDimensions, useIsLg } from "@/hooks/game/seat/useSeatSizing";
+import { getPreviewDimensions } from "@/hooks/game/seat/useSeatSizing";
 import { useGameStore } from "@/store/gameStore";
 import { ZoneViewerModalHeader } from "./ZoneViewerModalHeader";
 import { ZoneViewerGroupedView } from "./ZoneViewerGroupedView";
@@ -42,8 +42,6 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
   const baseCardWidthPx = useGameStore((state) =>
     zone ? state.battlefieldGridSizing[zone.ownerId]?.baseCardWidthPx : undefined
   );
-  const isLg = useIsLg();
-  const isPreviewReady = !isLg || Boolean(baseCardWidthPx);
   const { previewWidthPx, previewHeightPx } = React.useMemo(
     () => getPreviewDimensions(baseCardWidthPx),
     [baseCardWidthPx]
@@ -53,9 +51,9 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[94vw] max-w-[94vw] max-h-[94vh] bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col overflow-y-auto">
-        <div ref={containerRef} className="w-full flex flex-col relative">
-          <div className="pb-4 border-b border-zinc-800">
+      <DialogContent className="ds-dialog-size-lg ds-dialog-inset bg-zinc-950 border-zinc-800 text-zinc-100 flex min-h-0 flex-col">
+        <div ref={containerRef} className="relative flex h-full min-h-0 w-full flex-col">
+          <div className="px-4 py-3 lg:px-6 lg:py-4 border-b border-zinc-800">
             <ZoneViewerModalHeader
               zoneType={zone.type}
               totalCards={
@@ -71,13 +69,9 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
 
           <div
             ref={setScrollNode}
-            className="flex-1 overflow-x-auto overflow-y-hidden pt-4 bg-zinc-950/50 touch-none"
+            className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-4 pb-4 pt-3 lg:px-6 lg:pb-6 lg:pt-4 bg-zinc-950/50 touch-none"
           >
-            {!isPreviewReady ? (
-              <div className="h-full flex items-center justify-center text-zinc-500">
-                Preparing card previews...
-              </div>
-            ) : displayCards.length === 0 ? (
+            {displayCards.length === 0 ? (
               <div className="h-full flex items-center justify-center text-zinc-500">
                 {isLoading ? "Loading cards..." : "No cards found matching your filter."}
               </div>

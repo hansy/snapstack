@@ -21,13 +21,13 @@ export const AddCounterModalView: React.FC<AddCounterController> = ({
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-[425px] bg-zinc-950 border-zinc-800 text-zinc-100">
+      <DialogContent className="ds-dialog-size-xs bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader>
           <DialogTitle>Add Counter</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="flex gap-4">
+        <div className="grid gap-4 py-1 sm:py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
             <div className="flex-1">
               <label
                 htmlFor="customName"
@@ -46,7 +46,7 @@ export const AddCounterModalView: React.FC<AddCounterController> = ({
               />
             </div>
 
-            <div className="w-24">
+            <div className="w-full sm:w-24">
               <label htmlFor="count" className="text-xs font-medium text-zinc-400 mb-1 block">
                 Count
               </label>
