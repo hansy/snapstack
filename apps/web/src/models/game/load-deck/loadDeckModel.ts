@@ -1,8 +1,9 @@
 import type { Card, PlayerId, Zone, ZoneId } from "@/types";
+import { MAX_COMMANDER_ZONE_CARDS } from "@mtg/shared/constants/limits";
 
 import { ZONE } from "@/constants/zones";
 import { getZoneByType } from "@/lib/gameSelectors";
-import type { FetchScryfallResult, ParsedCard } from "@/services/deck-import/deckImport";
+import { getRequestedCounts, type FetchScryfallResult, type ParsedCard } from "@/services/deck-import/deckImport";
 
 export interface ProviderLike {
   wsconnected?: boolean;
@@ -54,10 +55,23 @@ export type DeckImportCardPlan = {
   zoneType: Zone["type"];
 };
 
+const countLiveZoneCards = (params: {
+  zoneId: ZoneId;
+  zone: Zone;
+  cards?: Record<string, Card>;
+}) => {
+  if (!params.cards) return params.zone.cardIds.length;
+  return params.zone.cardIds.reduce((count, cardId) => {
+    const card = params.cards?.[cardId];
+    return card && card.zoneId === params.zoneId ? count + 1 : count;
+  }, 0);
+};
+
 export const planDeckImport = async (params: {
   importText: string;
   playerId: PlayerId;
   zones: Record<ZoneId, Zone>;
+  cards?: Record<string, Card>;
   parseDeckList: (text: string) => ParsedCard[];
   validateDeckListLimits: (parsedDeck: ParsedCard[]) => { ok: true } | { ok: false; error: string };
   fetchScryfallCards: (parsedDeck: ParsedCard[]) => Promise<FetchScryfallResult>;
@@ -75,6 +89,28 @@ export const planDeckImport = async (params: {
   const sizeValidation = params.validateDeckListLimits(parsedDeck);
   if (!sizeValidation.ok) {
     throw new Error(sizeValidation.error);
+  }
+
+  const requestedCounts = getRequestedCounts(parsedDeck);
+  if (requestedCounts.commander > 0) {
+    const { commanderZoneId } = resolveDeckZoneIds({
+      zones: params.zones,
+      playerId: params.playerId,
+    });
+    const commanderZone = params.zones[commanderZoneId];
+    const existingCommanderCards = commanderZone
+      ? countLiveZoneCards({
+          zoneId: commanderZoneId,
+          zone: commanderZone,
+          cards: params.cards,
+        })
+      : 0;
+
+    if (existingCommanderCards + requestedCounts.commander > MAX_COMMANDER_ZONE_CARDS) {
+      throw new Error(
+        `Commander zone capacity exceeded: ${existingCommanderCards} currently in zone + ${requestedCounts.commander} importing, limit is ${MAX_COMMANDER_ZONE_CARDS}.`
+      );
+    }
   }
 
   const fetchResult = await params.fetchScryfallCards(parsedDeck);

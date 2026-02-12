@@ -37,6 +37,7 @@ export const useLoadDeckController = ({
   const setDeckLoaded = useGameStore((state) => state.setDeckLoaded);
   const shuffleLibrary = useGameStore((state) => state.shuffleLibrary);
   const zones = useGameStore((state) => state.zones);
+  const cards = useGameStore((state) => state.cards);
   const viewerRole = useGameStore((state) => state.viewerRole);
 
   const lastImportedDeckText = useClientPrefsStore((state) => state.lastImportedDeckText);
@@ -90,6 +91,7 @@ export const useLoadDeckController = ({
         importText,
         playerId,
         zones,
+        cards,
         parseDeckList,
         validateDeckListLimits,
         fetchScryfallCards,
@@ -146,6 +148,7 @@ export const useLoadDeckController = ({
     setLastImportedDeckText,
     shuffleLibrary,
     viewerRole,
+    cards,
     zones,
   ]);
 
