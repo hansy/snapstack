@@ -92,9 +92,9 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0b0a0f] text-zinc-100">
+    <div className="relative min-h-dvh overflow-hidden bg-[#0b0a0f] text-zinc-100">
       <LandingBackground />
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div className="relative z-10 flex min-h-dvh flex-col">
         <header className="flex items-center justify-between px-6 pt-6 sm:px-10">
           <a
             href="/"

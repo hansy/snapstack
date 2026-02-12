@@ -113,7 +113,7 @@ code {
 
 @layer components {
   .ds-app-shell {
-    @apply relative h-[100dvh] w-[100dvw] overflow-hidden overscroll-none;
+    @apply relative h-[100dvh] w-full overflow-hidden overscroll-none;
   }
 
   .ds-dialog-size-xs {
