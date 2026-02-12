@@ -44,6 +44,7 @@ const SortableCard = React.memo(
     onCardContextMenu,
     cardScale,
     baseCardHeight,
+    useFullSlotWidth,
   }: {
     card: CardType;
     isMe: boolean;
@@ -52,6 +53,7 @@ const SortableCard = React.memo(
     onCardContextMenu?: (e: React.MouseEvent, card: CardType) => void;
     cardScale: number;
     baseCardHeight?: number;
+    useFullSlotWidth: boolean;
   }) => {
     const {
       attributes,
@@ -75,13 +77,15 @@ const SortableCard = React.memo(
     const style = React.useMemo(() => {
       const resolvedBaseHeight = baseCardHeight ?? BASE_CARD_HEIGHT;
       const cardWidth = resolvedBaseHeight * CARD_ASPECT_RATIO * cardScale;
-      const overlapWidth = cardWidth * HAND_CARD_OVERLAP_RATIO;
+      const overlapWidth = useFullSlotWidth
+        ? cardWidth
+        : cardWidth * HAND_CARD_OVERLAP_RATIO;
       return {
         transform: CSS.Transform.toString(transform),
         transition,
         ["--hand-card-max-width" as string]: `${overlapWidth}px`,
       } as React.CSSProperties;
-    }, [transform, transition, cardScale, baseCardHeight]);
+    }, [transform, transition, cardScale, baseCardHeight, useFullSlotWidth]);
 
     const handleContextMenu = React.useCallback(
       (e: React.MouseEvent) => {
@@ -195,6 +199,10 @@ const HandInner: React.FC<HandProps> = ({
             )}
             style={{ paddingTop: HAND_CARD_TOP_GAP_PX }}
           >
+            {/*
+              Keep single-card hands visually centered by using a full-width slot.
+              Overlap slot widths remain for multi-card hands.
+            */}
             {cards.map((card) => (
               <SortableCard
                 key={card.id}
@@ -205,6 +213,7 @@ const HandInner: React.FC<HandProps> = ({
                 onCardContextMenu={onCardContextMenu}
                 cardScale={cardScale}
                 baseCardHeight={baseCardHeight}
+                useFullSlotWidth={cards.length === 1}
               />
             ))}
           </div>

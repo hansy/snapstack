@@ -7,10 +7,11 @@ export interface LogDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   playerColors: Record<string, string>;
+  layout?: "sidebar" | "stacked";
 }
 
 export const LogDrawer: React.FC<LogDrawerProps> = (props) => {
-  const controller = useLogDrawerController(props);
-  return <LogDrawerView {...controller} />;
+  const { layout = "sidebar", ...controllerInput } = props;
+  const controller = useLogDrawerController(controllerInput);
+  return <LogDrawerView {...controller} layout={layout} />;
 };
-

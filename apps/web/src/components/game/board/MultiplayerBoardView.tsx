@@ -496,93 +496,92 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
           )}
 
           {isPortraitViewport ? (
-            <div
-              className="relative h-full w-full overflow-hidden overscroll-none"
-              style={{ ["--mobile-sidenav-h" as string]: "3.75rem" }}
-            >
-              <div className="grid h-full w-full grid-rows-[minmax(0,1fr)_var(--mobile-sidenav-h)]">
-                <div
-                  className="relative min-h-0 overflow-hidden overscroll-none"
-                  onPointerDownCapture={handleViewportPointerDownCapture}
-                  onPointerUpCapture={handleViewportPointerEndCapture}
-                  onPointerCancelCapture={handleViewportPointerEndCapture}
-                >
-                  {activeSeat ? (
-                    renderSeat(
-                      activeSeat,
-                      activeSeat.player.id,
-                      "portrait-viewport",
-                      setIsPortraitCommanderDrawerOpen,
-                    )
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
-                      Empty Seat
-                    </div>
-                  )}
-                </div>
-                <Sidenav
-                  orientation="horizontal"
-                  onCreateToken={() => setIsTokenModalOpen(true)}
-                  onOpenCoinFlipper={handleOpenCoinFlipper}
-                  onOpenDiceRoller={handleOpenDiceRoller}
-                  onToggleLog={() => setIsLogOpen(!isLogOpen)}
-                  isLogOpen={isLogOpen}
-                  onOpenShareDialog={() => setIsShareDialogOpen(true)}
-                  onLeaveGame={handleLeave}
-                  onOpenShortcuts={() => setIsShortcutsOpen(true)}
-                  syncStatus={syncStatus}
-                  peerCounts={peerCounts}
-                  isSpectator={viewerRole === "spectator"}
-                  shareLinksReady={shareLinksReady}
-                />
-              </div>
-              {indicatorSeats.length > 0 && !hasActiveOverlayUi && (
-                <div
-                  className={`pointer-events-none absolute inset-x-0 z-[62] flex justify-center ${
-                    isPortraitCommanderDrawerOpen
-                      ? "bottom-[0.4rem]"
-                      : "bottom-[calc(var(--mobile-sidenav-h)+0.5rem)]"
-                  }`}
-                >
+            <div className="grid h-full w-full grid-rows-[minmax(0,1fr)_auto]">
+              <div
+                className="relative min-h-0 overflow-hidden overscroll-none"
+                style={{ ["--mobile-sidenav-h" as string]: "3.75rem" }}
+              >
+                <div className="grid h-full w-full grid-rows-[minmax(0,1fr)_var(--mobile-sidenav-h)]">
                   <div
-                    className={
-                      isTwoSeatIndicator
-                        ? "flex flex-col items-center gap-1.5 rounded-full border border-zinc-700/70 bg-zinc-950/80 px-2 py-2"
-                        : "flex flex-row items-center gap-2 rounded-full border border-zinc-700/70 bg-zinc-950/80 px-3 py-2"
-                    }
+                    className="relative min-h-0 overflow-hidden overscroll-none"
+                    onPointerDownCapture={handleViewportPointerDownCapture}
+                    onPointerUpCapture={handleViewportPointerEndCapture}
+                    onPointerCancelCapture={handleViewportPointerEndCapture}
                   >
-                    {indicatorSeats.map((slot) => {
-                      const isActive = slot.player.id === activeSeat?.player.id;
-                      const seatColorClass = SEAT_COLOR_CLASS[slot.color];
-                      return (
-                        <span
-                          key={slot.player.id}
-                          className={[
-                            "block h-2.5 w-2.5 rounded-full border border-white/30",
-                            isActive ? seatColorClass ?? "bg-white" : "bg-white",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                          style={
-                            isActive && !seatColorClass
-                              ? { backgroundColor: slot.color }
-                              : undefined
-                          }
-                        />
-                      );
-                    })}
+                    {activeSeat ? (
+                      renderSeat(
+                        activeSeat,
+                        activeSeat.player.id,
+                        "portrait-viewport",
+                        setIsPortraitCommanderDrawerOpen,
+                      )
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-800 font-bold text-2xl uppercase tracking-widest select-none">
+                        Empty Seat
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
-              <div className="pointer-events-none absolute inset-y-0 right-0 z-[65] flex">
-                <div className="pointer-events-auto h-full">
-                  <LogDrawer
-                    isOpen={isLogOpen}
-                    onClose={() => setIsLogOpen(false)}
-                    playerColors={playerColors}
+                  <Sidenav
+                    orientation="horizontal"
+                    onCreateToken={() => setIsTokenModalOpen(true)}
+                    onOpenCoinFlipper={handleOpenCoinFlipper}
+                    onOpenDiceRoller={handleOpenDiceRoller}
+                    onToggleLog={() => setIsLogOpen(!isLogOpen)}
+                    isLogOpen={isLogOpen}
+                    onOpenShareDialog={() => setIsShareDialogOpen(true)}
+                    onLeaveGame={handleLeave}
+                    onOpenShortcuts={() => setIsShortcutsOpen(true)}
+                    syncStatus={syncStatus}
+                    peerCounts={peerCounts}
+                    isSpectator={viewerRole === "spectator"}
+                    shareLinksReady={shareLinksReady}
                   />
                 </div>
+                {indicatorSeats.length > 0 && !hasActiveOverlayUi && (
+                  <div
+                    className={`pointer-events-none absolute inset-x-0 z-[62] flex justify-center ${
+                      isPortraitCommanderDrawerOpen
+                        ? "bottom-[0.4rem]"
+                        : "bottom-[calc(var(--mobile-sidenav-h)+0.5rem)]"
+                    }`}
+                  >
+                    <div
+                      className={
+                        isTwoSeatIndicator
+                          ? "flex flex-col items-center gap-1.5 rounded-full border border-zinc-700/70 bg-zinc-950/80 px-2 py-2"
+                          : "flex flex-row items-center gap-2 rounded-full border border-zinc-700/70 bg-zinc-950/80 px-3 py-2"
+                      }
+                    >
+                      {indicatorSeats.map((slot) => {
+                        const isActive = slot.player.id === activeSeat?.player.id;
+                        const seatColorClass = SEAT_COLOR_CLASS[slot.color];
+                        return (
+                          <span
+                            key={slot.player.id}
+                            className={[
+                              "block h-2.5 w-2.5 rounded-full border border-white/30",
+                              isActive ? seatColorClass ?? "bg-white" : "bg-white",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            style={
+                              isActive && !seatColorClass
+                                ? { backgroundColor: slot.color }
+                                : undefined
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
+              <LogDrawer
+                layout="stacked"
+                isOpen={isLogOpen}
+                onClose={() => setIsLogOpen(false)}
+                playerColors={playerColors}
+              />
             </div>
           ) : (
             <div className="grid h-full w-full grid-cols-[var(--sidenav-w)_minmax(0,1fr)_auto]">

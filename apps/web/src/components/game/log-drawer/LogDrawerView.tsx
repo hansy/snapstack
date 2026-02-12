@@ -14,7 +14,13 @@ import {
   resolveLogCardDisplayName,
 } from "@/models/game/log-drawer/logDrawerModel";
 
-export const LogDrawerView: React.FC<LogDrawerController> = ({
+type LogDrawerLayout = "sidebar" | "stacked";
+
+type LogDrawerViewProps = LogDrawerController & {
+  layout?: LogDrawerLayout;
+};
+
+export const LogDrawerView: React.FC<LogDrawerViewProps> = ({
   isOpen,
   handleClose,
   playerColors,
@@ -22,14 +28,21 @@ export const LogDrawerView: React.FC<LogDrawerController> = ({
   selfPlayerId,
   logContext,
   scrollRef,
+  layout = "sidebar",
 }) => {
+  const isStacked = layout === "stacked";
+
   return (
     <aside
       className={cn(
-        "h-full bg-zinc-950/70 transition-[width,opacity,transform] duration-300 ease-in-out flex flex-col shadow-2xl backdrop-blur-md overflow-hidden shrink-0",
-        isOpen
-          ? "w-50 lg:w-[var(--log-w)] opacity-100 translate-x-0 pointer-events-auto border-l border-zinc-800"
-          : "w-0 opacity-0 translate-x-2 pointer-events-none"
+        "bg-zinc-950/70 transition-[width,height,opacity,transform,border-color] duration-300 ease-in-out flex flex-col shadow-2xl backdrop-blur-md overflow-hidden shrink-0",
+        isStacked
+          ? isOpen
+            ? "w-full h-[min(40dvh,22rem)] opacity-100 translate-y-0 pointer-events-auto border-t border-zinc-800"
+            : "w-full h-0 opacity-0 translate-y-2 pointer-events-none border-t border-transparent"
+          : isOpen
+            ? "h-full w-50 lg:w-[var(--log-w)] opacity-100 translate-x-0 pointer-events-auto border-l border-zinc-800"
+            : "h-full w-0 opacity-0 translate-x-2 pointer-events-none border-l border-transparent"
       )}
     >
       <div className="flex items-center justify-between p-4 border-b border-zinc-800/50 bg-zinc-900/50">
