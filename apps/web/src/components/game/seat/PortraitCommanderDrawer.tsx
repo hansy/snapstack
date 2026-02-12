@@ -77,35 +77,38 @@ export const PortraitCommanderDrawer: React.FC<PortraitCommanderDrawerProps> = (
                       />
                       <div className="pointer-events-auto absolute bottom-0 left-1/2 z-40 flex w-[var(--cmdr-slot-w)] -translate-x-1/2 translate-y-[35%] justify-center">
                         <div className="flex items-center gap-1 rounded-full border border-zinc-600 bg-zinc-950/90 px-1 py-1 shadow-lg">
-                          <button
-                            type="button"
-                            aria-label={`Decrease commander tax for ${card.name}`}
-                            onClick={() => handleTaxDelta(card, -2)}
-                            disabled={!isOwner || taxValue <= 0}
-                            className={cn(
-                              "h-6 w-6 rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300",
-                              "flex items-center justify-center hover:bg-zinc-800",
-                              "disabled:cursor-not-allowed disabled:opacity-40",
-                            )}
-                          >
-                            <Minus size={12} />
-                          </button>
+                          {isOwner && (
+                            <button
+                              type="button"
+                              aria-label={`Decrease commander tax for ${card.name}`}
+                              onClick={() => handleTaxDelta(card, -2)}
+                              disabled={taxValue <= 0}
+                              className={cn(
+                                "h-6 w-6 rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300",
+                                "flex items-center justify-center hover:bg-zinc-800",
+                                "disabled:cursor-not-allowed disabled:opacity-40",
+                              )}
+                            >
+                              <Minus size={12} />
+                            </button>
+                          )}
                           <div className="flex h-6 min-w-[2rem] items-center justify-center rounded-full border border-zinc-600 bg-zinc-950 px-2 text-center text-xs font-semibold text-zinc-100">
                             {taxValue}
                           </div>
-                          <button
-                            type="button"
-                            aria-label={`Increase commander tax for ${card.name}`}
-                            onClick={() => handleTaxDelta(card, 2)}
-                            disabled={!isOwner}
-                            className={cn(
-                              "h-6 w-6 rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300",
-                              "flex items-center justify-center hover:bg-zinc-800",
-                              "disabled:cursor-not-allowed disabled:opacity-40",
-                            )}
-                          >
-                            <Plus size={12} />
-                          </button>
+                          {isOwner && (
+                            <button
+                              type="button"
+                              aria-label={`Increase commander tax for ${card.name}`}
+                              onClick={() => handleTaxDelta(card, 2)}
+                              className={cn(
+                                "h-6 w-6 rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300",
+                                "flex items-center justify-center hover:bg-zinc-800",
+                                "disabled:cursor-not-allowed disabled:opacity-40",
+                              )}
+                            >
+                              <Plus size={12} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -115,7 +118,7 @@ export const PortraitCommanderDrawer: React.FC<PortraitCommanderDrawerProps> = (
             </div>
           ) : (
             <div className="flex h-full items-center justify-center rounded-md border border-dashed border-zinc-700/70 px-4 text-center text-xs uppercase tracking-wider text-zinc-500">
-              Drop cards here
+              {isOwner ? "Drop cards here" : "Cmdr"}
             </div>
           )}
         </Zone>

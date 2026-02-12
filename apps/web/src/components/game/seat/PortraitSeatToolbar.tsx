@@ -33,6 +33,7 @@ interface PortraitSeatToolbarProps {
   onOpponentLibraryReveals?: (zoneId: ZoneId) => void;
   onZoneContextMenu?: (e: React.MouseEvent, zoneId: ZoneId) => void;
   onLoadDeck?: () => void;
+  showLoadLibraryAction?: boolean;
 }
 
 const TOUCH_CONTEXT_MENU_LONG_PRESS_MS = 500;
@@ -362,27 +363,35 @@ const MobileLifeDialog: React.FC<{
 
         <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
           <div className="flex items-center justify-center gap-4">
-            <button
-              type="button"
-              aria-label="Decrease life"
-              onClick={() => handleLifeChange(-1)}
-              disabled={!canEditLife || player.life <= MIN_PLAYER_LIFE}
-              className="h-9 w-9 rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              <Minus size={16} />
-            </button>
+            {canEditLife ? (
+              <button
+                type="button"
+                aria-label="Decrease life"
+                onClick={() => handleLifeChange(-1)}
+                disabled={player.life <= MIN_PLAYER_LIFE}
+                className="h-9 w-9 rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                <Minus size={16} />
+              </button>
+            ) : (
+              <div className="h-9 w-9" />
+            )}
             <div className="min-w-[5rem] text-center text-3xl font-mono font-bold">
               {player.life}
             </div>
-            <button
-              type="button"
-              aria-label="Increase life"
-              onClick={() => handleLifeChange(1)}
-              disabled={!canEditLife || player.life >= MAX_PLAYER_LIFE}
-              className="h-9 w-9 rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              <Plus size={16} />
-            </button>
+            {canEditLife ? (
+              <button
+                type="button"
+                aria-label="Increase life"
+                onClick={() => handleLifeChange(1)}
+                disabled={player.life >= MAX_PLAYER_LIFE}
+                className="h-9 w-9 rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                <Plus size={16} />
+              </button>
+            ) : (
+              <div className="h-9 w-9" />
+            )}
           </div>
         </div>
 
@@ -408,31 +417,38 @@ const MobileLifeDialog: React.FC<{
                     >
                       {sourceName}
                     </div>
-                    <button
-                      type="button"
-                      aria-label={`Decrease commander damage from ${sourceName}`}
-                      onClick={() =>
-                        handleCommanderDamageChange(entry.opponentId, -1)
-                      }
-                      disabled={!canEditCommanderDamage || entry.damage <= 0}
-                      className="h-7 w-7 rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-                    >
-                      <Minus size={13} />
-                    </button>
+                    {canEditCommanderDamage ? (
+                      <button
+                        type="button"
+                        aria-label={`Decrease commander damage from ${sourceName}`}
+                        onClick={() =>
+                          handleCommanderDamageChange(entry.opponentId, -1)
+                        }
+                        disabled={entry.damage <= 0}
+                        className="h-7 w-7 rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+                      >
+                        <Minus size={13} />
+                      </button>
+                    ) : (
+                      <div className="h-7 w-7" />
+                    )}
                     <div className="min-w-[2rem] text-center font-mono text-lg">
                       {entry.damage}
                     </div>
-                    <button
-                      type="button"
-                      aria-label={`Increase commander damage from ${sourceName}`}
-                      onClick={() =>
-                        handleCommanderDamageChange(entry.opponentId, 1)
-                      }
-                      disabled={!canEditCommanderDamage}
-                      className="h-7 w-7 rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-                    >
-                      <Plus size={13} />
-                    </button>
+                    {canEditCommanderDamage ? (
+                      <button
+                        type="button"
+                        aria-label={`Increase commander damage from ${sourceName}`}
+                        onClick={() =>
+                          handleCommanderDamageChange(entry.opponentId, 1)
+                        }
+                        className="h-7 w-7 rounded-full border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+                      >
+                        <Plus size={13} />
+                      </button>
+                    ) : (
+                      <div className="h-7 w-7" />
+                    )}
                   </div>
                 );
               })}
@@ -460,9 +476,9 @@ export const PortraitSeatToolbar: React.FC<PortraitSeatToolbarProps> = ({
   onOpponentLibraryReveals,
   onZoneContextMenu,
   onLoadDeck,
+  showLoadLibraryAction = false,
 }) => {
   const [lifeDialogOpen, setLifeDialogOpen] = React.useState(false);
-  const isLibraryLoaded = Boolean(player.deckLoaded);
   const lastLibraryTapRef = React.useRef<{
     timestamp: number;
     x: number;
@@ -530,7 +546,7 @@ export const PortraitSeatToolbar: React.FC<PortraitSeatToolbarProps> = ({
             onClick={() => setLifeDialogOpen(true)}
           />
 
-          {isLibraryLoaded ? (
+          {!showLoadLibraryAction ? (
             <div className="grid h-full grid-cols-3 gap-2">
               <ZoneButton
                 icon={<Layers size={15} />}
@@ -585,7 +601,7 @@ export const PortraitSeatToolbar: React.FC<PortraitSeatToolbarProps> = ({
             <button
               type="button"
               onClick={onLoadDeck}
-              disabled={!isMe || !onLoadDeck}
+              disabled={!onLoadDeck}
               data-no-seat-swipe="true"
               aria-label="Load Library"
               className={cn(

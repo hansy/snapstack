@@ -343,7 +343,7 @@ const MobileGroupedRow: React.FC<MobileGroupedRowProps> = ({
       </h3>
       <div
         ref={setScrollNode}
-        className="flex min-h-0 items-center overflow-x-auto touch-pan-x snap-x snap-mandatory overscroll-x-contain scroll-smooth"
+        className="flex min-h-0 items-center overflow-x-auto touch-auto snap-x snap-mandatory overscroll-x-contain scroll-smooth"
         onScroll={scheduleCenteredUpdate}
         style={{
           pointerEvents: interactionsDisabled ? "none" : "auto",

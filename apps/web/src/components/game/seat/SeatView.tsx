@@ -140,6 +140,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
     inverseScalePercent,
     opponentLibraryRevealCount,
   } = model;
+  const showLoadDeckAction = Boolean(isMe && onLoadDeck && !player.deckLoaded);
   const { hand, library, graveyard, exile, battlefield, commander } =
     model.zones;
   const {
@@ -261,6 +262,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
             onOpponentLibraryReveals={onOpponentLibraryReveals}
             onZoneContextMenu={onZoneContextMenu}
             onLoadDeck={onLoadDeck}
+            showLoadLibraryAction={showLoadDeckAction}
           />
           <div className="relative min-h-0 flex-1 flex flex-col bg-zinc-900/55 backdrop-blur-sm border-t border-white/10 overflow-hidden">
             <div className="h-8 shrink-0 px-2 flex items-center justify-between border-b border-zinc-800/70 bg-zinc-900/70">
@@ -432,7 +434,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
                     : undefined
                 }
                 emptyContent={
-                  isMe && onLoadDeck && !player.deckLoaded ? (
+                  showLoadDeckAction ? (
                     <Button
                       variant="ghost"
                       size="sm"

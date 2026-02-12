@@ -313,6 +313,12 @@ describe("ZoneViewer touch gestures", () => {
 
     const root = container.firstElementChild as HTMLElement | null;
     expect(root?.className).toContain("overflow-y-auto");
+    const groupedRow = container.querySelector(
+      ".overflow-x-auto"
+    ) as HTMLElement | null;
+    expect(groupedRow).not.toBeNull();
+    expect(groupedRow?.className).toContain("touch-auto");
+    expect(groupedRow?.className).not.toContain("touch-pan-x");
 
     const landNode = container.querySelector('[data-zone-viewer-card-id="l1"]');
     const spellNode = container.querySelector('[data-zone-viewer-card-id="s1"]');
