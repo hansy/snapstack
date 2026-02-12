@@ -606,7 +606,7 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                 </div>
                 {indicatorSeats.length > 0 && !hasActiveOverlayUi && (
                   <div
-                    className={`pointer-events-none absolute inset-x-0 z-[62] flex justify-center ${
+                    className={`absolute inset-x-0 z-[62] flex justify-center ${
                       isPortraitCommanderDrawerOpen
                         ? "bottom-[0.4rem]"
                         : "bottom-[calc(var(--mobile-sidenav-h)+0.5rem)]"
@@ -622,20 +622,24 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                       {indicatorSeats.map((slot) => {
                         const isActive = slot.player.id === activeSeat?.player.id;
                         const seatColorClass = SEAT_COLOR_CLASS[slot.color];
+                        const fallbackColorStyle = !seatColorClass
+                          ? { backgroundColor: slot.color }
+                          : undefined;
                         return (
-                          <span
+                          <button
+                            type="button"
                             key={slot.player.id}
+                            aria-label={`Switch to ${slot.player.name}'s seat`}
+                            disabled={isActive}
+                            onClick={() => setActiveSeatPlayerId(slot.player.id)}
                             className={[
-                              "block h-2.5 w-2.5 rounded-full border border-white/30",
-                              isActive ? seatColorClass ?? "bg-white" : "bg-white",
+                              "block h-2.5 w-2.5 rounded-full border border-white/30 p-0 transition-opacity",
+                              seatColorClass ?? "bg-white",
+                              isActive ? "cursor-default opacity-100" : "cursor-pointer opacity-35",
                             ]
                               .filter(Boolean)
                               .join(" ")}
-                            style={
-                              isActive && !seatColorClass
-                                ? { backgroundColor: slot.color }
-                                : undefined
-                            }
+                            style={fallbackColorStyle}
                           />
                         );
                       })}
