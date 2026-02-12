@@ -9,6 +9,7 @@ import { ZoneViewerModalHeader } from "./ZoneViewerModalHeader";
 import { ZoneViewerGroupedView } from "./ZoneViewerGroupedView";
 import { ZoneViewerLinearView } from "./ZoneViewerLinearView";
 import { useTwoFingerScroll } from "@/hooks/shared/useTwoFingerScroll";
+import { cn } from "@/lib/utils";
 
 export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
   isOpen,
@@ -42,12 +43,33 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
   const baseCardWidthPx = useGameStore((state) =>
     zone ? state.battlefieldGridSizing[zone.ownerId]?.baseCardWidthPx : undefined
   );
+  const [isCoarsePointer, setIsCoarsePointer] = React.useState(false);
   const { previewWidthPx, previewHeightPx } = React.useMemo(
     () => getPreviewDimensions(baseCardWidthPx),
     [baseCardWidthPx]
   );
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mediaQuery = window.matchMedia("(pointer: coarse)");
+    const update = () => setIsCoarsePointer(mediaQuery.matches);
+    update();
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", update);
+      return () => mediaQuery.removeEventListener("change", update);
+    }
+    mediaQuery.addListener(update);
+    return () => mediaQuery.removeListener(update);
+  }, []);
+
+  const enableLinearCoverFlow = viewMode === "linear" && isCoarsePointer;
+  const enableGroupedCoverFlow = viewMode === "grouped" && isCoarsePointer;
+  const enableMobileCoverFlow = enableLinearCoverFlow || enableGroupedCoverFlow;
   const [scrollNode, setScrollNode] = React.useState<HTMLDivElement | null>(null);
-  useTwoFingerScroll({ target: scrollNode, axis: "x" });
+  useTwoFingerScroll({
+    target: scrollNode,
+    axis: "x",
+    enabled: !enableMobileCoverFlow,
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -69,7 +91,13 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
 
           <div
             ref={setScrollNode}
-            className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-4 pb-4 pt-3 lg:px-6 lg:pb-6 lg:pt-4 bg-zinc-950/50 touch-none"
+            className={cn(
+              "flex-1 min-h-0 px-4 pb-4 pt-3 lg:px-6 lg:pb-6 lg:pt-4 bg-zinc-950/50",
+              enableGroupedCoverFlow
+                ? "overflow-y-auto overflow-x-hidden touch-pan-y"
+                : "overflow-x-auto overflow-y-hidden",
+              enableLinearCoverFlow ? "touch-pan-x" : !enableGroupedCoverFlow && "touch-none"
+            )}
           >
             {displayCards.length === 0 ? (
               <div className="h-full flex items-center justify-center text-zinc-500">
@@ -84,6 +112,7 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
                 interactionsDisabled={interactionsDisabled}
                 pinnedCardId={pinnedCardId}
                 onCardContextMenu={handleContextMenu}
+                mobileCoverFlow={enableGroupedCoverFlow}
               />
             ) : (
               // Linear View
@@ -103,6 +132,7 @@ export const ZoneViewerModalView: React.FC<ZoneViewerController> = ({
                 listRef={listRef}
                 cardWidthPx={previewWidthPx}
                 cardHeightPx={previewHeightPx}
+                mobileCoverFlow={enableLinearCoverFlow}
               />
             )}
           </div>

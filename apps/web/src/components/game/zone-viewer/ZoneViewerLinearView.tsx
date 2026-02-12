@@ -5,6 +5,7 @@ import type { Card } from "@/types";
 import { cn } from "@/lib/utils";
 import { CardView } from "../card/Card";
 import { useTwoFingerScroll } from "@/hooks/shared/useTwoFingerScroll";
+import { getCoverFlowVisuals, useHorizontalCoverFlow } from "./coverFlow";
 
 const TOUCH_CONTEXT_MENU_LONG_PRESS_MS = 500;
 const TOUCH_MOVE_TOLERANCE_PX = 10;
@@ -42,6 +43,7 @@ export interface ZoneViewerLinearViewProps {
   listRef: React.RefObject<HTMLDivElement | null>;
   cardWidthPx: number;
   cardHeightPx: number;
+  mobileCoverFlow?: boolean;
 }
 
 export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
@@ -60,15 +62,17 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
   listRef,
   cardWidthPx,
   cardHeightPx,
+  mobileCoverFlow = false,
 }) => {
   const renderCards = React.useMemo(() => [...orderedCards].reverse(), [orderedCards]);
   const cardsById = React.useMemo(
     () => new Map(renderCards.map((card) => [card.id, card])),
     [renderCards]
   );
+  const touchReorderEnabled = canReorder && !mobileCoverFlow;
   const [hoveredId, setHoveredId] = React.useState<string | null>(null);
   const [scrollNode, setScrollNode] = React.useState<HTMLDivElement | null>(null);
-  useTwoFingerScroll({ target: scrollNode, axis: "x" });
+  useTwoFingerScroll({ target: scrollNode, axis: "x", enabled: !mobileCoverFlow });
   const latestOrderRef = React.useRef<string[]>([]);
   const touchPointsRef = React.useRef<Map<number, TouchPointState>>(new Map());
   const touchHoldTimeoutRef = React.useRef<ReturnType<
@@ -77,6 +81,20 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
   const touchHoldPointerIdRef = React.useRef<number | null>(null);
   const touchDragRef = React.useRef<TouchDragState | null>(null);
   const touchContextMenuTriggeredRef = React.useRef(false);
+  const coverFlowItemIds = React.useMemo(
+    () => renderCards.map((card) => card.id),
+    [renderCards]
+  );
+  const {
+    centeredId,
+    setCenteredId,
+    setItemNode,
+    scheduleCenteredUpdate,
+  } = useHorizontalCoverFlow({
+    enabled: mobileCoverFlow,
+    itemIds: coverFlowItemIds,
+    scrollNode,
+  });
 
   React.useEffect(() => {
     latestOrderRef.current = orderedCardIds.length
@@ -156,10 +174,12 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
       if (interactionsDisabled) return;
       if (event.button !== 0) return;
 
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        // Ignore capture failures on unsupported environments.
+      if (!mobileCoverFlow) {
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {
+          // Ignore capture failures on unsupported environments.
+        }
       }
 
       touchPointsRef.current.set(event.pointerId, {
@@ -175,7 +195,7 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
       const pointCount = touchPointsRef.current.size;
       if (pointCount === 1) {
         touchContextMenuTriggeredRef.current = false;
-        touchDragRef.current = canReorder
+        touchDragRef.current = touchReorderEnabled
           ? {
               pointerId: event.pointerId,
               draggedCardId: card.id,
@@ -189,7 +209,14 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
         cancelTouchHold();
       }
     },
-    [beginTouchHold, canReorder, cancelTouchHold, interactionsDisabled, setDraggingId]
+    [
+      beginTouchHold,
+      cancelTouchHold,
+      interactionsDisabled,
+      mobileCoverFlow,
+      setDraggingId,
+      touchReorderEnabled,
+    ]
   );
 
   const handleTouchPointerMove = React.useCallback(
@@ -219,7 +246,7 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
       if (!drag) return;
       if (drag.pointerId !== event.pointerId) return;
       if (touchPointsRef.current.size !== 1) return;
-      if (!canReorder || touchContextMenuTriggeredRef.current) return;
+      if (!touchReorderEnabled || touchContextMenuTriggeredRef.current) return;
 
       if (!drag.started) {
         const movement = Math.hypot(point.x - point.startX, point.y - point.startY);
@@ -242,7 +269,7 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
       if (overCardId === drag.draggedCardId) return;
       reorderFromTouch(drag.draggedCardId, overCardId);
     },
-    [canReorder, cancelTouchHold, reorderFromTouch, setDraggingId]
+    [cancelTouchHold, reorderFromTouch, setDraggingId, touchReorderEnabled]
   );
 
   const finishTouchPointer = React.useCallback(
@@ -275,11 +302,19 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
         }
       }
 
+      if (
+        mobileCoverFlow &&
+        !point.moved &&
+        !touchContextMenuTriggeredRef.current
+      ) {
+        setCenteredId(point.cardId);
+      }
+
       if (touchPointsRef.current.size === 0) {
         touchContextMenuTriggeredRef.current = false;
       }
     },
-    [cancelTouchHold, commitReorder, setDraggingId]
+    [cancelTouchHold, commitReorder, mobileCoverFlow, setDraggingId]
   );
 
   React.useEffect(() => {
@@ -289,10 +324,16 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
       touchDragRef.current = null;
     };
   }, [cancelTouchHold]);
+
+  const activeCardId =
+    mobileCoverFlow
+      ? centeredId ?? renderCards[0]?.id ?? null
+      : hoveredId;
   const hoveredIndex = React.useMemo(() => {
-    if (!hoveredId) return -1;
-    return renderCards.findIndex((card) => card.id === hoveredId);
-  }, [hoveredId, renderCards]);
+    if (!activeCardId) return -1;
+    return renderCards.findIndex((card) => card.id === activeCardId);
+  }, [activeCardId, renderCards]);
+
   const setListRef = React.useCallback(
     (node: HTMLDivElement | null) => {
       (listRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
@@ -305,27 +346,52 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
   const slotWidthPx = Math.max(50, Math.round(effectiveCardWidthPx * 0.28));
   const maxSpreadPx = Math.round(effectiveCardWidthPx * 0.5);
   const decayPx = Math.max(8, Math.round(effectiveCardWidthPx * 0.07));
+  const mobileTopBottomPaddingPx = Math.max(40, Math.round(effectiveCardHeightPx * 0.12));
 
   return (
     <div
       ref={setListRef}
-      className="flex items-center overflow-x-auto px-24 py-8 touch-none"
-      style={{ pointerEvents: interactionsDisabled ? "none" : "auto" }}
+      className={cn(
+        "flex h-full min-h-0 items-center overflow-x-auto",
+        mobileCoverFlow
+          ? "touch-pan-x snap-x snap-mandatory overscroll-x-contain scroll-smooth"
+          : "px-24 py-8 touch-none"
+      )}
+      onScroll={mobileCoverFlow ? scheduleCenteredUpdate : undefined}
+      style={{
+        pointerEvents: interactionsDisabled ? "none" : "auto",
+        WebkitOverflowScrolling: "touch",
+        paddingLeft: mobileCoverFlow ? `calc(50% - ${Math.round(slotWidthPx / 2)}px)` : undefined,
+        paddingRight: mobileCoverFlow
+          ? `calc(50% - ${Math.round(slotWidthPx / 2)}px)`
+          : undefined,
+        paddingTop: mobileCoverFlow ? `${mobileTopBottomPaddingPx}px` : undefined,
+        paddingBottom: mobileCoverFlow ? `${mobileTopBottomPaddingPx}px` : undefined,
+      }}
     >
       {renderCards.map((card, index) => {
         const isPinned = pinnedCardId === card.id;
         const isDragging = draggingId === card.id;
-        const isHovered = hoveredId === card.id;
+        const isHovered = activeCardId === card.id;
         const distance = hoveredIndex < 0 ? -1 : Math.abs(index - hoveredIndex);
-        const offset = (() => {
-          if (hoveredIndex < 0) return 0;
-          if (distance === 0) return 0;
-          const direction = index < hoveredIndex ? -1 : 1;
-          const magnitude = Math.max(0, maxSpreadPx - (distance - 1) * decayPx);
-          return direction * magnitude;
-        })();
-        const scale = isPinned ? 1.1 : isHovered ? 1.08 : 1;
+        const offset = mobileCoverFlow
+          ? 0
+          : (() => {
+              if (hoveredIndex < 0) return 0;
+              if (distance === 0) return 0;
+              const direction = index < hoveredIndex ? -1 : 1;
+              const magnitude = Math.max(0, maxSpreadPx - (distance - 1) * decayPx);
+              return direction * magnitude;
+            })();
+        const visuals = getCoverFlowVisuals({
+          isFocused: isHovered,
+          distance,
+          isPinned,
+          cardHeightPx: effectiveCardHeightPx,
+        });
+        const scale = mobileCoverFlow ? visuals.scale : isPinned ? 1.1 : isHovered ? 1.08 : 1;
         const zIndex = (() => {
+          if (mobileCoverFlow) return visuals.zIndex;
           if (isPinned) return 300;
           if (isHovered) return 200;
           if (hoveredIndex < 0) return renderCards.length - index;
@@ -334,11 +400,13 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
         return (
           <div
             key={card.id}
+            ref={(node) => setItemNode(card.id, node)}
             data-zone-viewer-card-id={card.id}
-            draggable={canReorder}
-            onDragStart={() => canReorder && setDraggingId(card.id)}
+            data-zone-viewer-focused={isHovered ? "true" : "false"}
+            draggable={canReorder && !mobileCoverFlow}
+            onDragStart={() => canReorder && !mobileCoverFlow && setDraggingId(card.id)}
             onDragEnter={(e) => {
-              if (!canReorder || !draggingId) return;
+              if (!canReorder || mobileCoverFlow || !draggingId) return;
               e.preventDefault();
               setOrderedCardIds((ids) => {
                 const source = ids.length ? ids : displayCards.map((c) => c.id);
@@ -347,14 +415,16 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
                 return reordered.reverse();
               });
             }}
-            onDragOver={canReorder ? (e) => e.preventDefault() : undefined}
+            onDragOver={
+              canReorder && !mobileCoverFlow ? (e) => e.preventDefault() : undefined
+            }
             onDragEnd={() => {
-              if (!canReorder || !draggingId) return;
+              if (!canReorder || mobileCoverFlow || !draggingId) return;
               commitReorder(orderedCardIds.length ? orderedCardIds : displayCards.map((c) => c.id));
               setDraggingId(null);
             }}
             onDrop={(e) => {
-              if (!canReorder) return;
+              if (!canReorder || mobileCoverFlow) return;
               e.preventDefault();
             }}
             onMouseEnter={() => setHoveredId(card.id)}
@@ -371,13 +441,20 @@ export const ZoneViewerLinearView: React.FC<ZoneViewerLinearViewProps> = ({
             )}
             style={{
               width: slotWidthPx,
-              transform: `translateX(${offset}px) scale(${scale})`,
+              transform: `translateX(${offset}px) translateY(${
+                mobileCoverFlow ? visuals.liftPx : 0
+              }px) scale(${scale})`,
               zIndex,
-              opacity: isDragging ? 0.5 : 1,
+              opacity: isDragging ? 0.5 : mobileCoverFlow ? visuals.opacity : 1,
+              scrollSnapAlign: mobileCoverFlow ? "center" : undefined,
+              scrollSnapStop: mobileCoverFlow ? "always" : undefined,
             }}
           >
             <div
-              className="relative"
+              className={cn(
+                "relative transition-all duration-200 ease-out",
+                mobileCoverFlow && isHovered && "drop-shadow-[0_14px_28px_rgba(99,102,241,0.5)]"
+              )}
               style={{ width: effectiveCardWidthPx, height: effectiveCardHeightPx }}
             >
               {index === 0 && (

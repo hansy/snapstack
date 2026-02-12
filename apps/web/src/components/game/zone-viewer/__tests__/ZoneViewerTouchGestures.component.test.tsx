@@ -259,4 +259,65 @@ describe("ZoneViewer touch gestures", () => {
       }
     }
   });
+
+  it("uses center-focused cover-flow styling in mobile linear mode", () => {
+    const cards = [
+      buildCard("c1", "Card 1", "zone-1"),
+      buildCard("c2", "Card 2", "zone-1"),
+      buildCard("c3", "Card 3", "zone-1"),
+    ];
+
+    const { container } = render(
+      <ZoneViewerLinearView
+        orderedCards={cards}
+        canReorder
+        orderedCardIds={cards.map((card) => card.id)}
+        setOrderedCardIds={vi.fn() as any}
+        draggingId={null}
+        setDraggingId={vi.fn() as any}
+        reorderList={reorderList}
+        commitReorder={vi.fn()}
+        displayCards={cards}
+        interactionsDisabled={false}
+        pinnedCardId={undefined}
+        onCardContextMenu={vi.fn()}
+        listRef={React.createRef<HTMLDivElement>()}
+        cardWidthPx={220}
+        cardHeightPx={308}
+        mobileCoverFlow
+      />
+    );
+
+    const topCard = container.querySelector('[data-zone-viewer-card-id="c3"]');
+    if (!topCard) throw new Error("Expected top card node");
+    expect(topCard.getAttribute("data-zone-viewer-focused")).toBe("true");
+    expect(container.firstElementChild?.className).toContain("snap-x");
+  });
+
+  it("uses vertical grouped layout with per-row cover-flow on mobile", () => {
+    const land = buildCard("l1", "Land", "zone-1");
+    const spell = buildCard("s1", "Spell", "zone-1");
+
+    const { container } = render(
+      <ZoneViewerGroupedView
+        sortedKeys={["Lands", "Cost 1"]}
+        groupedCards={{ Lands: [land], "Cost 1": [spell] }}
+        cardWidthPx={220}
+        cardHeightPx={308}
+        interactionsDisabled={false}
+        pinnedCardId={undefined}
+        onCardContextMenu={vi.fn()}
+        mobileCoverFlow
+      />
+    );
+
+    const root = container.firstElementChild as HTMLElement | null;
+    expect(root?.className).toContain("overflow-y-auto");
+
+    const landNode = container.querySelector('[data-zone-viewer-card-id="l1"]');
+    const spellNode = container.querySelector('[data-zone-viewer-card-id="s1"]');
+    if (!landNode || !spellNode) throw new Error("Expected grouped mobile card nodes");
+    expect(landNode.getAttribute("data-zone-viewer-focused")).toBe("true");
+    expect(spellNode.getAttribute("data-zone-viewer-focused")).toBe("true");
+  });
 });
