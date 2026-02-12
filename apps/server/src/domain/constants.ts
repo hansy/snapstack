@@ -13,6 +13,7 @@ import {
   isHiddenZoneType,
   isPublicZoneType,
 } from "@mtg/shared/constants/zones";
+import { MAX_COMMANDER_ZONE_CARDS } from "@mtg/shared/constants/limits";
 
 export {
   BASE_CARD_HEIGHT,
@@ -26,6 +27,7 @@ export {
   isCommanderZoneType,
   isHiddenZoneType,
   isPublicZoneType,
+  MAX_COMMANDER_ZONE_CARDS,
 };
 export const MAX_REVEALED_TO = 8;
 

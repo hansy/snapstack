@@ -1,5 +1,6 @@
 import type { Card, Player, Zone, ZoneType } from "../types";
 import { isTokenCard } from "../types";
+import { MAX_COMMANDER_ZONE_CARDS } from "../constants/limits";
 import { LEGACY_COMMAND_ZONE, ZONE, isHiddenZoneType } from "../constants/zones";
 import type { ActorContext, MoveContext, PermissionResult, ViewResult } from "./types";
 
@@ -9,7 +10,6 @@ const normalizeActor = (actor: ActorInput): ActorContext =>
   typeof actor === "string" ? { actorId: actor } : actor;
 
 const isSpectator = (actor: ActorContext) => actor.role === "spectator";
-const MAX_COMMANDER_ZONE_CARDS = 2;
 const isCommanderZoneType = (zoneType: ZoneType | typeof LEGACY_COMMAND_ZONE) =>
   zoneType === ZONE.COMMANDER || zoneType === LEGACY_COMMAND_ZONE;
 
@@ -206,7 +206,7 @@ export function canMoveCard(
     }
     const isEnteringCommanderZone = startZone.id !== destZone.id;
     if (isEnteringCommanderZone && destZone.cardIds.length >= MAX_COMMANDER_ZONE_CARDS) {
-      return deny("Commander zone cannot contain more than 2 cards");
+      return deny(`Commander zone cannot contain more than ${MAX_COMMANDER_ZONE_CARDS} cards`);
     }
   }
 
@@ -266,7 +266,7 @@ export function canAddCard(actor: ActorInput, card: Card, zone: Zone): Permissio
       return deny("Cannot place cards into another player's command zone");
     }
     if (zone.cardIds.length >= MAX_COMMANDER_ZONE_CARDS) {
-      return deny("Commander zone cannot contain more than 2 cards");
+      return deny(`Commander zone cannot contain more than ${MAX_COMMANDER_ZONE_CARDS} cards`);
     }
   }
 

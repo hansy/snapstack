@@ -4,7 +4,7 @@ import * as Y from "yjs";
 import type { Card } from "@mtg/shared/types/cards";
 import type { Player } from "@mtg/shared/types/players";
 import type { Zone } from "@mtg/shared/types/zones";
-import { ZONE } from "../../constants";
+import { MAX_COMMANDER_ZONE_CARDS, ZONE } from "../../constants";
 import { createEmptyHiddenState } from "../../hiddenState";
 import { applyIntentToDoc } from "../applyIntentToDoc";
 import {
@@ -191,6 +191,75 @@ describe("applyIntentToDoc", () => {
     }
     expect(hidden.handOrder.p1).toBeUndefined();
     expect(maps.cards.get("c1")).toBeUndefined();
+  });
+
+  it("ignores stale commander cardIds when adding into commander zone", () => {
+    const doc = createDoc();
+    const maps = getMaps(doc);
+    const hidden = createEmptyHiddenState();
+
+    writePlayer(maps, makePlayer("p1"));
+    writeZone(
+      maps,
+      makeZone(
+        "cmd-p1",
+        ZONE.COMMANDER,
+        "p1",
+        Array.from({ length: MAX_COMMANDER_ZONE_CARDS }, (_value, index) => `stale-${index}`)
+      )
+    );
+
+    const result = applyIntentToDoc(
+      doc,
+      {
+        id: "intent-5b",
+        type: "card.add",
+        payload: {
+          actorId: "p1",
+          card: makeCard("c1", "p1", "cmd-p1", { isCommander: true }),
+        },
+      },
+      hidden
+    );
+
+    expect(result.ok).toBe(true);
+    expect(readZone(maps, "cmd-p1")?.cardIds).toEqual(["c1"]);
+  });
+
+  it("rejects commander overfill in card.add.batch", () => {
+    const doc = createDoc();
+    const maps = getMaps(doc);
+    const hidden = createEmptyHiddenState();
+
+    writePlayer(maps, makePlayer("p1"));
+    writeZone(maps, makeZone("cmd-p1", ZONE.COMMANDER, "p1", ["c0"]));
+    writeCard(maps, makeCard("c0", "p1", "cmd-p1", { isCommander: true }));
+
+    const result = applyIntentToDoc(
+      doc,
+      {
+        id: "intent-5c",
+        type: "card.add.batch",
+        payload: {
+          actorId: "p1",
+          cards: [
+            makeCard("c1", "p1", "cmd-p1", { isCommander: true }),
+            makeCard("c2", "p1", "cmd-p1", { isCommander: true }),
+          ],
+        },
+      },
+      hidden
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe(
+        `Commander zone cannot contain more than ${MAX_COMMANDER_ZONE_CARDS} cards`
+      );
+    }
+    expect(maps.cards.get("c1")).toBeUndefined();
+    expect(maps.cards.get("c2")).toBeUndefined();
+    expect(readZone(maps, "cmd-p1")?.cardIds).toEqual(["c0"]);
   });
 
   it("should redact card names when moving to hidden zones", () => {

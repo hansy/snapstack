@@ -1,7 +1,7 @@
 import type { Card } from "@mtg/shared/types/cards";
 import type { Counter } from "@mtg/shared/types/counters";
 
-import { ZONE, isHiddenZoneType } from "../../constants";
+import { ZONE, isCommanderZoneType, isHiddenZoneType } from "../../constants";
 import {
   applyCardUpdates,
   buildCardIdentity,
@@ -50,29 +50,53 @@ import {
 } from "../validation";
 import type { IntentHandler } from "./types";
 
+type PreparedCardAdd = {
+  card: Card;
+  zoneId: string;
+  isCommanderZone: boolean;
+};
+
+const getLiveCommanderZoneCardIds = (maps: Maps, zoneId: string, cardIds: string[]): string[] =>
+  cardIds.filter((cardId) => {
+    const existing = readCard(maps, cardId);
+    return Boolean(existing && existing.zoneId === zoneId);
+  });
+
 const prepareCardAdd = (
   actorId: string,
   maps: Maps,
-  raw: unknown
-): { card: Card; zoneId: string } | { error: string } => {
+  raw: unknown,
+  opts?: { pendingCommanderAddsByZone?: Map<string, number> }
+): PreparedCardAdd | { error: string } => {
   if (!actorId) return { error: "missing actor" };
   const card = readRecordValue(raw) ? (raw as unknown as Card) : null;
   if (!card || typeof card.id !== "string") return { error: "invalid card" };
   const normalized = normalizeCardForAdd(card);
   const zone = readZone(maps, normalized.zoneId);
   if (!zone) return { error: "zone not found" };
-  const permission = canAddCard(actorId, normalized, zone);
+  const commanderZone = isCommanderZoneType(zone.type);
+  let zoneForPermission = zone;
+  if (commanderZone) {
+    const liveCardIds = getLiveCommanderZoneCardIds(maps, zone.id, zone.cardIds);
+    const pendingAdds = opts?.pendingCommanderAddsByZone?.get(zone.id) ?? 0;
+    const pendingIds = Array.from(
+      { length: pendingAdds },
+      (_value, index) => `pending:commander:${zone.id}:${index}`
+    );
+    zoneForPermission = { ...zone, cardIds: [...liveCardIds, ...pendingIds] };
+  }
+  const permission = canAddCard(actorId, normalized, zoneForPermission);
   if (!permission.allowed) {
     return { error: permission.reason ?? "not permitted" };
   }
-  return { card: normalized, zoneId: zone.id };
+  return { card: normalized, zoneId: zone.id, isCommanderZone: commanderZone };
 };
 
 const applyPreparedCardAdd = (
   actorId: string,
   maps: Maps,
   hidden: HiddenState,
-  prepared: { card: Card; zoneId: string },
+  prepared: PreparedCardAdd,
   pushLogEvent: (eventId: string, payload: Record<string, unknown>) => void,
   markHiddenChanged: (impact?: {
     ownerId?: string;
@@ -120,7 +144,10 @@ const applyPreparedCardAdd = (
     : nextCard;
   writeCard(maps, publicCard);
   if (zone) {
-    const nextIds = placeCardId(zone.cardIds, nextCard.id, "top");
+    const zoneCardIds = prepared.isCommanderZone
+      ? getLiveCommanderZoneCardIds(maps, zone.id, zone.cardIds)
+      : zone.cardIds;
+    const nextIds = placeCardId(zoneCardIds, nextCard.id, "top");
     writeZone(maps, { ...zone, cardIds: nextIds });
   }
   if (enteringFaceDownBattlefield) {
@@ -258,11 +285,20 @@ const handleCardAddBatch: IntentHandler = ({ actorId, maps, hidden, payload, pus
   if (!cardsResult.ok || cardsResult.value.length === 0) {
     return { ok: false, error: "invalid cards" };
   }
-  const prepared: { card: Card; zoneId: string }[] = [];
+  const prepared: PreparedCardAdd[] = [];
+  const pendingCommanderAddsByZone = new Map<string, number>();
   for (const raw of cardsResult.value) {
-    const next = prepareCardAdd(actorId, maps, raw);
+    const next = prepareCardAdd(actorId, maps, raw, {
+      pendingCommanderAddsByZone,
+    });
     if ("error" in next) return { ok: false, error: next.error };
     prepared.push(next);
+    if (next.isCommanderZone) {
+      pendingCommanderAddsByZone.set(
+        next.zoneId,
+        (pendingCommanderAddsByZone.get(next.zoneId) ?? 0) + 1
+      );
+    }
   }
   for (const entry of prepared) {
     const result = applyPreparedCardAdd(actorId, maps, hidden, entry, pushLogEvent, markHiddenChanged);

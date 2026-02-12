@@ -7,7 +7,7 @@ import { clearFaceDownStateForCard, syncLibraryRevealsToAllForPlayer, updatePlay
 import { placeCardId, removeFromArray } from "./lists";
 import { shuffle } from "./random";
 import { findZoneByType } from "./zones";
-import { buildSnapshot, readPlayer, readZone, uniqueStrings, writeCard, writePlayer, writeZone } from "./yjsStore";
+import { buildSnapshot, readCard, readPlayer, readZone, uniqueStrings, writeCard, writePlayer, writeZone } from "./yjsStore";
 import type { HiddenState, Maps } from "./types";
 
 const applyDeckRebuild = (
@@ -274,6 +274,15 @@ export const applyUnloadDeck = (maps: Maps, hidden: HiddenState, playerId: strin
   }
   const sideboardZone = findZoneByType(snapshot.zones, playerId, ZONE.SIDEBOARD);
   if (sideboardZone) writeZone(maps, { ...sideboardZone, cardIds: [] });
+  const commanderZone = findZoneByType(snapshot.zones, playerId, ZONE.COMMANDER);
+  if (commanderZone) {
+    const commanderCurrent = readZone(maps, commanderZone.id) ?? commanderZone;
+    const nextCommanderIds = commanderCurrent.cardIds.filter((cardId) => {
+      const card = readCard(maps, cardId);
+      return Boolean(card && card.zoneId === commanderCurrent.id);
+    });
+    writeZone(maps, { ...commanderCurrent, cardIds: nextCommanderIds });
+  }
 
   const player = readPlayer(maps, playerId);
   if (player) {

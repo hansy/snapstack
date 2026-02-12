@@ -8,6 +8,7 @@
     "./types": "./src/types/index.ts",
     "./types/*": "./src/types/*.ts",
     "./constants/geometry": "./src/constants/geometry.ts",
+    "./constants/limits": "./src/constants/limits.ts",
     "./constants/room": "./src/constants/room.ts",
     "./constants/zones": "./src/constants/zones.ts",
     "./positions": "./src/positions.ts",

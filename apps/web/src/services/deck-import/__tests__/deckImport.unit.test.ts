@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MAX_COMMANDER_ZONE_CARDS } from '@mtg/shared/constants/limits';
 import { fetchScryfallCards, formatMissingCards, parseDeckList, ParsedCard, validateDeckListLimits, validateImportResult } from '../deckImport';
 import { Card, ScryfallCard } from '@/types';
 import { sampleCommanderDecklist } from '@test/fixtures/decklists';
@@ -120,6 +121,26 @@ describe('validateDeckListLimits', () => {
 
     const result = validateDeckListLimits(parsed, { maxLibraryCards: 300 });
     expect(result.ok).toBe(true);
+  });
+
+  it('rejects imports that exceed the commander zone limit', () => {
+    const parsed: ParsedCard[] = [
+      {
+        quantity: MAX_COMMANDER_ZONE_CARDS + 1,
+        name: "Atraxa, Praetors' Voice",
+        set: '',
+        collectorNumber: '',
+        section: 'commander',
+      },
+    ];
+
+    const result = validateDeckListLimits(parsed, { maxLibraryCards: 300 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/Commander section too large/);
+      expect(result.error).toMatch(String(MAX_COMMANDER_ZONE_CARDS + 1));
+      expect(result.error).toMatch(String(MAX_COMMANDER_ZONE_CARDS));
+    }
   });
 });
 

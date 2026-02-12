@@ -1,0 +1,1 @@
+export const MAX_COMMANDER_ZONE_CARDS = 2;
