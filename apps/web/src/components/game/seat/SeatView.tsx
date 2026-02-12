@@ -1,5 +1,6 @@
 import React from "react";
 import { Eye, Plus } from "lucide-react";
+import { useDroppable } from "@dnd-kit/core";
 
 import { Button } from "../../ui/button";
 import { ZONE, ZONE_LABEL } from "@/constants/zones";
@@ -194,6 +195,16 @@ export const SeatView: React.FC<SeatViewProps> = ({
       : false;
   const libraryFaceDown = libraryTopCard ? !canSeeLibraryTop : true;
   const [isCommanderDrawerOpen, setIsCommanderDrawerOpen] = React.useState(false);
+  const commanderButtonDrop = useDroppable({
+    id: commander ? `mobile-drop:cmdr-btn:${commander.id}` : "mobile-drop:cmdr-btn:none",
+    disabled: !commander,
+    data: commander
+      ? {
+          zoneId: commander.id,
+          type: commander.type,
+        }
+      : undefined,
+  });
   React.useEffect(() => {
     if (layoutVariant !== "portrait-viewport") return;
     onPortraitCommanderDrawerOpenChange?.(isCommanderDrawerOpen);
@@ -253,10 +264,12 @@ export const SeatView: React.FC<SeatViewProps> = ({
           <div className="relative min-h-0 flex-1 flex flex-col bg-zinc-900/55 backdrop-blur-sm border-t border-white/10 overflow-hidden">
             <div className="h-8 shrink-0 px-2 flex items-center justify-between border-b border-zinc-800/70 bg-zinc-900/70">
               <button
+                ref={commanderButtonDrop.setNodeRef}
                 type="button"
                 className={cn(
                   "h-6 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-300 hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
                   isCommanderDrawerOpen && "border-indigo-400/70 bg-indigo-500/15 text-indigo-100",
+                  commanderButtonDrop.isOver && "ring-2 ring-indigo-400/80 bg-indigo-500/20",
                 )}
                 onClick={() => {
                   if (!commander) return;
@@ -290,6 +303,7 @@ export const SeatView: React.FC<SeatViewProps> = ({
                   cardScale={handCardScale}
                   baseCardHeight={baseCardHeightPx}
                   showLabel={false}
+                  dropDisabled={isCommanderDrawerOpen}
                   className="!w-full !flex-none !border-0 !bg-transparent"
                 />
               )}

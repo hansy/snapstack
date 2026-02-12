@@ -25,9 +25,10 @@ interface ZoneProps {
     onPointerCancel?: (e: React.PointerEvent<HTMLDivElement>) => void;
     onPointerLeave?: (e: React.PointerEvent<HTMLDivElement>) => void;
     innerRef?: (node: HTMLDivElement | null) => void;
+    disabled?: boolean;
 }
 
-const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 'stack', scale = 1, cardScale = 1, cardBaseHeight, cardBaseWidth, mirrorY = false, onContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onPointerLeave, innerRef }) => {
+const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 'stack', scale = 1, cardScale = 1, cardBaseHeight, cardBaseWidth, mirrorY = false, onContextMenu, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onPointerLeave, innerRef, disabled = false }) => {
     const myPlayerId = useGameStore((state) => state.myPlayerId);
     const viewerRole = useGameStore((state) => state.viewerRole);
 
@@ -43,6 +44,7 @@ const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 's
 
     const { setNodeRef, isOver } = useDroppable({
         id: zone.id,
+        disabled,
         data: {
             zoneId: zone.id,
             type: zone.type,
@@ -63,6 +65,7 @@ const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 's
 
     // Optimized: only check validity when dragging over this zone
     const isValidDrop = React.useMemo(() => {
+        if (disabled) return false;
         if (!active || !isOver) return false;
 
         const cardId = active.data.current?.cardId as string | undefined;
@@ -85,7 +88,7 @@ const ZoneInner: React.FC<ZoneProps> = ({ zone, className, children, layout = 's
         });
 
         return permission.allowed;
-    }, [active?.id, active?.data.current?.cardId, isOver, myPlayerId, viewerRole, zone.id, zone.type, zone.ownerId]);
+    }, [active?.id, active?.data.current?.cardId, disabled, isOver, myPlayerId, viewerRole, zone.id, zone.type, zone.ownerId]);
 
     return (
         <div

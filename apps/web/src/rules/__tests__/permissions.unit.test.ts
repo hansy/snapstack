@@ -69,6 +69,25 @@ describe('canMoveCard', () => {
     ).toBe(false);
   });
 
+  it('prevents moving cards into a full commander zone (2-card cap)', () => {
+    const card = makeCard({ ownerId: 'owner', zoneId: 'bf-owner' });
+    const fromZone = makeZone('bf-owner', ZONE.BATTLEFIELD, 'owner');
+    const toZone = makeZone('commander-owner', ZONE.COMMANDER, 'owner', ['c1', 'c2']);
+
+    expect(
+      canMoveCard({ actorId: 'owner', card, fromZone, toZone }).allowed
+    ).toBe(false);
+  });
+
+  it('allows moves within the same commander zone even when full', () => {
+    const card = makeCard({ ownerId: 'owner', zoneId: 'commander-owner' });
+    const commanderZone = makeZone('commander-owner', ZONE.COMMANDER, 'owner', ['c1', 'c2']);
+
+    expect(
+      canMoveCard({ actorId: 'owner', card, fromZone: commanderZone, toZone: commanderZone }).allowed
+    ).toBe(true);
+  });
+
   it('allows tokens to move between battlefields under the same rules', () => {
     const token = makeCard({ ownerId: 'owner', zoneId: 'bf-owner', isToken: true });
     const fromZone = makeZone('bf-owner', ZONE.BATTLEFIELD, 'owner');

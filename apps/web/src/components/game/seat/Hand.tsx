@@ -33,6 +33,7 @@ interface HandProps {
   cardScale?: number;
   baseCardHeight?: number;
   showLabel?: boolean;
+  dropDisabled?: boolean;
 }
 
 const SortableCard = React.memo(
@@ -145,6 +146,7 @@ const HandInner: React.FC<HandProps> = ({
   cardScale = HAND_BASE_CARD_SCALE,
   baseCardHeight,
   showLabel = true,
+  dropDisabled = false,
 }) => {
   // Memoize card IDs array for SortableContext
   const cardIds = React.useMemo(() => cards.map((c) => c.id), [cards]);
@@ -182,6 +184,7 @@ const HandInner: React.FC<HandProps> = ({
 
       <Zone
         zone={zone}
+        disabled={dropDisabled}
         scale={scale}
         cardScale={cardScale}
         innerRef={setHandScrollNode}

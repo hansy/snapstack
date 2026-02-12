@@ -40,7 +40,7 @@ export const CommanderZoneView: React.FC<CommanderZoneViewProps> = ({
   isOwner,
   handleTaxDelta,
 }) => {
-  const MAX_STACK_CARDS = 4;
+  const MAX_STACK_CARDS = 2;
   const STACK_OFFSET_PX = 36;
   const stackCards = cards.slice(-MAX_STACK_CARDS);
   const stackOffset = `var(--cmdr-offset, ${STACK_OFFSET_PX}px)`;

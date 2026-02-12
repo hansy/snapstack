@@ -502,11 +502,11 @@ export const MultiplayerBoardView: React.FC<MultiplayerBoardViewProps> = ({
                 style={{ ["--mobile-sidenav-h" as string]: "3.75rem" }}
               >
                 <div className="grid h-full w-full grid-rows-[minmax(0,1fr)_var(--mobile-sidenav-h)]">
-                  <div
-                    className="relative min-h-0 overflow-hidden overscroll-none"
-                    onPointerDownCapture={handleViewportPointerDownCapture}
-                    onPointerUpCapture={handleViewportPointerEndCapture}
-                    onPointerCancelCapture={handleViewportPointerEndCapture}
+                <div
+                  className="relative min-h-0 overflow-hidden overscroll-none touch-none"
+                  onPointerDownCapture={handleViewportPointerDownCapture}
+                  onPointerUpCapture={handleViewportPointerEndCapture}
+                  onPointerCancelCapture={handleViewportPointerEndCapture}
                   >
                     {activeSeat ? (
                       renderSeat(

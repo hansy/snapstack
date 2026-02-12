@@ -9,6 +9,9 @@ const normalizeActor = (actor: ActorInput): ActorContext =>
   typeof actor === "string" ? { actorId: actor } : actor;
 
 const isSpectator = (actor: ActorContext) => actor.role === "spectator";
+const MAX_COMMANDER_ZONE_CARDS = 2;
+const isCommanderZoneType = (zoneType: ZoneType | typeof LEGACY_COMMAND_ZONE) =>
+  zoneType === ZONE.COMMANDER || zoneType === LEGACY_COMMAND_ZONE;
 
 const allow = (): PermissionResult => ({ allowed: true });
 const deny = (reason: string): PermissionResult => ({ allowed: false, reason });
@@ -197,8 +200,14 @@ export function canMoveCard(
   }
 
   const toZoneType = destZone.type as ZoneType | typeof LEGACY_COMMAND_ZONE;
-  if ((toZoneType === ZONE.COMMANDER || toZoneType === LEGACY_COMMAND_ZONE) && !actorIsOwner) {
-    return deny("Cannot place cards into another player's command zone");
+  if (isCommanderZoneType(toZoneType)) {
+    if (!actorIsOwner) {
+      return deny("Cannot place cards into another player's command zone");
+    }
+    const isEnteringCommanderZone = startZone.id !== destZone.id;
+    if (isEnteringCommanderZone && destZone.cardIds.length >= MAX_COMMANDER_ZONE_CARDS) {
+      return deny("Commander zone cannot contain more than 2 cards");
+    }
   }
 
   const tokenLeavingBattlefield = isToken && fromBattlefield && !toBattlefield;
@@ -252,8 +261,13 @@ export function canAddCard(actor: ActorInput, card: Card, zone: Zone): Permissio
   }
 
   const zoneType = zone.type as ZoneType | typeof LEGACY_COMMAND_ZONE;
-  if ((zoneType === ZONE.COMMANDER || zoneType === LEGACY_COMMAND_ZONE) && card.ownerId !== zone.ownerId) {
-    return deny("Cannot place cards into another player's command zone");
+  if (isCommanderZoneType(zoneType)) {
+    if (card.ownerId !== zone.ownerId) {
+      return deny("Cannot place cards into another player's command zone");
+    }
+    if (zone.cardIds.length >= MAX_COMMANDER_ZONE_CARDS) {
+      return deny("Commander zone cannot contain more than 2 cards");
+    }
   }
 
   if (card.ownerId !== zone.ownerId) {

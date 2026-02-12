@@ -7,6 +7,7 @@ import {
   Skull,
   SquircleDashed,
 } from "lucide-react";
+import { useDroppable } from "@dnd-kit/core";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -48,14 +49,28 @@ const ZoneButton: React.FC<{
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
-}> = ({ icon, value, label, onClick, disabled, className }) => {
+  dropZoneId?: string;
+  dropType?: string;
+}> = ({ icon, value, label, onClick, disabled, className, dropZoneId, dropType }) => {
+  const dropTarget = useDroppable({
+    id: dropZoneId ? `mobile-drop:${dropZoneId}` : `mobile-drop:disabled:${label}`,
+    disabled: disabled || !dropZoneId,
+    data: dropZoneId
+      ? {
+          zoneId: dropZoneId,
+          type: dropType,
+        }
+      : undefined,
+  });
   return (
     <button
+      ref={dropTarget.setNodeRef}
       type="button"
       className={cn(
         "h-full w-full rounded-lg border border-zinc-700 bg-zinc-900/80 px-2",
         "flex items-center justify-center gap-1.5 text-zinc-200",
         "transition-colors hover:bg-zinc-800/80 disabled:opacity-40 disabled:cursor-not-allowed",
+        dropTarget.isOver && "ring-2 ring-indigo-400/80 bg-indigo-500/20",
         className,
       )}
       onClick={onClick}
@@ -308,6 +323,8 @@ export const PortraitSeatToolbar: React.FC<PortraitSeatToolbarProps> = ({
                 value={libraryCount}
                 onClick={handleLibraryClick}
                 disabled={!library}
+                dropZoneId={library?.id}
+                dropType={library?.type}
               />
               <ZoneButton
                 icon={<Skull size={15} />}
@@ -318,6 +335,8 @@ export const PortraitSeatToolbar: React.FC<PortraitSeatToolbarProps> = ({
                   onViewZone?.(graveyard.id);
                 }}
                 disabled={!graveyard}
+                dropZoneId={graveyard?.id}
+                dropType={graveyard?.type}
               />
               <ZoneButton
                 icon={<SquircleDashed size={15} />}
@@ -328,6 +347,8 @@ export const PortraitSeatToolbar: React.FC<PortraitSeatToolbarProps> = ({
                   onViewZone?.(exile.id);
                 }}
                 disabled={!exile}
+                dropZoneId={exile?.id}
+                dropType={exile?.type}
               />
             </div>
           ) : (
