@@ -978,7 +978,7 @@ export class Room extends YServer<Env> {
     tokens: RoomTokens,
     viewerRole: "player" | "spectator",
     resumeToken?: string,
-  ) {
+  ): boolean {
     const payload =
       viewerRole === "player"
         ? {
@@ -988,7 +988,31 @@ export class Room extends YServer<Env> {
         : { spectatorToken: tokens.spectatorToken };
     try {
       conn.send(JSON.stringify({ type: "roomTokens", payload }));
-    } catch (_err) {}
+      return true;
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  private async restorePlayerResumeToken(
+    playerId: string,
+    resumeToken: string,
+  ): Promise<void> {
+    const normalizedPlayerId = playerId.trim();
+    const normalizedToken = resumeToken.trim();
+    if (!normalizedPlayerId || !normalizedToken) return;
+    const tokens = await this.loadPlayerResumeTokens();
+    const expiresAt =
+      tokens[normalizedPlayerId]?.expiresAt ?? Date.now() + RESUME_TOKEN_TTL_MS;
+    const next = {
+      ...tokens,
+      [normalizedPlayerId]: {
+        token: normalizedToken,
+        expiresAt,
+      },
+    };
+    this.playerResumeTokens = next;
+    await this.ctx.storage.put(PLAYER_RESUME_TOKENS_KEY, next);
   }
 
   private hasPlayerConnections(): boolean {
@@ -1855,6 +1879,12 @@ export class Room extends YServer<Env> {
       (resolvedRole === "player" && resolvedPlayerId
         ? `player:${resolvedPlayerId}`
         : undefined);
+    const priorResumeToken =
+      auth.resumed && resolvedRole === "player" ? state.resumeToken : undefined;
+    const rollbackResumeToken = async () => {
+      if (!priorResumeToken || !resolvedPlayerId) return;
+      await this.restorePlayerResumeToken(resolvedPlayerId, priorResumeToken);
+    };
     if (connectionClosed) return;
     this.capturePerfMetricsFlag(url);
     conn.setState({
@@ -1882,7 +1912,24 @@ export class Room extends YServer<Env> {
           })
         : undefined;
 
-    if (connectionClosed) return;
+    if (connectionClosed) {
+      await rollbackResumeToken();
+      return;
+    }
+
+    if (activeTokens) {
+      const sent = this.sendRoomTokens(
+        conn,
+        activeTokens,
+        resolvedRole,
+        resumeToken,
+      );
+      if (!sent) {
+        await rollbackResumeToken();
+        return;
+      }
+    }
+
     if (auth.resumed && resolvedRole === "player" && resolvedPlayerId) {
       this.closeConnectionsForResumedPlayer(
         resolvedPlayerId,
@@ -1904,10 +1951,6 @@ export class Room extends YServer<Env> {
       viewerRole: resolvedRole,
       hasToken: Boolean(auth.token),
     });
-
-    if (activeTokens) {
-      this.sendRoomTokens(conn, activeTokens, resolvedRole, resumeToken);
-    }
 
     void this.sendOverlayForConnection(conn);
 

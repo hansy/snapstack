@@ -551,31 +551,32 @@ describe("server lifecycle guards", () => {
     oldConnection.id = "old-device-sync";
     (server as any).connectionPlayers.set(oldConnection, "p1");
     (server as any).connectionGroups.set(oldConnection, "old-device");
+    const restoreSpy = vi.spyOn(server as any, "restorePlayerResumeToken");
+    const conn = new TestConnection();
+    conn.id = "new-device-intent";
 
     const rotationDeferred = createDeferred<string>();
     const originalEnsure = (server as any).ensurePlayerResumeToken.bind(server);
     vi.spyOn(server as any, "ensurePlayerResumeToken").mockImplementation(
       async (playerId: string, options?: { rotate?: boolean }) => {
         if (options?.rotate) {
+          conn.close(1000, "client closed");
           return rotationDeferred.promise;
         }
         return originalEnsure(playerId, options);
       }
     );
 
-    const conn = new TestConnection();
-    conn.id = "new-device-intent";
     const url = new URL(
       `https://example.test/?role=intent&playerId=p1&rt=${initialResumeToken}&cid=new-device&gt=player-token`
     );
     const bindPromise = (server as any).bindIntentConnection(conn, url);
 
-    await Promise.resolve();
-    conn.close(1000, "client closed");
     rotationDeferred.resolve("rotated-token");
     await bindPromise;
 
     expect(oldConnection.closed).toEqual([]);
+    expect(restoreSpy).toHaveBeenCalledWith("p1", initialResumeToken);
   });
 
   it("rotates and expires resume tokens", async () => {
