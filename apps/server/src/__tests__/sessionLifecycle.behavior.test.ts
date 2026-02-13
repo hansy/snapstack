@@ -632,6 +632,54 @@ describe("server lifecycle guards", () => {
     expect(await (server as any).validatePlayerResumeToken("p1", rotated)).toBe(false);
   });
 
+  it("preserves concurrent resume token issuance for different players", async () => {
+    const store = new Map<string, unknown>();
+    const getGate = createDeferred<void>();
+    let gatedGets = 0;
+    const storage = {
+      get: vi.fn(async (key: string) => {
+        if (gatedGets < 2) {
+          gatedGets += 1;
+          await getGate.promise;
+        }
+        return store.get(key);
+      }),
+      put: vi.fn(async (key: string, value: unknown) => {
+        store.set(key, value);
+      }),
+      delete: vi.fn(async (key: string) => {
+        store.delete(key);
+      }),
+      list: vi.fn(async () => store.entries()),
+    };
+    const state = {
+      id: { name: "room-test" },
+      storage,
+    } as any;
+    const server = new Room(state, createEnv());
+
+    const p1Promise = (server as any).ensurePlayerResumeToken("p1");
+    const p2Promise = (server as any).ensurePlayerResumeToken("p2");
+
+    for (let i = 0; i < 10 && gatedGets < 2; i += 1) {
+      await Promise.resolve();
+    }
+    getGate.resolve();
+
+    const [p1Token, p2Token] = await Promise.all([p1Promise, p2Promise]);
+    expect(await (server as any).validatePlayerResumeToken("p1", p1Token)).toBe(
+      true
+    );
+    expect(await (server as any).validatePlayerResumeToken("p2", p2Token)).toBe(
+      true
+    );
+    const tokens = (server as any).playerResumeTokens as Record<
+      string,
+      { token: string; expiresAt: number }
+    >;
+    expect(Object.keys(tokens).sort()).toEqual(["p1", "p2"]);
+  });
+
   it("rejects resume auth without a connection group id", async () => {
     const state = createState();
     const server = new Room(state, createEnv());

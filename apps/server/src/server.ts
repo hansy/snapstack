@@ -276,6 +276,7 @@ export class Room extends YServer<Env> {
   private hiddenState: HiddenState | null = null;
   private roomTokens: RoomTokens | null = null;
   private playerResumeTokens: PlayerResumeTokens | null = null;
+  private playerResumeTokensMutation: Promise<void> = Promise.resolve();
   private libraryViews = new Map<
     string,
     { playerId: string; count?: number; lastPingAt: number }
@@ -909,48 +910,69 @@ export class Room extends YServer<Env> {
     return normalized;
   }
 
+  private async mutatePlayerResumeTokens<T>(
+    mutator: (
+      tokens: PlayerResumeTokens,
+    ) =>
+      | Promise<{ result: T; nextTokens?: PlayerResumeTokens }>
+      | { result: T; nextTokens?: PlayerResumeTokens },
+  ): Promise<T> {
+    const operation = this.playerResumeTokensMutation.then(async () => {
+      const tokens = await this.loadPlayerResumeTokens();
+      const { result, nextTokens } = await mutator(tokens);
+      if (nextTokens) {
+        this.playerResumeTokens = nextTokens;
+        await this.ctx.storage.put(PLAYER_RESUME_TOKENS_KEY, nextTokens);
+      }
+      return result;
+    });
+    this.playerResumeTokensMutation = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation;
+  }
+
   private async ensurePlayerResumeToken(
     playerId: string,
     options?: { rotate?: boolean },
   ): Promise<string> {
-    const rotate = options?.rotate ?? false;
-    const now = Date.now();
-    const normalizedPlayerId = playerId.trim();
-    const existing = await this.loadPlayerResumeTokens();
-    const current = existing[normalizedPlayerId];
-    if (
-      current &&
-      typeof current.token === "string" &&
-      current.token.length > 0 &&
-      current.expiresAt > now &&
-      !rotate
-    ) {
-      if (current.expiresAt - now > RESUME_TOKEN_TTL_MS / 2) {
-        return current.token;
+    return this.mutatePlayerResumeTokens((tokens) => {
+      const rotate = options?.rotate ?? false;
+      const now = Date.now();
+      const normalizedPlayerId = playerId.trim();
+      const current = tokens[normalizedPlayerId];
+      if (
+        current &&
+        typeof current.token === "string" &&
+        current.token.length > 0 &&
+        current.expiresAt > now &&
+        !rotate
+      ) {
+        if (current.expiresAt - now > RESUME_TOKEN_TTL_MS / 2) {
+          return { result: current.token };
+        }
+        const refreshed = {
+          token: current.token,
+          expiresAt: now + RESUME_TOKEN_TTL_MS,
+        };
+        const nextTokens = {
+          ...tokens,
+          [normalizedPlayerId]: refreshed,
+        };
+        return { result: refreshed.token, nextTokens };
       }
-      const refreshed = {
-        token: current.token,
-        expiresAt: now + RESUME_TOKEN_TTL_MS,
+
+      const created = crypto.randomUUID();
+      const nextTokens = {
+        ...tokens,
+        [normalizedPlayerId]: {
+          token: created,
+          expiresAt: now + RESUME_TOKEN_TTL_MS,
+        },
       };
-      const refreshedTokens = {
-        ...existing,
-        [normalizedPlayerId]: refreshed,
-      };
-      this.playerResumeTokens = refreshedTokens;
-      await this.ctx.storage.put(PLAYER_RESUME_TOKENS_KEY, refreshedTokens);
-      return refreshed.token;
-    }
-    const created = crypto.randomUUID();
-    const next = {
-      ...existing,
-      [normalizedPlayerId]: {
-        token: created,
-        expiresAt: now + RESUME_TOKEN_TTL_MS,
-      },
-    };
-    this.playerResumeTokens = next;
-    await this.ctx.storage.put(PLAYER_RESUME_TOKENS_KEY, next);
-    return created;
+      return { result: created, nextTokens };
+    });
   }
 
   private async validatePlayerResumeToken(
@@ -960,17 +982,16 @@ export class Room extends YServer<Env> {
     const normalizedPlayerId = playerId.trim();
     const normalizedToken = resumeToken.trim();
     if (!normalizedPlayerId || !normalizedToken) return false;
-    const now = Date.now();
-    const tokens = await this.loadPlayerResumeTokens();
-    const existing = tokens[normalizedPlayerId];
-    if (!existing) return false;
-    if (existing.expiresAt <= now) {
-      const { [normalizedPlayerId]: _expired, ...next } = tokens;
-      this.playerResumeTokens = next;
-      await this.ctx.storage.put(PLAYER_RESUME_TOKENS_KEY, next);
-      return false;
-    }
-    return existing.token === normalizedToken;
+    return this.mutatePlayerResumeTokens((tokens) => {
+      const now = Date.now();
+      const existing = tokens[normalizedPlayerId];
+      if (!existing) return { result: false };
+      if (existing.expiresAt <= now) {
+        const { [normalizedPlayerId]: _expired, ...nextTokens } = tokens;
+        return { result: false, nextTokens };
+      }
+      return { result: existing.token === normalizedToken };
+    });
   }
 
   private sendRoomTokens(
@@ -1001,18 +1022,18 @@ export class Room extends YServer<Env> {
     const normalizedPlayerId = playerId.trim();
     const normalizedToken = resumeToken.trim();
     if (!normalizedPlayerId || !normalizedToken) return;
-    const tokens = await this.loadPlayerResumeTokens();
-    const expiresAt =
-      tokens[normalizedPlayerId]?.expiresAt ?? Date.now() + RESUME_TOKEN_TTL_MS;
-    const next = {
-      ...tokens,
-      [normalizedPlayerId]: {
-        token: normalizedToken,
-        expiresAt,
-      },
-    };
-    this.playerResumeTokens = next;
-    await this.ctx.storage.put(PLAYER_RESUME_TOKENS_KEY, next);
+    await this.mutatePlayerResumeTokens((tokens) => {
+      const expiresAt =
+        tokens[normalizedPlayerId]?.expiresAt ?? Date.now() + RESUME_TOKEN_TTL_MS;
+      const nextTokens = {
+        ...tokens,
+        [normalizedPlayerId]: {
+          token: normalizedToken,
+          expiresAt,
+        },
+      };
+      return { result: undefined, nextTokens };
+    });
   }
 
   private hasPlayerConnections(): boolean {
