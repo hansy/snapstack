@@ -516,6 +516,41 @@ describe("server lifecycle guards", () => {
     ).toBe(true);
   });
 
+  it("does not kick old connections if resumed intent closes during token rotation", async () => {
+    const state = createState();
+    const server = new Room(state, createEnv());
+    const initialResumeToken = await (server as any).ensurePlayerResumeToken("p1");
+    const oldConnection = new TestConnection();
+    oldConnection.id = "old-device-sync";
+    (server as any).connectionPlayers.set(oldConnection, "p1");
+    (server as any).connectionGroups.set(oldConnection, "old-device");
+
+    const rotationDeferred = createDeferred<string>();
+    const originalEnsure = (server as any).ensurePlayerResumeToken.bind(server);
+    vi.spyOn(server as any, "ensurePlayerResumeToken").mockImplementation(
+      async (playerId: string, options?: { rotate?: boolean }) => {
+        if (options?.rotate) {
+          return rotationDeferred.promise;
+        }
+        return originalEnsure(playerId, options);
+      }
+    );
+
+    const conn = new TestConnection();
+    conn.id = "new-device-intent";
+    const url = new URL(
+      `https://example.test/?role=intent&playerId=p1&rt=${initialResumeToken}&cid=new-device&gt=player-token`
+    );
+    const bindPromise = (server as any).bindIntentConnection(conn, url);
+
+    await Promise.resolve();
+    conn.close(1000, "client closed");
+    rotationDeferred.resolve("rotated-token");
+    await bindPromise;
+
+    expect(oldConnection.closed).toEqual([]);
+  });
+
   it("rotates and expires resume tokens", async () => {
     const state = createState();
     const server = new Room(state, createEnv());
@@ -548,7 +583,6 @@ describe("server lifecycle guards", () => {
       {
         playerId: "p1",
         viewerRole: "player",
-        token: "player-token",
         resumeToken,
       },
       {
@@ -559,6 +593,38 @@ describe("server lifecycle guards", () => {
     );
 
     expect(result).toEqual({ ok: false, reason: "invalid token" });
+  });
+
+  it("falls back to player token auth when resume validation fails", async () => {
+    const state = createState();
+    const server = new Room(state, createEnv());
+
+    const result = await (server as any).resolveConnectionAuthWithResume(
+      {
+        playerId: "p1",
+        viewerRole: "player",
+        token: "player-token",
+        resumeToken: "stale-resume-token",
+        connectionGroupId: "new-device",
+      },
+      {
+        playerToken: "player-token",
+        spectatorToken: "spectator-token",
+      },
+      { allowTokenCreation: false },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      resolvedRole: "player",
+      playerId: "p1",
+      token: "player-token",
+      tokens: {
+        playerToken: "player-token",
+        spectatorToken: "spectator-token",
+      },
+      resumed: false,
+    });
   });
 
   it("prefers resume auth when both player token and resume token are present", async () => {

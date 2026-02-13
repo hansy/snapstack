@@ -1735,18 +1735,44 @@ export class Room extends YServer<Env> {
         reason: AuthRejectReason;
       }
   > {
+    const resolveStandardAuth = async (): Promise<
+      | {
+          ok: true;
+          resolvedRole: "player" | "spectator";
+          playerId?: string;
+          token?: string;
+          tokens: RoomTokens | null;
+          resumed: boolean;
+        }
+      | {
+          ok: false;
+          reason: AuthRejectReason;
+        }
+    > => {
+      const auth = await resolveConnectionAuth(
+        state,
+        storedTokens,
+        () => this.ensureRoomTokens(),
+        { allowTokenCreation: options.allowTokenCreation },
+      );
+      return auth.ok ? { ...auth, resumed: false } : auth;
+    };
+
     const resumePlayerId = state.playerId;
     const resumeToken = state.resumeToken;
     const shouldAttemptResume =
       state.viewerRole !== "spectator" &&
       Boolean(resumePlayerId && resumeToken);
     if (shouldAttemptResume && resumePlayerId && resumeToken) {
+      // If a request carries both resume and room tokens, prioritize resume
+      // takeover, but fall back to standard token auth when resume validation
+      // fails to avoid lockouts on stale/rotated resume tokens.
       if (!state.connectionGroupId) {
-        return { ok: false, reason: "invalid token" };
+        return state.token ? resolveStandardAuth() : { ok: false, reason: "invalid token" };
       }
       const canResume = await this.validatePlayerResumeToken(resumePlayerId, resumeToken);
       if (!canResume) {
-        return { ok: false, reason: "invalid token" };
+        return state.token ? resolveStandardAuth() : { ok: false, reason: "invalid token" };
       }
       let activeTokens = storedTokens;
       if (!activeTokens && options.allowTokenCreation) {
@@ -1761,17 +1787,7 @@ export class Room extends YServer<Env> {
         resumed: true,
       };
     }
-
-    const auth = await resolveConnectionAuth(
-      state,
-      storedTokens,
-      () => this.ensureRoomTokens(),
-      { allowTokenCreation: options.allowTokenCreation },
-    );
-    if (auth.ok) {
-      return { ...auth, resumed: false };
-    }
-    return auth;
+    return resolveStandardAuth();
   }
 
   private async bindIntentConnection(conn: Connection, url: URL) {
@@ -1840,13 +1856,6 @@ export class Room extends YServer<Env> {
         ? `player:${resolvedPlayerId}`
         : undefined);
     if (connectionClosed) return;
-    if (auth.resumed && resolvedRole === "player" && resolvedPlayerId) {
-      this.closeConnectionsForResumedPlayer(
-        resolvedPlayerId,
-        state.connectionGroupId,
-        conn,
-      );
-    }
     this.capturePerfMetricsFlag(url);
     conn.setState({
       playerId: resolvedPlayerId,
@@ -1874,6 +1883,13 @@ export class Room extends YServer<Env> {
         : undefined;
 
     if (connectionClosed) return;
+    if (auth.resumed && resolvedRole === "player" && resolvedPlayerId) {
+      this.closeConnectionsForResumedPlayer(
+        resolvedPlayerId,
+        state.connectionGroupId,
+        conn,
+      );
+    }
 
     if (resolvedRole === "player") {
       this.roomAnalytics?.onPlayerJoin();
