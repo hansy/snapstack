@@ -521,6 +521,7 @@ describe("server lifecycle guards", () => {
       {
         playerId: "p1",
         viewerRole: "player",
+        token: "player-token",
         resumeToken,
       },
       {
@@ -531,6 +532,39 @@ describe("server lifecycle guards", () => {
     );
 
     expect(result).toEqual({ ok: false, reason: "invalid token" });
+  });
+
+  it("prefers resume auth when both player token and resume token are present", async () => {
+    const state = createState();
+    const server = new Room(state, createEnv());
+    const resumeToken = await (server as any).ensurePlayerResumeToken("p1");
+
+    const result = await (server as any).resolveConnectionAuthWithResume(
+      {
+        playerId: "p1",
+        viewerRole: "player",
+        token: "player-token",
+        resumeToken,
+        connectionGroupId: "new-device",
+      },
+      {
+        playerToken: "player-token",
+        spectatorToken: "spectator-token",
+      },
+      { allowTokenCreation: false },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      resolvedRole: "player",
+      playerId: "p1",
+      token: "player-token",
+      tokens: {
+        playerToken: "player-token",
+        spectatorToken: "spectator-token",
+      },
+      resumed: true,
+    });
   });
 
   it("closes mismatched sync and intent connections on takeover", () => {

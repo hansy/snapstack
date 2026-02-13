@@ -1735,6 +1735,33 @@ export class Room extends YServer<Env> {
         reason: AuthRejectReason;
       }
   > {
+    const resumePlayerId = state.playerId;
+    const resumeToken = state.resumeToken;
+    const shouldAttemptResume =
+      state.viewerRole !== "spectator" &&
+      Boolean(resumePlayerId && resumeToken);
+    if (shouldAttemptResume && resumePlayerId && resumeToken) {
+      if (!state.connectionGroupId) {
+        return { ok: false, reason: "invalid token" };
+      }
+      const canResume = await this.validatePlayerResumeToken(resumePlayerId, resumeToken);
+      if (!canResume) {
+        return { ok: false, reason: "invalid token" };
+      }
+      let activeTokens = storedTokens;
+      if (!activeTokens && options.allowTokenCreation) {
+        activeTokens = await this.ensureRoomTokens();
+      }
+      return {
+        ok: true,
+        resolvedRole: "player",
+        playerId: resumePlayerId,
+        token: activeTokens?.playerToken,
+        tokens: activeTokens ?? null,
+        resumed: true,
+      };
+    }
+
     const auth = await resolveConnectionAuth(
       state,
       storedTokens,
@@ -1744,35 +1771,7 @@ export class Room extends YServer<Env> {
     if (auth.ok) {
       return { ...auth, resumed: false };
     }
-    if (
-      state.viewerRole === "spectator" ||
-      !state.playerId ||
-      !state.resumeToken
-    ) {
-      return auth;
-    }
-    if (!state.connectionGroupId) {
-      return { ok: false, reason: "invalid token" };
-    }
-    const canResume = await this.validatePlayerResumeToken(
-      state.playerId,
-      state.resumeToken,
-    );
-    if (!canResume) {
-      return { ok: false, reason: "invalid token" };
-    }
-    let activeTokens = storedTokens;
-    if (!activeTokens && options.allowTokenCreation) {
-      activeTokens = await this.ensureRoomTokens();
-    }
-    return {
-      ok: true,
-      resolvedRole: "player",
-      playerId: state.playerId,
-      token: activeTokens?.playerToken,
-      tokens: activeTokens ?? null,
-      resumed: true,
-    };
+    return auth;
   }
 
   private async bindIntentConnection(conn: Connection, url: URL) {

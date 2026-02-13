@@ -271,6 +271,28 @@ describe("useMultiplayerBoardController", () => {
     expect(result.current.shareLinks.resume).toContain("playerId=player-1");
   });
 
+  it("keeps share links disabled when only a resume token is present", async () => {
+    mockReadRoomTokensFromStorage.mockReturnValue({
+      resumeToken: "resume-only-token",
+    });
+
+    const { result } = renderHook(() => useMultiplayerBoardController("room-1"));
+
+    expect(result.current.shareLinksReady).toBe(false);
+
+    act(() => {
+      result.current.setIsShareDialogOpen(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.shareLinks).toEqual({
+        players: "",
+        spectators: "",
+        resume: "",
+      });
+    });
+  });
+
   it("disables idle timeout for spectators", () => {
     mockGameState.viewerRole = "spectator";
 

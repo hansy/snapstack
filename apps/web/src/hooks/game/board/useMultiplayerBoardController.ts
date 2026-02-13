@@ -93,8 +93,7 @@ export const useMultiplayerBoardController = (sessionId: string) => {
   const setActiveModal = useGameStore((state) => state.setActiveModal);
   const shareLinksReady = Boolean(
     shareTokenSource?.playerToken ||
-      shareTokenSource?.spectatorToken ||
-      shareTokenSource?.resumeToken,
+      shareTokenSource?.spectatorToken,
   );
 
   const overCardScale = useDragStore((state) => state.overCardScale);
