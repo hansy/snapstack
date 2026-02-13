@@ -489,6 +489,33 @@ describe("server lifecycle guards", () => {
     }
   });
 
+  it("does not rotate resume token if resumed intent closes before auth resolves", async () => {
+    const state = createState();
+    const server = new Room(state, createEnv());
+    const initialResumeToken = await (server as any).ensurePlayerResumeToken("p1");
+    const loadDeferred = createDeferred<unknown>();
+    vi.spyOn(server as any, "loadRoomTokens").mockReturnValue(
+      loadDeferred.promise
+    );
+
+    const conn = new TestConnection();
+    const url = new URL(
+      `https://example.test/?role=intent&gt=player-token&playerId=p1&rt=${initialResumeToken}&cid=new-device`
+    );
+    const bindPromise = (server as any).bindIntentConnection(conn, url);
+
+    conn.close(1000, "client closed");
+    loadDeferred.resolve({
+      playerToken: "player-token",
+      spectatorToken: "spectator-token",
+    });
+    await bindPromise;
+
+    expect(
+      await (server as any).validatePlayerResumeToken("p1", initialResumeToken)
+    ).toBe(true);
+  });
+
   it("rotates and expires resume tokens", async () => {
     const state = createState();
     const server = new Room(state, createEnv());

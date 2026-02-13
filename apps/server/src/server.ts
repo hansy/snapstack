@@ -1839,13 +1839,6 @@ export class Room extends YServer<Env> {
       (resolvedRole === "player" && resolvedPlayerId
         ? `player:${resolvedPlayerId}`
         : undefined);
-    const resumeToken =
-      resolvedRole === "player" && resolvedPlayerId
-        ? await this.ensurePlayerResumeToken(resolvedPlayerId, {
-            rotate: auth.resumed,
-          })
-        : undefined;
-
     if (connectionClosed) return;
     if (auth.resumed && resolvedRole === "player" && resolvedPlayerId) {
       this.closeConnectionsForResumedPlayer(
@@ -1872,6 +1865,16 @@ export class Room extends YServer<Env> {
       connectionGroupId: state.connectionGroupId,
     });
     connectionRegistered = true;
+
+    const resumeToken =
+      resolvedRole === "player" && resolvedPlayerId
+        ? await this.ensurePlayerResumeToken(resolvedPlayerId, {
+            rotate: auth.resumed,
+          })
+        : undefined;
+
+    if (connectionClosed) return;
+
     if (resolvedRole === "player") {
       this.roomAnalytics?.onPlayerJoin();
     }
